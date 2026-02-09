@@ -231,6 +231,35 @@
     }
   ];
 
+  const CHAPTER_ONE_INTRO = {
+    title: "Chapter 1. Title / Invocation",
+    sections: [
+      {
+        heading: "Narrative",
+        bullets: [
+          "Black screen.",
+          'Text on black: "WONDERLAND" for 1 second, then black again.',
+          'Uneven strobe montage: color flashes with "WONDERLAND" each hit.',
+          "Audio: silence to low drone under strobe, then cut to silence."
+        ]
+      },
+      {
+        heading: "Technical",
+        bullets: [
+          "Build strobe in edit with text layers plus color flashes.",
+          "Use one white text frame for 1 second, then black, then strobe.",
+          "Layer a low drone and automate volume spikes with each flash."
+        ]
+      },
+      {
+        heading: "Audience Impact",
+        bullets: [
+          "Priming ritual: visual assault seizes attention. Silence after strobe increases expectancy."
+        ]
+      }
+    ]
+  };
+
   const ENEMY_DEFS = {
     death_echo: { hp: 2, size: 15, speed: 82, behavior: "chase", touchDamage: 1 },
     rabbit_glimpse: { hp: 1, size: 12, speed: 128, behavior: "dash", touchDamage: 1 },
@@ -930,20 +959,22 @@
 
   function draw() {
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
-    const accent = accentColor(floor.accent);
+    const accent = game.state === GameState.TITLE ? accentColor("blue") : accentColor(floor.accent);
 
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
     drawBackdrop(accent);
-    drawCorridor(floor, accent);
+    if (game.state !== GameState.TITLE) {
+      drawCorridor(floor, accent);
 
-    drawPickups(accent);
-    drawBullets(accent);
-    drawEnemies(accent);
-    drawPlayer(accent);
-    drawParticles();
+      drawPickups(accent);
+      drawBullets(accent);
+      drawEnemies(accent);
+      drawPlayer(accent);
+      drawParticles();
 
-    drawHud(floor, accent);
+      drawHud(floor, accent);
+    }
     drawStateOverlay(floor, accent);
   }
 
@@ -1466,16 +1497,16 @@
       return;
     }
 
+    if (game.state === GameState.TITLE) {
+      drawChapterOneIntroCard(accent);
+      return;
+    }
+
     let title = "";
     let body = "";
     let footer = "";
 
-    if (game.state === GameState.TITLE) {
-      title = "Wonderland: Invocation Corridor";
-      body =
-        "Survive each timed floor in a shifting apartment corridor. Shoot echoes, dodge pressure, and outlast all nine chapters.";
-      footer = "Start: Enter or Space | Move: WASD | Shoot: Arrow Keys";
-    } else if (game.state === GameState.FLOOR_INTRO) {
+    if (game.state === GameState.FLOOR_INTRO) {
       title = floor.overlayTitle;
       body = floor.overlaySubtitle;
       footer = "Press Enter to skip intro";
@@ -1523,6 +1554,104 @@
     }
 
     ctx.textAlign = "left";
+  }
+
+  function drawChapterOneIntroCard(accent) {
+    const panelX = 96;
+    const panelY = 62;
+    const panelW = WIDTH - 192;
+    const panelH = HEIGHT - 124;
+
+    ctx.save();
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 22);
+
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.24);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(panelX + 24, panelY + 26);
+    ctx.lineTo(panelX + panelW - 24, panelY + 26);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(panelX + 24, panelY + panelH - 26);
+    ctx.lineTo(panelX + panelW - 24, panelY + panelH - 26);
+    ctx.stroke();
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 52px "Sora", "Inter", sans-serif';
+    ctx.textBaseline = "top";
+    ctx.fillText(CHAPTER_ONE_INTRO.title, panelX + 44, panelY + 44);
+
+    drawChapterIcon(panelX + panelW - 136, panelY + 48, accent);
+
+    let cursorY = panelY + 132;
+    const contentX = panelX + 44;
+    const contentW = panelW - 88;
+
+    for (const section of CHAPTER_ONE_INTRO.sections) {
+      cursorY = drawChapterSection(section, contentX, cursorY, contentW, accent);
+      cursorY += 8;
+    }
+
+    const promptText = "Press Enter or Space to begin";
+    ctx.font = '700 18px "Inter", sans-serif';
+    const promptWidth = ctx.measureText(promptText).width;
+    const promptX = panelX + panelW - promptWidth - 82;
+    const promptY = panelY + panelH - 62;
+
+    ctx.fillStyle = rgba(accent, 0.24);
+    fillRoundRect(promptX - 18, promptY - 6, promptWidth + 36, 34, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    strokeRoundRect(promptX - 18, promptY - 6, promptWidth + 36, 34, 999);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText(promptText, promptX, promptY);
+
+    ctx.restore();
+  }
+
+  function drawChapterIcon(x, y, accent) {
+    ctx.save();
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 2, y - 2, 76, 46);
+
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(x + 9, y + 40, 31, Math.PI * 1.5, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + 9, y + 40, 23, Math.PI * 1.5, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + 9, y + 40, 15, Math.PI * 1.5, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawChapterSection(section, x, y, width, accent) {
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 34px "Sora", "Inter", sans-serif';
+    ctx.fillText(section.heading, x, y);
+
+    ctx.font = '500 19px "Inter", sans-serif';
+    let cursorY = y + 42;
+
+    for (const bullet of section.bullets) {
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.arc(x + 9, cursorY + 12, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = TOKENS.ink;
+      cursorY = drawWrappedText(bullet, x + 24, cursorY, width - 24, 28) + 4;
+    }
+
+    return cursorY + 8;
   }
 
   function drawHeartIcon(x, y, type, accent, fillRatio) {
@@ -1613,6 +1742,8 @@
     if (line) {
       ctx.fillText(line, centerX, y);
     }
+
+    return y + lineHeight;
   }
 
   function fillRoundRect(x, y, w, h, r) {
