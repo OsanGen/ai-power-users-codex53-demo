@@ -1,14 +1,14 @@
-# Wonderland: Invocation Corridor (Local Prototype)
+# AI Power Users - Codex 5.3 Tech Demo (Local Prototype)
 
-Local 2D browser game prototype based on your 9-floor Wonderland concept and the CogSec pastel visual system.
+Local 2D browser game prototype for an AI tooling rabbit-hole journey, styled with the CogSec pastel visual system.
 
 ## Run locally
 
 Option 1:
-- Open `/Users/abelsanchez/CODEX/WONDERLAND/index.html` directly in a browser.
+- Open `index.html` directly in a browser.
 
 Option 2 (recommended):
-- From `/Users/abelsanchez/CODEX/WONDERLAND`, run:
+- From this project folder, run:
   - `python3 -m http.server 4173`
 - Open [http://127.0.0.1:4173/index.html](http://127.0.0.1:4173/index.html)
 
@@ -17,7 +17,7 @@ Option 2 (recommended):
 - Move: `WASD`
 - Shoot: `Arrow Keys` (4 directions)
 - Start / Skip floor intro: `Enter` or `Space`
-- Restart after death/victory: `R`
+- Restart after game over/victory: `R`
 
 ## Gameplay
 

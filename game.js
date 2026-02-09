@@ -58,7 +58,11 @@
 
     const lower = event.key.toLowerCase();
     if (game.state === GameState.TITLE && (event.key === " " || event.key === "Enter")) {
-      startRun();
+      if (isTitleSequenceComplete()) {
+        startRun();
+      } else {
+        game.titleIntroTime = TITLE_SEQUENCE.finish;
+      }
     } else if (game.state === GameState.FLOOR_INTRO && (event.key === " " || event.key === "Enter")) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
@@ -98,37 +102,37 @@
       name: "Invocation Corridor",
       durationSeconds: 48,
       accent: "yellow",
-      overlayTitle: "Floor 1 - Invocation Corridor",
-      overlaySubtitle: "WONDERLAND pulses in the walls. The hallway waits for a verdict.",
+      overlayTitle: "Floor 1 - AI Power Users",
+      overlaySubtitle: "AI POWER USERS pulses in the walls. The rabbit hole opens.",
       heartType: "anchor",
       heartSpawn: { initialCount: 2, baseRate: 0.1, clutchBoostStart: 10 },
       enemyWaves: [
-        wave("death_echo", 0, 48, 0.55, 1.15, 0.92, 1.18),
-        wave("death_echo", 28, 48, 0.2, 0.55, 1.0, 1.2, ["spawnsBehindPlayer"])
+        wave("signal_echo", 0, 48, 0.55, 1.15, 0.92, 1.18),
+        wave("signal_echo", 28, 48, 0.2, 0.55, 1.0, 1.2, ["spawnsBehindPlayer"])
       ]
     },
     {
       id: 2,
-      name: "Bathroom Run",
+      name: "Tool Discovery Run",
       durationSeconds: 52,
       accent: "blue",
-      overlayTitle: "Floor 2 - Bathroom Run",
-      overlaySubtitle: "The rabbit lives in your peripheral vision. The bedroom lies.",
+      overlayTitle: "Floor 2 - Tool Discovery",
+      overlaySubtitle: "New tools appear quickly. The rabbit stays just ahead.",
       heartType: "refuge",
       heartSpawn: { initialCount: 2, baseRate: 0.1, clutchBoostStart: 9 },
       enemyWaves: [
         wave("rabbit_glimpse", 0, 52, 0.6, 1.35, 0.95, 1.28),
-        wave("death_echo", 8, 30, 0.15, 0.5, 1.0, 1.2),
+        wave("signal_echo", 8, 30, 0.15, 0.5, 1.0, 1.2),
         wave("rabbit_glimpse", 35, 52, 0.7, 1.55, 1.08, 1.36, ["spawnsBehindPlayer"])
       ]
     },
     {
       id: 3,
-      name: "Glitch Feed",
+      name: "Prompt Loop Feed",
       durationSeconds: 56,
       accent: "mint",
-      overlayTitle: "Floor 3 - Glitch Feed",
-      overlaySubtitle: "Your name stutters on the screen while danger keeps refreshing.",
+      overlayTitle: "Floor 3 - Prompt Loop",
+      overlaySubtitle: "Prompts, docs, and context windows keep refreshing in sync.",
       heartType: "memory",
       heartSpawn: { initialCount: 1, baseRate: 0.09, clutchBoostStart: 12 },
       enemyWaves: [
@@ -139,11 +143,11 @@
     },
     {
       id: 4,
-      name: "Distortion Lane",
+      name: "Workflow Sync Lane",
       durationSeconds: 60,
       accent: "pink",
-      overlayTitle: "Floor 4 - Distortion Lane",
-      overlaySubtitle: "Every step upward makes the corridor hum louder.",
+      overlayTitle: "Floor 4 - Workflow Sync",
+      overlaySubtitle: "Agents and apps begin coordinating in a steady rhythm.",
       heartType: "noise_cancel",
       heartSpawn: { initialCount: 1, baseRate: 0.09, clutchBoostStart: 12 },
       enemyWaves: [
@@ -154,11 +158,11 @@
     },
     {
       id: 5,
-      name: "Kitchen Crawl",
+      name: "Stack Builder Hall",
       durationSeconds: 64,
       accent: "yellow",
-      overlayTitle: "Floor 5 - Kitchen Crawl",
-      overlaySubtitle: "Every chair looks pre-arranged for your panic.",
+      overlayTitle: "Floor 5 - Stack Builder",
+      overlaySubtitle: "Your stack begins to click: tools, memory, and execution.",
       heartType: "table",
       heartSpawn: { initialCount: 1, baseRate: 0.085, clutchBoostStart: 13 },
       enemyWaves: [
@@ -170,11 +174,11 @@
     },
     {
       id: 6,
-      name: "First Loop",
+      name: "Automation Loop",
       durationSeconds: 70,
       accent: "blue",
-      overlayTitle: "Floor 6 - First Loop",
-      overlaySubtitle: "You pass the same door again. The blood is older than memory.",
+      overlayTitle: "Floor 6 - Automation Loop",
+      overlaySubtitle: "You pass the same workflow again, now faster and cleaner.",
       heartType: "checkpoint",
       heartSpawn: { initialCount: 1, baseRate: 0.082, clutchBoostStart: 14 },
       enemyWaves: [
@@ -185,11 +189,11 @@
     },
     {
       id: 7,
-      name: "Mirror March",
+      name: "Mirror Workflow",
       durationSeconds: 76,
       accent: "mint",
-      overlayTitle: "Floor 7 - Mirror March",
-      overlaySubtitle: "Something ahead dodges exactly like you.",
+      overlayTitle: "Floor 7 - Mirror Workflow",
+      overlaySubtitle: "A mirrored agent runs your process with your precision.",
       heartType: "mirror",
       heartSpawn: { initialCount: 1, baseRate: 0.08, clutchBoostStart: 14 },
       enemyWaves: [
@@ -200,30 +204,30 @@
     },
     {
       id: 8,
-      name: "Threshold Cut",
+      name: "Integration Threshold",
       durationSeconds: 84,
       accent: "pink",
-      overlayTitle: "Floor 8 - Threshold Cut",
-      overlaySubtitle: "Cells wake up while the machete picks its landing.",
+      overlayTitle: "Floor 8 - Integration Threshold",
+      overlaySubtitle: "Integrations wake up across your stack as flows stay stable.",
       heartType: "bloom",
       heartSpawn: { initialCount: 1, baseRate: 0.075, clutchBoostStart: 16 },
       enemyWaves: [
-        wave("machete_rabbit", 0, 84, 0.22, 0.72, 1.0, 1.24),
+        wave("apex_rabbit", 0, 84, 0.22, 0.72, 1.0, 1.24),
         wave("cell_blob", 8, 84, 0.45, 1.1, 0.95, 1.26, ["canSplit"]),
         wave("speaker_wraith", 28, 84, 0.2, 0.62, 1.05, 1.3)
       ]
     },
     {
       id: 9,
-      name: "Evolution Corridor",
+      name: "Power User Emergence",
       durationSeconds: 92,
       accent: "yellow",
-      overlayTitle: "Floor 9 - Evolution Corridor",
-      overlaySubtitle: "You wake in your own hallway. The rabbit stays.",
+      overlayTitle: "Floor 9 - Power User Emergence",
+      overlaySubtitle: "You return from the rabbit hole with power-user clarity.",
       heartType: "final",
       heartSpawn: { initialCount: 1, baseRate: 0.07, clutchBoostStart: 18 },
       enemyWaves: [
-        wave("choke_shadow", 0, 92, 0.35, 0.92, 1.0, 1.22),
+        wave("reach_shadow", 0, 92, 0.35, 0.92, 1.0, 1.22),
         wave("evolution_rabbit", 8, 92, 0.09, 0.22, 1.0, 1.14),
         wave("decay_mote", 30, 92, 0.45, 1.45, 1.05, 1.36),
         wave("loop_ghost", 42, 92, 0.22, 0.72, 1.08, 1.34, ["spawnsBehindPlayer"])
@@ -231,37 +235,32 @@
     }
   ];
 
-  const CHAPTER_ONE_INTRO = {
-    title: "Chapter 1. Title / Invocation",
-    sections: [
-      {
-        heading: "Narrative",
-        bullets: [
-          "Black screen.",
-          'Text on black: "WONDERLAND" for 1 second, then black again.',
-          'Uneven strobe montage: color flashes with "WONDERLAND" each hit.',
-          "Audio: silence to low drone under strobe, then cut to silence."
-        ]
-      },
-      {
-        heading: "Technical",
-        bullets: [
-          "Build strobe in edit with text layers plus color flashes.",
-          "Use one white text frame for 1 second, then black, then strobe.",
-          "Layer a low drone and automate volume spikes with each flash."
-        ]
-      },
-      {
-        heading: "Audience Impact",
-        bullets: [
-          "Priming ritual: visual assault seizes attention. Silence after strobe increases expectancy."
-        ]
-      }
+  const TITLE_SEQUENCE = {
+    textOnStart: 0.9,
+    textOnEnd: 1.9,
+    blackGapEnd: 2.35,
+    strobeStart: 2.35,
+    strobeEnd: 5.45,
+    finish: 6.2,
+    flashWindows: [
+      { time: 2.38, length: 0.07, color: "yellow" },
+      { time: 2.56, length: 0.09, color: "pink" },
+      { time: 2.77, length: 0.06, color: "blue" },
+      { time: 3.02, length: 0.08, color: "mint" },
+      { time: 3.31, length: 0.07, color: "pink" },
+      { time: 3.48, length: 0.05, color: "yellow" },
+      { time: 3.76, length: 0.1, color: "blue" },
+      { time: 4.02, length: 0.06, color: "mint" },
+      { time: 4.27, length: 0.07, color: "yellow" },
+      { time: 4.51, length: 0.11, color: "pink" },
+      { time: 4.81, length: 0.07, color: "blue" },
+      { time: 5.08, length: 0.08, color: "mint" },
+      { time: 5.29, length: 0.07, color: "yellow" }
     ]
   };
 
   const ENEMY_DEFS = {
-    death_echo: { hp: 2, size: 15, speed: 82, behavior: "chase", touchDamage: 1 },
+    signal_echo: { hp: 2, size: 15, speed: 82, behavior: "chase", touchDamage: 1 },
     rabbit_glimpse: { hp: 1, size: 12, speed: 128, behavior: "dash", touchDamage: 1 },
     notification_swarm: { hp: 1, size: 10, speed: 104, behavior: "swarm", touchDamage: 1 },
     name_glitch_shade: { hp: 2, size: 14, speed: 88, behavior: "phase", touchDamage: 1 },
@@ -278,9 +277,9 @@
     loop_ghost: { hp: 2, size: 13, speed: 98, behavior: "chase", touchDamage: 1 },
     decay_mote: { hp: 1, size: 8, speed: 152, behavior: "swarm", touchDamage: 1 },
     double: { hp: 5, size: 15, speed: 116, behavior: "mirror", touchDamage: 1 },
-    machete_rabbit: { hp: 6, size: 17, speed: 126, behavior: "charge", touchDamage: 2 },
+    apex_rabbit: { hp: 6, size: 17, speed: 126, behavior: "charge", touchDamage: 2 },
     cell_blob: { hp: 2, size: 11, speed: 88, behavior: "blob", touchDamage: 1 },
-    choke_shadow: { hp: 3, size: 13, speed: 0, behavior: "wallhand", touchDamage: 2 },
+    reach_shadow: { hp: 3, size: 13, speed: 0, behavior: "wallhand", touchDamage: 2 },
     evolution_rabbit: { hp: 10, size: 19, speed: 122, behavior: "boss", touchDamage: 2 }
   };
 
@@ -294,7 +293,8 @@
     clearTimer: 0,
     globalTime: 0,
     kills: 0,
-    beatCount: 0
+    beatCount: 0,
+    titleIntroTime: 0
   };
 
   const player = {
@@ -333,6 +333,7 @@
     game.introTimer = 0;
     game.clearTimer = 0;
     game.kills = 0;
+    game.titleIntroTime = 0;
     bullets = [];
     enemyBullets = [];
     enemies = [];
@@ -413,6 +414,7 @@
     updateParticles(dt);
 
     if (game.state === GameState.TITLE) {
+      game.titleIntroTime += dt;
       return;
     }
 
@@ -598,7 +600,7 @@
   }
 
   function findSpawnPoint(flags, enemyType) {
-    if (enemyType === "choke_shadow") {
+    if (enemyType === "reach_shadow") {
       const side = Math.random() < 0.5 ? -1 : 1;
       return {
         x: side < 0 ? WORLD.x + 10 : WORLD.x + WORLD.w - 10,
@@ -959,23 +961,129 @@
 
   function draw() {
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
-    const accent = game.state === GameState.TITLE ? accentColor("blue") : accentColor(floor.accent);
+    const accent = accentColor(floor.accent);
 
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-    drawBackdrop(accent);
-    if (game.state !== GameState.TITLE) {
-      drawCorridor(floor, accent);
-
-      drawPickups(accent);
-      drawBullets(accent);
-      drawEnemies(accent);
-      drawPlayer(accent);
-      drawParticles();
-
-      drawHud(floor, accent);
+    if (game.state === GameState.TITLE) {
+      drawTitleCinematic();
+      return;
     }
+
+    drawBackdrop(accent);
+    drawCorridor(floor, accent);
+
+    drawPickups(accent);
+    drawBullets(accent);
+    drawEnemies(accent);
+    drawPlayer(accent);
+    drawParticles();
+
+    drawHud(floor, accent);
     drawStateOverlay(floor, accent);
+  }
+
+  function isTitleSequenceComplete() {
+    return game.titleIntroTime >= TITLE_SEQUENCE.finish;
+  }
+
+  function drawTitleCinematic() {
+    const t = game.titleIntroTime;
+    const titleText = "AI POWER USERS";
+
+    ctx.fillStyle = "#000000";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    if (t < TITLE_SEQUENCE.textOnStart) {
+      return;
+    }
+
+    if (t <= TITLE_SEQUENCE.textOnEnd) {
+      drawTitleCenterText(titleText, TOKENS.white, 78);
+      return;
+    }
+
+    if (t < TITLE_SEQUENCE.blackGapEnd) {
+      return;
+    }
+
+    if (t <= TITLE_SEQUENCE.strobeEnd) {
+      const flash = activeStrobeFlash(t);
+      if (flash) {
+        const flashColor = accentColor(flash.color);
+        ctx.fillStyle = flashColor;
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        drawTitleCenterText(titleText, TOKENS.ink, 78);
+      }
+      return;
+    }
+
+    drawTitleFinalFrame();
+  }
+
+  function activeStrobeFlash(time) {
+    for (const flash of TITLE_SEQUENCE.flashWindows) {
+      if (time >= flash.time && time <= flash.time + flash.length) {
+        return flash;
+      }
+    }
+    return null;
+  }
+
+  function drawTitleCenterText(text, color, size) {
+    ctx.fillStyle = color;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = `700 ${size}px "Sora", "Inter", sans-serif`;
+    ctx.fillText(text, WIDTH * 0.5, HEIGHT * 0.5);
+    ctx.textAlign = "left";
+  }
+
+  function drawTitleFinalFrame() {
+    const accent = accentColor("yellow");
+    const panelX = 152;
+    const panelY = 164;
+    const panelW = WIDTH - 304;
+    const panelH = HEIGHT - 268;
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 22);
+
+    ctx.fillStyle = rgba(accent, 0.24);
+    fillRoundRect(panelX + 24, panelY + 24, panelW - 48, 10, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = '700 58px "Sora", "Inter", sans-serif';
+    ctx.fillText("AI POWER USERS", WIDTH * 0.5, panelY + 54);
+
+    ctx.font = '700 24px "Inter", sans-serif';
+    ctx.fillText("Codex 5.3 Tech Demo", WIDTH * 0.5, panelY + 130);
+
+    ctx.font = '500 20px "Inter", sans-serif';
+    drawWrappedText(
+      "Follow one builder into the AI tooling rabbit hole, then emerge as an AI power user with repeatable workflows.",
+      WIDTH * 0.5,
+      panelY + 186,
+      panelW - 96,
+      30
+    );
+
+    const prompt = "Press Enter or Space to start";
+    ctx.font = '700 18px "Inter", sans-serif';
+    const promptWidth = ctx.measureText(prompt).width;
+    ctx.fillStyle = rgba(accent, 0.26);
+    fillRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, panelY + panelH - 68, promptWidth + 40, 38, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    strokeRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, panelY + panelH - 68, promptWidth + 40, 38, 999);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText(prompt, WIDTH * 0.5, panelY + panelH - 58);
+
+    ctx.textAlign = "left";
   }
 
   function drawBackdrop(accent) {
@@ -1089,7 +1197,7 @@
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '600 11px "Sora", "Inter", sans-serif';
     for (let x = WORLD.x + 40; x < WORLD.x + WORLD.w - 100; x += step) {
-      ctx.fillText("WONDER", x, WORLD.y + 54);
+      ctx.fillText("AI", x, WORLD.y + 54);
     }
   }
 
@@ -1358,7 +1466,7 @@
         fillRoundRect(x - r, y - r, r * 2, r * 2, 6);
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 6);
         ctx.strokeRect(x - r * 0.55, y - r * 1.15, r * 1.1, r * 0.45);
-      } else if (enemy.type === "choke_shadow") {
+      } else if (enemy.type === "reach_shadow") {
         ctx.fillStyle = rgba(TOKENS.ink, 0.85);
         fillRoundRect(x - r, y - r, r * 2, r * 2, 999);
         ctx.strokeStyle = TOKENS.white;
@@ -1397,32 +1505,57 @@
     const x = player.x;
     const y = player.y;
 
+    const bodyW = player.radius * 1.65;
+    const bodyH = player.radius * 1.95;
+    const bodyX = x - bodyW * 0.5;
+    const bodyY = y - bodyH * 0.4;
+    const headRadius = player.radius * 0.7;
+    const headY = bodyY - headRadius - 8;
+
     ctx.fillStyle = TOKENS.white;
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
 
-    fillRoundRect(x - player.radius, y - player.radius, player.radius * 2, player.radius * 2, 10);
-    strokeRoundRect(x - player.radius, y - player.radius, player.radius * 2, player.radius * 2, 10);
+    fillRoundRect(bodyX, bodyY, bodyW, bodyH, 10);
+    strokeRoundRect(bodyX, bodyY, bodyW, bodyH, 10);
 
     ctx.fillStyle = accent;
-    fillRoundRect(x - player.radius + 3, y - player.radius + 3, player.radius * 2 - 6, player.radius * 2 - 6, 8);
-
-    ctx.fillStyle = TOKENS.white;
-    fillRoundRect(x - 6, y - player.radius - 9, 12, 10, 5);
-    ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(x - 6, y - player.radius - 9, 12, 10, 5);
+    fillRoundRect(bodyX + 3, bodyY + 3, bodyW - 6, bodyH - 6, 8);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillRect(x - 4, y - player.radius - 5, 2, 2);
-    ctx.fillRect(x + 2, y - player.radius - 5, 2, 2);
+    fillRoundRect(bodyX + 6, bodyY + bodyH - 6, bodyW * 0.28, 16, 6);
+    fillRoundRect(bodyX + bodyW - 6 - bodyW * 0.28, bodyY + bodyH - 6, bodyW * 0.28, 16, 6);
+
+    ctx.fillStyle = TOKENS.yellow;
+    ctx.beginPath();
+    ctx.arc(x, headY, headRadius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.stroke();
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillRect(x - 5, headY - 3, 2, 2);
+    ctx.fillRect(x + 3, headY - 3, 2, 2);
+
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.arc(x - 4, headY - 1, 6, Math.PI * 1.25, Math.PI * 0.1, false);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + 4, headY + 1, 5.5, Math.PI * 1.1, Math.PI * 0.1, false);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, headY + 4, 6, Math.PI * 1.05, Math.PI * 2, false);
+    ctx.stroke();
 
     const aimX = player.lastAimX;
     const aimY = player.lastAimY;
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + aimX * 14, y + aimY * 14);
+    ctx.moveTo(x, y - 3);
+    ctx.lineTo(x + aimX * 14, y + aimY * 14 - 3);
     ctx.stroke();
   }
 
@@ -1493,12 +1626,7 @@
   }
 
   function drawStateOverlay(floor, accent) {
-    if (game.state === GameState.PLAYING) {
-      return;
-    }
-
-    if (game.state === GameState.TITLE) {
-      drawChapterOneIntroCard(accent);
+    if (game.state === GameState.PLAYING || game.state === GameState.TITLE) {
       return;
     }
 
@@ -1516,11 +1644,11 @@
       footer = floor.id < 9 ? "Transitioning..." : "";
     } else if (game.state === GameState.GAME_OVER) {
       title = "Run Failed";
-      body = "The corridor closed before the climb was complete.";
+      body = "The run ended before your workflow fully stabilized.";
       footer = "Press R to restart";
     } else if (game.state === GameState.VICTORY) {
       title = "Run Complete";
-      body = "You survived all nine floors of Wonderland's timeline.";
+      body = "You completed all nine floors of the AI tooling timeline.";
       footer = "Press R to play again";
     }
 
@@ -1554,104 +1682,6 @@
     }
 
     ctx.textAlign = "left";
-  }
-
-  function drawChapterOneIntroCard(accent) {
-    const panelX = 96;
-    const panelY = 62;
-    const panelW = WIDTH - 192;
-    const panelH = HEIGHT - 124;
-
-    ctx.save();
-
-    ctx.fillStyle = TOKENS.white;
-    fillRoundRect(panelX, panelY, panelW, panelH, 22);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 3;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 22);
-
-    ctx.strokeStyle = rgba(TOKENS.ink, 0.24);
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(panelX + 24, panelY + 26);
-    ctx.lineTo(panelX + panelW - 24, panelY + 26);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(panelX + 24, panelY + panelH - 26);
-    ctx.lineTo(panelX + panelW - 24, panelY + panelH - 26);
-    ctx.stroke();
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 52px "Sora", "Inter", sans-serif';
-    ctx.textBaseline = "top";
-    ctx.fillText(CHAPTER_ONE_INTRO.title, panelX + 44, panelY + 44);
-
-    drawChapterIcon(panelX + panelW - 136, panelY + 48, accent);
-
-    let cursorY = panelY + 132;
-    const contentX = panelX + 44;
-    const contentW = panelW - 88;
-
-    for (const section of CHAPTER_ONE_INTRO.sections) {
-      cursorY = drawChapterSection(section, contentX, cursorY, contentW, accent);
-      cursorY += 8;
-    }
-
-    const promptText = "Press Enter or Space to begin";
-    ctx.font = '700 18px "Inter", sans-serif';
-    const promptWidth = ctx.measureText(promptText).width;
-    const promptX = panelX + panelW - promptWidth - 82;
-    const promptY = panelY + panelH - 62;
-
-    ctx.fillStyle = rgba(accent, 0.24);
-    fillRoundRect(promptX - 18, promptY - 6, promptWidth + 36, 34, 999);
-    ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(promptX - 18, promptY - 6, promptWidth + 36, 34, 999);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(promptText, promptX, promptY);
-
-    ctx.restore();
-  }
-
-  function drawChapterIcon(x, y, accent) {
-    ctx.save();
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x - 2, y - 2, 76, 46);
-
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(x + 9, y + 40, 31, Math.PI * 1.5, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x + 9, y + 40, 23, Math.PI * 1.5, Math.PI * 2);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(x + 9, y + 40, 15, Math.PI * 1.5, Math.PI * 2);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  function drawChapterSection(section, x, y, width, accent) {
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 34px "Sora", "Inter", sans-serif';
-    ctx.fillText(section.heading, x, y);
-
-    ctx.font = '500 19px "Inter", sans-serif';
-    let cursorY = y + 42;
-
-    for (const bullet of section.bullets) {
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.arc(x + 9, cursorY + 12, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = TOKENS.ink;
-      cursorY = drawWrappedText(bullet, x + 24, cursorY, width - 24, 28) + 4;
-    }
-
-    return cursorY + 8;
   }
 
   function drawHeartIcon(x, y, type, accent, fillRatio) {
