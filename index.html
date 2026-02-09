@@ -19,8 +19,32 @@
         <p>Top-down corridor survival shooter. Move: WASD. Shoot: Arrow Keys.</p>
       </header>
 
-      <section class="game-frame">
+      <section id="gameFrame" class="game-frame" tabindex="-1">
         <canvas id="game" width="1280" height="720" aria-label="AI Power Users game canvas"></canvas>
+        <button id="overlayRestartBtn" type="button" class="overlay-restart hidden">Restart</button>
+        <div id="shareModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shareTitle" aria-hidden="true">
+          <div class="modal-panel">
+            <div class="modal-accent" aria-hidden="true"></div>
+            <h2 id="shareTitle">Share your run</h2>
+            <p class="modal-summary">You reached <span id="shareFloor">Floor 1</span>.</p>
+            <div class="share-card-wrap">
+              <img id="shareCardPreview" class="share-card-preview" alt="Run card preview" />
+            </div>
+            <label class="sr-only" for="shareText">Suggested post copy</label>
+            <textarea id="shareText" class="share-text" readonly></textarea>
+            <div class="modal-actions">
+              <button id="shareCopyBtn" type="button" class="btn btn-primary">Copy text</button>
+              <button id="shareLinkedInBtn" type="button" class="btn">Open LinkedIn</button>
+              <button id="shareDownloadBtn" type="button" class="btn">Download card</button>
+              <button id="shareCloseBtn" type="button" class="btn">Not now</button>
+            </div>
+            <label class="modal-check">
+              <input id="shareDontAsk" type="checkbox" />
+              Don&apos;t ask again
+            </label>
+            <p class="modal-note">You can re-enable in settings.</p>
+          </div>
+        </div>
       </section>
 
       <footer class="app-footer">

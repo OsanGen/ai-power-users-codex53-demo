@@ -3,9 +3,22 @@
 
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
+  const gameFrame = document.getElementById("gameFrame");
+  const shareModalEl = document.getElementById("shareModal");
+  const shareFloorEl = document.getElementById("shareFloor");
+  const shareTextEl = document.getElementById("shareText");
+  const shareCardPreviewEl = document.getElementById("shareCardPreview");
+  const shareCopyBtn = document.getElementById("shareCopyBtn");
+  const shareLinkedInBtn = document.getElementById("shareLinkedInBtn");
+  const shareDownloadBtn = document.getElementById("shareDownloadBtn");
+  const shareCloseBtn = document.getElementById("shareCloseBtn");
+  const shareDontAskEl = document.getElementById("shareDontAsk");
+  const overlayRestartBtn = document.getElementById("overlayRestartBtn");
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
+  const SHARE_DONT_ASK_KEY = "dontAskShare";
+  const CANONICAL_SHARE_URL = "";
 
   const TOKENS = {
     yellow: "#f4d66d",
@@ -22,6 +35,7 @@
     UPGRADE_SELECT: "UPGRADE_SELECT",
     FLOOR_INTRO: "FLOOR_INTRO",
     PLAYING: "PLAYING",
+    DEATH_ANIM: "DEATH_ANIM",
     FLOOR_CLEAR: "FLOOR_CLEAR",
     GAME_OVER: "GAME_OVER",
     VICTORY: "VICTORY"
@@ -64,6 +78,490 @@
       reducedMotionQuery.addListener(onReducedMotionChange);
     }
   }
+
+  function isHttpShareUrl(value) {
+    if (typeof value !== "string") {
+      return false;
+    }
+    return /^https?:\/\//i.test(value.trim());
+  }
+
+  function resolveShareUrl() {
+    const canonical = (CANONICAL_SHARE_URL || "").trim();
+    if (isHttpShareUrl(canonical)) {
+      return canonical;
+    }
+
+    const current = window.location && typeof window.location.href === "string" ? window.location.href : "";
+    if (isHttpShareUrl(current)) {
+      return current;
+    }
+
+    return "";
+  }
+
+  function buildShareCopy(data) {
+    const floorReached = Math.max(1, Number(data.floorReached) || 1);
+    const maxFloors = Math.max(floorReached, Number(data.maxFloors) || floorReached);
+    const upgradesSummary = typeof data.upgradesSummary === "string" ? data.upgradesSummary.trim() : "";
+    const shareUrl = typeof data.shareUrl === "string" ? data.shareUrl.trim() : "";
+    const lines = [
+      `I reached Floor ${floorReached} of ${maxFloors} in AI Power Users.`,
+      "Codex 5.3 tech demo run."
+    ];
+
+    if (upgradesSummary) {
+      lines.push(`Run build: ${upgradesSummary}.`);
+    }
+
+    if (isHttpShareUrl(shareUrl)) {
+      lines.push(`Try it: ${shareUrl}`);
+    }
+
+    lines.push("AI-assisted; reviewed by humans; results vary.");
+    return lines.join("\n");
+  }
+
+  function buildRunCardDataUrl(data) {
+    const width = 1200;
+    const height = 627;
+    const cardCanvas = document.createElement("canvas");
+    cardCanvas.width = width;
+    cardCanvas.height = height;
+
+    const cardCtx = cardCanvas.getContext("2d");
+    if (!cardCtx) {
+      return "";
+    }
+
+    const accent = data && data.accent ? data.accent : TOKENS.pink;
+    const floorReached = Math.max(1, Number(data && data.floorReached) || 1);
+    const maxFloors = Math.max(floorReached, Number(data && data.maxFloors) || floorReached);
+    const upgradeLines = Array.isArray(data && data.upgradeLines) ? data.upgradeLines.slice(0, 3) : [];
+    const shareUrl = data && typeof data.shareUrl === "string" ? data.shareUrl : "";
+
+    const roundRectPathOn = (context, x, y, w, h, r) => {
+      const radius = Math.min(r, w * 0.5, h * 0.5);
+      context.beginPath();
+      context.moveTo(x + radius, y);
+      context.lineTo(x + w - radius, y);
+      context.quadraticCurveTo(x + w, y, x + w, y + radius);
+      context.lineTo(x + w, y + h - radius);
+      context.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      context.lineTo(x + radius, y + h);
+      context.quadraticCurveTo(x, y + h, x, y + h - radius);
+      context.lineTo(x, y + radius);
+      context.quadraticCurveTo(x, y, x + radius, y);
+      context.closePath();
+    };
+
+    const fillRoundRectOn = (context, x, y, w, h, r) => {
+      roundRectPathOn(context, x, y, w, h, r);
+      context.fill();
+    };
+
+    const strokeRoundRectOn = (context, x, y, w, h, r) => {
+      roundRectPathOn(context, x, y, w, h, r);
+      context.stroke();
+    };
+
+    cardCtx.fillStyle = TOKENS.white;
+    cardCtx.fillRect(0, 0, width, height);
+
+    cardCtx.strokeStyle = TOKENS.ink;
+    cardCtx.lineWidth = 6;
+    strokeRoundRectOn(cardCtx, 16, 16, width - 32, height - 32, 24);
+
+    cardCtx.fillStyle = TOKENS.fog;
+    fillRoundRectOn(cardCtx, 48, 80, width - 96, height - 146, 20);
+    cardCtx.strokeStyle = TOKENS.ink;
+    cardCtx.lineWidth = 3;
+    strokeRoundRectOn(cardCtx, 48, 80, width - 96, height - 146, 20);
+
+    cardCtx.fillStyle = accent;
+    fillRoundRectOn(cardCtx, 84, 118, width - 168, 12, 999);
+
+    cardCtx.fillStyle = TOKENS.ink;
+    cardCtx.textAlign = "left";
+    cardCtx.textBaseline = "top";
+    cardCtx.font = '700 62px "Sora", "Inter", sans-serif';
+    cardCtx.fillText(`Floor ${floorReached} of ${maxFloors}`, 88, 162);
+
+    cardCtx.font = '700 30px "Inter", sans-serif';
+    cardCtx.fillText("AI Power Users - Codex 5.3 Tech Demo", 88, 242);
+
+    const buildY = 292;
+    cardCtx.fillStyle = TOKENS.white;
+    fillRoundRectOn(cardCtx, 88, buildY, width - 176, 214, 16);
+    cardCtx.strokeStyle = TOKENS.ink;
+    cardCtx.lineWidth = 3;
+    strokeRoundRectOn(cardCtx, 88, buildY, width - 176, 214, 16);
+
+    cardCtx.fillStyle = accent;
+    fillRoundRectOn(cardCtx, 110, buildY + 18, 188, 34, 999);
+    cardCtx.strokeStyle = TOKENS.ink;
+    cardCtx.lineWidth = 2;
+    strokeRoundRectOn(cardCtx, 110, buildY + 18, 188, 34, 999);
+
+    cardCtx.fillStyle = TOKENS.ink;
+    cardCtx.font = '700 24px "Inter", sans-serif';
+    cardCtx.fillText("Run build", 128, buildY + 24);
+
+    cardCtx.font = '600 28px "Inter", sans-serif';
+    if (upgradeLines.length === 0) {
+      cardCtx.fillText("No upgrades stacked this run.", 114, buildY + 86);
+    } else {
+      for (let i = 0; i < upgradeLines.length; i += 1) {
+        cardCtx.fillText(`${i + 1}. ${upgradeLines[i]}`, 114, buildY + 86 + i * 44);
+      }
+    }
+
+    if (isHttpShareUrl(shareUrl)) {
+      cardCtx.fillStyle = TOKENS.ink;
+      cardCtx.font = '600 21px "Inter", sans-serif';
+      cardCtx.fillText(`Try it: ${shareUrl}`, 88, height - 78);
+    }
+
+    return cardCanvas.toDataURL("image/png");
+  }
+
+  const shareUI = {
+    _bound: false,
+    _statusTimer: 0,
+    _statusEl: null,
+    _data: null,
+    _cardDataUrl: "",
+    _nativeShareBtn: null,
+
+    _getDontAsk() {
+      try {
+        return localStorage.getItem(SHARE_DONT_ASK_KEY) === "1";
+      } catch (error) {
+        return false;
+      }
+    },
+
+    _setDontAsk(value) {
+      try {
+        if (value) {
+          localStorage.setItem(SHARE_DONT_ASK_KEY, "1");
+        } else {
+          localStorage.removeItem(SHARE_DONT_ASK_KEY);
+        }
+      } catch (error) {
+        void error;
+      }
+    },
+
+    isOpen() {
+      return !!shareModalEl && !shareModalEl.classList.contains("hidden");
+    },
+
+    shouldSuppress() {
+      return this._getDontAsk();
+    },
+
+    _setStatus(message, durationMs = 0) {
+      if (!this._statusEl) {
+        return;
+      }
+
+      if (this._statusTimer) {
+        window.clearTimeout(this._statusTimer);
+        this._statusTimer = 0;
+      }
+
+      this._statusEl.textContent = message || "";
+      this._statusEl.style.display = message ? "block" : "none";
+
+      if (message && durationMs > 0) {
+        this._statusTimer = window.setTimeout(() => {
+          if (!this._statusEl) {
+            return;
+          }
+          this._statusEl.textContent = "";
+          this._statusEl.style.display = "none";
+        }, durationMs);
+      }
+    },
+
+    _getLinkedInShareTarget() {
+      const shareUrl = this._data && isHttpShareUrl(this._data.shareUrl) ? this._data.shareUrl : "";
+      if (!shareUrl) {
+        return "https://www.linkedin.com/feed/";
+      }
+      return `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+    },
+
+    async _copyText(text) {
+      if (!text) {
+        return false;
+      }
+
+      if (navigator.clipboard && window.isSecureContext && typeof navigator.clipboard.writeText === "function") {
+        try {
+          await navigator.clipboard.writeText(text);
+          return true;
+        } catch (error) {
+          void error;
+        }
+      }
+
+      if (!shareTextEl) {
+        return false;
+      }
+
+      shareTextEl.focus();
+      shareTextEl.select();
+      let copied = false;
+      try {
+        copied = document.execCommand("copy");
+      } catch (error) {
+        copied = false;
+      }
+
+      if (!copied) {
+        return false;
+      }
+
+      shareTextEl.setSelectionRange(0, 0);
+      return true;
+    },
+
+    setData(data) {
+      if (!shareModalEl) {
+        return;
+      }
+
+      this._data = { ...(data || {}) };
+      this._cardDataUrl = typeof data.cardDataUrl === "string" ? data.cardDataUrl : "";
+
+      if (shareFloorEl) {
+        shareFloorEl.textContent = data.floorLabel || "Floor 1";
+      }
+
+      if (shareTextEl) {
+        shareTextEl.value = data.text || "";
+      }
+
+      if (shareDontAskEl) {
+        shareDontAskEl.checked = this._getDontAsk();
+      }
+
+      if (data.accent) {
+        shareModalEl.style.setProperty("--share-accent", data.accent);
+      } else {
+        shareModalEl.style.removeProperty("--share-accent");
+      }
+
+      if (shareCardPreviewEl) {
+        if (this._cardDataUrl) {
+          shareCardPreviewEl.src = this._cardDataUrl;
+          shareCardPreviewEl.style.display = "block";
+        } else {
+          shareCardPreviewEl.removeAttribute("src");
+          shareCardPreviewEl.style.display = "none";
+        }
+      }
+
+      this._setStatus("", 0);
+    },
+
+    open(data) {
+      if (!shareModalEl || this._getDontAsk()) {
+        return;
+      }
+
+      this.setData(data || {});
+      shareModalEl.classList.remove("hidden");
+      shareModalEl.setAttribute("aria-hidden", "false");
+
+      const focusTarget = shareCopyBtn || shareLinkedInBtn || shareCloseBtn || shareTextEl;
+      if (focusTarget && typeof focusTarget.focus === "function") {
+        focusTarget.focus();
+      }
+    },
+
+    close(options = {}) {
+      if (!shareModalEl) {
+        return;
+      }
+
+      const persistChoice = options.persistChoice !== false;
+      const restoreFocus = options.restoreFocus !== false;
+      const wasOpen = this.isOpen();
+
+      if (persistChoice && shareDontAskEl) {
+        this._setDontAsk(!!shareDontAskEl.checked);
+      }
+
+      shareModalEl.classList.add("hidden");
+      shareModalEl.setAttribute("aria-hidden", "true");
+      this._setStatus("", 0);
+      this._cardDataUrl = "";
+
+      if (wasOpen && restoreFocus) {
+        const focusTarget = gameFrame || canvas;
+        if (focusTarget && typeof focusTarget.focus === "function") {
+          focusTarget.focus();
+        }
+      }
+    },
+
+    _handleTabTrap(event) {
+      if (!shareModalEl || event.key !== "Tab" || !this.isOpen()) {
+        return;
+      }
+
+      const focusables = Array.from(
+        shareModalEl.querySelectorAll(
+          'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+
+      if (focusables.length === 0) {
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+
+      if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+
+    bindEvents() {
+      if (this._bound || !shareModalEl) {
+        return;
+      }
+
+      this._bound = true;
+      const actionsEl = shareModalEl.querySelector(".modal-actions");
+      const panelEl = shareModalEl.querySelector(".modal-panel");
+
+      if (panelEl && !this._statusEl) {
+        const statusEl = document.createElement("p");
+        statusEl.setAttribute("aria-live", "polite");
+        statusEl.style.margin = "0.55rem 0 0";
+        statusEl.style.fontSize = "0.86rem";
+        statusEl.style.lineHeight = "1.35";
+        statusEl.style.color = "var(--ink)";
+        statusEl.style.display = "none";
+        this._statusEl = statusEl;
+        if (actionsEl && actionsEl.parentNode === panelEl) {
+          panelEl.insertBefore(statusEl, actionsEl.nextSibling);
+        } else {
+          panelEl.appendChild(statusEl);
+        }
+      }
+
+      if (shareCopyBtn) {
+        shareCopyBtn.addEventListener("click", async () => {
+          const text = shareTextEl ? shareTextEl.value : "";
+          if (!text) {
+            return;
+          }
+
+          const copied = await this._copyText(text);
+          if (copied) {
+            this._setStatus("Copied", 1200);
+          } else {
+            this._setStatus("Copy failed. Select the text and copy manually.", 1800);
+          }
+        });
+      }
+
+      if (shareLinkedInBtn) {
+        shareLinkedInBtn.addEventListener("click", () => {
+          const target = this._getLinkedInShareTarget();
+          window.open(target, "_blank", "noopener,noreferrer");
+          this._setStatus("Paste the copied text, then Post.", 2200);
+        });
+      }
+
+      if (shareDownloadBtn) {
+        shareDownloadBtn.addEventListener("click", () => {
+          if (!this._cardDataUrl) {
+            this._setStatus("Card unavailable right now.", 1400);
+            return;
+          }
+
+          const floorReached = this._data && this._data.floorReached ? this._data.floorReached : 1;
+          const fileName = `ai-power-users-floor-${floorReached}-run-card.png`;
+          const link = document.createElement("a");
+          link.href = this._cardDataUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          this._setStatus("Card downloaded.", 1200);
+        });
+      }
+
+      if (actionsEl && navigator.share && !this._nativeShareBtn) {
+        const nativeBtn = document.createElement("button");
+        nativeBtn.type = "button";
+        nativeBtn.className = "btn";
+        nativeBtn.textContent = "Share...";
+        if (shareCloseBtn) {
+          actionsEl.insertBefore(nativeBtn, shareCloseBtn);
+        } else {
+          actionsEl.appendChild(nativeBtn);
+        }
+        this._nativeShareBtn = nativeBtn;
+
+        nativeBtn.addEventListener("click", async () => {
+          const text = shareTextEl ? shareTextEl.value : "";
+          const shareUrl = this._data && isHttpShareUrl(this._data.shareUrl) ? this._data.shareUrl : "";
+          const payload = { text };
+          if (shareUrl) {
+            payload.url = shareUrl;
+          }
+
+          try {
+            await navigator.share(payload);
+          } catch (error) {
+            void error;
+          }
+        });
+      }
+
+      if (shareCloseBtn) {
+        shareCloseBtn.addEventListener("click", () => {
+          this.close();
+        });
+      }
+
+      if (shareDontAskEl) {
+        shareDontAskEl.addEventListener("change", () => {
+          this._setDontAsk(!!shareDontAskEl.checked);
+        });
+      }
+
+      shareModalEl.addEventListener("keydown", (event) => {
+        if (!this.isOpen()) {
+          return;
+        }
+
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          this.close();
+          return;
+        }
+
+        if (event.key === "Tab") {
+          this._handleTabTrap(event);
+        }
+      });
+    }
+  };
 
   window.addEventListener("keydown", (event) => {
     keys[event.key] = true;
@@ -118,7 +616,7 @@
     } else if (game.state === GameState.FLOOR_INTRO && (event.key === " " || event.key === "Enter")) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
-      toTitle();
+      requestRestart();
     }
   });
 
@@ -364,7 +862,9 @@
     upgradeNoticeTimer: 0,
     upgradeCardRects: [],
     floorFallbackInvulnBonus: 0,
-    showDebugStats: false
+    showDebugStats: false,
+    deathAnim: null,
+    gameOverEntryHandled: false
   };
 
   const player = {
@@ -917,6 +1417,143 @@
     return FLOORS[game.currentFloorIndex];
   }
 
+  function resetDeathAnim() {
+    game.deathAnim = null;
+  }
+
+  function startDeathAnim() {
+    const floor = currentFloor() || FLOORS[0];
+    const accent = accentColor((floor && floor.accent) || "yellow");
+    const shardCount = prefersReducedMotion ? 30 : 48;
+    const duration = prefersReducedMotion ? 1.35 : 1.55;
+    const shards = [];
+
+    for (let i = 0; i < shardCount; i += 1) {
+      shards.push({
+        angle: rand(0, Math.PI * 2),
+        speed: rand(140, 360),
+        delay: rand(0.24, 0.56),
+        width: rand(5, 12),
+        height: rand(3, 7),
+        rotation: rand(0, Math.PI * 2),
+        spin: rand(-6.8, 6.8)
+      });
+    }
+
+    game.deathAnim = {
+      t: 0,
+      duration,
+      originX: player.x,
+      originY: player.y,
+      accent,
+      floorId: floor.id,
+      floorName: floor.name,
+      floorAccent: floor.accent,
+      shards,
+      shake: 5.2,
+      shakeSeedX: rand(0, Math.PI * 2),
+      shakeSeedY: rand(0, Math.PI * 2)
+    };
+
+    player.vx = 0;
+    player.vy = 0;
+    player.fireCooldown = 0;
+    player.invuln = 0;
+    player.shieldBreakFlash = 0;
+    game.state = GameState.DEATH_ANIM;
+  }
+
+  function updateDeathAnim(dt) {
+    const death = game.deathAnim;
+    const floorSnapshot = death
+      ? { id: death.floorId, name: death.floorName, accent: death.floorAccent }
+      : null;
+    if (!death) {
+      enterGameOver(floorSnapshot);
+      return;
+    }
+
+    death.t += dt;
+    death.shake = death.t < 0.25 ? 5.2 * (1 - death.t / 0.25) : 0;
+
+    if (death.t >= death.duration) {
+      death.shake = 0;
+      enterGameOver(floorSnapshot);
+    }
+  }
+
+  function getDeathShakeOffset() {
+    const death = game.deathAnim;
+    if (!death || death.shake <= 0) {
+      return { x: 0, y: 0 };
+    }
+
+    return {
+      x: Math.sin(death.t * 63 + death.shakeSeedX) * death.shake,
+      y: Math.cos(death.t * 57 + death.shakeSeedY) * death.shake * 0.62
+    };
+  }
+
+  function getShareRunData(floorOverride = null) {
+    const floor = floorOverride || currentFloor() || FLOORS[Math.max(0, Math.min(game.currentFloorIndex, FLOORS.length - 1))];
+    const floorId = floor ? floor.id : game.currentFloorIndex + 1;
+    const maxFloors = FLOORS.length;
+    const floorLabel = `Floor ${floorId} of ${maxFloors}`;
+    const buildEntries = getRunBuildEntries();
+    const upgradeLines = buildEntries.slice(0, 3).map((entry) => `${entry.def.name} x${entry.stack}`);
+    const upgradesSummary = upgradeLines.join(", ");
+    const shareUrl = resolveShareUrl();
+    const text = buildShareCopy({
+      floorReached: floorId,
+      maxFloors,
+      upgradesSummary,
+      shareUrl
+    });
+    const accent = floor ? accentColor(floor.accent) : accentColor("pink");
+    const cardDataUrl = buildRunCardDataUrl({
+      floorReached: floorId,
+      maxFloors,
+      upgradeLines,
+      accent,
+      shareUrl
+    });
+
+    return {
+      floorLabel,
+      floorReached: floorId,
+      maxFloors,
+      upgradesSummary,
+      upgradeLines,
+      accent,
+      text,
+      shareUrl,
+      cardDataUrl
+    };
+  }
+
+  function enterGameOver(floorOverride = null) {
+    game.state = GameState.GAME_OVER;
+    if (game.gameOverEntryHandled) {
+      return;
+    }
+
+    game.gameOverEntryHandled = true;
+    shareUI.open(getShareRunData(floorOverride));
+  }
+
+  function requestRestart() {
+    shareUI.close({ persistChoice: false, restoreFocus: false });
+    toTitle();
+  }
+
+  function syncOverlayRestartButton() {
+    if (!overlayRestartBtn) {
+      return;
+    }
+    const show = game.state === GameState.GAME_OVER;
+    overlayRestartBtn.classList.toggle("hidden", !show);
+  }
+
   function toTitle() {
     game.state = GameState.TITLE;
     game.currentFloorIndex = 0;
@@ -933,6 +1570,9 @@
     game.upgradeNoticeTimer = 0;
     game.upgradeCardRects = [];
     game.floorFallbackInvulnBonus = 0;
+    game.gameOverEntryHandled = false;
+    shareUI.close({ persistChoice: false, restoreFocus: false });
+    resetDeathAnim();
     resetUpgradeRun();
     bullets = [];
     enemyBullets = [];
@@ -948,6 +1588,7 @@
 
   function startRun() {
     game.kills = 0;
+    game.gameOverEntryHandled = false;
     resetUpgradeRun();
     startFloor(0);
   }
@@ -974,6 +1615,9 @@
     game.upgradeNoticeTimer = 0;
     game.upgradeCardRects = [];
     game.floorFallbackInvulnBonus = 0;
+    game.gameOverEntryHandled = false;
+    shareUI.close({ persistChoice: false, restoreFocus: false });
+    resetDeathAnim();
     normalizeUpgradeSelection();
     syncPlayerMaxHP(false);
     player.invuln = 0;
@@ -1062,7 +1706,9 @@
       player.shieldBreakFlash = Math.max(0, player.shieldBreakFlash - dt);
     }
 
-    updateParticles(dt);
+    if (game.state !== GameState.DEATH_ANIM) {
+      updateParticles(dt);
+    }
 
     if (game.state === GameState.TITLE) {
       game.titleIntroTime += dt;
@@ -1073,8 +1719,17 @@
       return;
     }
 
+    if (game.state === GameState.DEATH_ANIM) {
+      updateDeathAnim(dt);
+      return;
+    }
+
     if (game.state === GameState.FLOOR_INTRO) {
       updateGameplay(dt, false);
+      if (game.state === GameState.DEATH_ANIM) {
+        updateDeathAnim(dt);
+        return;
+      }
       game.introTimer -= dt;
       if (game.introTimer <= 0) {
         game.state = GameState.PLAYING;
@@ -1087,6 +1742,10 @@
       game.floorTimer = Math.max(0, game.floorDuration - game.floorElapsed);
 
       updateGameplay(dt, true);
+      if (game.state === GameState.DEATH_ANIM) {
+        updateDeathAnim(dt);
+        return;
+      }
 
       if (game.floorTimer <= 0) {
         game.state = GameState.FLOOR_CLEAR;
@@ -1109,6 +1768,9 @@
     }
 
     if (game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) {
+      if (game.state === GameState.GAME_OVER && !game.gameOverEntryHandled) {
+        enterGameOver();
+      }
       updateBullets(dt);
       updateEnemyBullets(dt);
       updateEnemies(dt, false);
@@ -1601,6 +2263,7 @@
   function applyPlayerDamage(amount, sourceX, sourceY) {
     if (
       player.invuln > 0 ||
+      game.state === GameState.DEATH_ANIM ||
       game.state === GameState.GAME_OVER ||
       game.state === GameState.VICTORY ||
       game.state === GameState.FLOOR_CLEAR
@@ -1618,6 +2281,12 @@
     }
 
     player.hearts = clamp(player.hearts - amount, 0, player.maxHearts);
+    if (player.hearts <= 0) {
+      player.hearts = 0;
+      startDeathAnim();
+      return;
+    }
+
     player.invuln = invulnDuration;
 
     const away = unitVector(player.x - sourceX, player.y - sourceY);
@@ -1627,10 +2296,6 @@
     player.y = clamp(player.y, WORLD.y + player.radius, WORLD.y + WORLD.h - player.radius);
 
     emitBurst(player.x, player.y, TOKENS.white, 14, 200);
-
-    if (player.hearts <= 0) {
-      game.state = GameState.GAME_OVER;
-    }
   }
 
   function emitBurst(x, y, color, count, speed) {
@@ -1664,6 +2329,8 @@
   function draw() {
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
     const accent = accentColor(floor.accent);
+    const deathShake = game.state === GameState.DEATH_ANIM ? getDeathShakeOffset() : null;
+    syncOverlayRestartButton();
 
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
@@ -1678,6 +2345,11 @@
       return;
     }
 
+    if (deathShake) {
+      ctx.save();
+      ctx.translate(deathShake.x, deathShake.y);
+    }
+
     drawBackdrop(accent);
     drawCorridor(floor, accent);
 
@@ -1689,6 +2361,75 @@
 
     drawHud(floor, accent);
     drawStateOverlay(floor, accent);
+
+    if (deathShake) {
+      ctx.restore();
+    }
+
+    if (game.state === GameState.DEATH_ANIM) {
+      drawDeathAnim();
+    }
+  }
+
+  function drawDeathAnim() {
+    const death = game.deathAnim;
+    if (!death) {
+      return;
+    }
+
+    const t = death.t;
+    const impactEnd = 0.25;
+    const burstEnd = 0.9;
+    const resolveStart = 0.9;
+
+    const impactProgress = clamp(t / impactEnd, 0, 1);
+    if (impactProgress < 1) {
+      const ringRadius = 14 + impactProgress * 156;
+      const ringAlpha = 0.82 - impactProgress * 0.58;
+      const lineWidth = 3.1 - impactProgress * 1.7;
+
+      ctx.strokeStyle = rgba(TOKENS.ink, clamp(ringAlpha, 0.15, 0.82));
+      ctx.lineWidth = Math.max(1.1, lineWidth);
+      ctx.beginPath();
+      ctx.arc(death.originX, death.originY, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (t >= 0.24) {
+      const burstFade = 1 - clamp((t - burstEnd) / Math.max(0.001, death.duration - burstEnd), 0, 1);
+      for (const shard of death.shards) {
+        if (t < shard.delay) {
+          continue;
+        }
+
+        const local = t - shard.delay;
+        const drag = 1 - clamp(local * 0.38, 0, 0.7);
+        const distance = shard.speed * local * drag;
+        const px = death.originX + Math.cos(shard.angle) * distance;
+        const py = death.originY + Math.sin(shard.angle) * distance + local * local * 135;
+        const alpha = clamp((1 - local / 1.28) * burstFade, 0, 1);
+
+        if (alpha <= 0) {
+          continue;
+        }
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(shard.rotation + shard.spin * local);
+        ctx.fillStyle = rgba(death.accent, alpha * 0.92);
+        fillRoundRect(-shard.width * 0.5, -shard.height * 0.5, shard.width, shard.height, 2);
+        ctx.strokeStyle = rgba(TOKENS.ink, alpha);
+        ctx.lineWidth = 1;
+        strokeRoundRect(-shard.width * 0.5, -shard.height * 0.5, shard.width, shard.height, 2);
+        ctx.restore();
+      }
+    }
+
+    if (t >= resolveStart) {
+      const fade = clamp((t - resolveStart) / Math.max(0.001, death.duration - resolveStart), 0, 1);
+      ctx.fillStyle = rgba(TOKENS.white, 0.08 + fade * 0.86);
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
   }
 
   function drawUpgradeSelect(floor, accent) {
@@ -2562,7 +3303,12 @@
   }
 
   function drawStateOverlay(floor, accent) {
-    if (game.state === GameState.PLAYING || game.state === GameState.TITLE || game.state === GameState.UPGRADE_SELECT) {
+    if (
+      game.state === GameState.PLAYING ||
+      game.state === GameState.TITLE ||
+      game.state === GameState.UPGRADE_SELECT ||
+      game.state === GameState.DEATH_ANIM
+    ) {
       return;
     }
 
@@ -2977,6 +3723,12 @@
     requestAnimationFrame(frame);
   }
 
+  shareUI.bindEvents();
+  if (overlayRestartBtn) {
+    overlayRestartBtn.addEventListener("click", () => {
+      requestRestart();
+    });
+  }
   toTitle();
   requestAnimationFrame(frame);
 })();
