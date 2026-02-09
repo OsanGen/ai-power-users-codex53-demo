@@ -19,6 +19,7 @@
 
   const GameState = {
     TITLE: "TITLE",
+    UPGRADE_SELECT: "UPGRADE_SELECT",
     FLOOR_INTRO: "FLOOR_INTRO",
     PLAYING: "PLAYING",
     FLOOR_CLEAR: "FLOOR_CLEAR",
@@ -35,6 +36,14 @@
     h: CORRIDOR.h - 66
   };
 
+  const BASE_PLAYER_SPEED = 238;
+  const BASE_FIRE_COOLDOWN = 0.14;
+  const BASE_BULLET_RADIUS = 4;
+  const BASE_BULLET_SPEED = 528;
+  const BASE_BULLET_PIERCE = 0;
+  const BASE_MAX_HP = 3;
+  const BASE_INVULN_TIME = 0.9;
+
   const keys = Object.create(null);
   let lastShootKey = "ArrowUp";
 
@@ -43,7 +52,11 @@
 
     if (
       event.key === " " ||
+      event.key === "Enter" ||
       event.key.startsWith("Arrow") ||
+      event.key === "1" ||
+      event.key === "2" ||
+      event.key === "3" ||
       event.key.toLowerCase() === "w" ||
       event.key.toLowerCase() === "a" ||
       event.key.toLowerCase() === "s" ||
@@ -63,6 +76,22 @@
       } else {
         game.titleIntroTime = TITLE_SEQUENCE.finish;
       }
+    } else if (game.state === GameState.UPGRADE_SELECT) {
+      if (event.key === "1") {
+        confirmUpgradeSelection(0);
+      } else if (event.key === "2") {
+        confirmUpgradeSelection(1);
+      } else if (event.key === "3") {
+        confirmUpgradeSelection(2);
+      } else if (event.key === "ArrowLeft" || lower === "a") {
+        shiftUpgradeSelection(-1);
+      } else if (event.key === "ArrowRight" || lower === "d") {
+        shiftUpgradeSelection(1);
+      } else if (event.key === "Enter" || event.key === " ") {
+        confirmUpgradeSelection(game.upgradeSelectedIndex);
+      } else if (event.key === "Escape") {
+        game.upgradeNoticeTimer = 1.2;
+      }
     } else if (game.state === GameState.FLOOR_INTRO && (event.key === " " || event.key === "Enter")) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
@@ -72,6 +101,32 @@
 
   window.addEventListener("keyup", (event) => {
     keys[event.key] = false;
+  });
+
+  canvas.addEventListener("mousemove", (event) => {
+    if (game.state !== GameState.UPGRADE_SELECT) {
+      return;
+    }
+
+    const mouse = getMouseCanvasPosition(event);
+    const hoverIndex = getUpgradeCardIndexAt(mouse.x, mouse.y);
+    if (hoverIndex >= 0) {
+      game.upgradeSelectedIndex = hoverIndex;
+    }
+  });
+
+  canvas.addEventListener("click", (event) => {
+    if (game.state !== GameState.UPGRADE_SELECT) {
+      return;
+    }
+
+    const mouse = getMouseCanvasPosition(event);
+    const hitIndex = getUpgradeCardIndexAt(mouse.x, mouse.y);
+    if (hitIndex >= 0) {
+      confirmUpgradeSelection(hitIndex);
+    } else {
+      game.upgradeNoticeTimer = 1.2;
+    }
   });
 
   function wave(
@@ -294,7 +349,12 @@
     globalTime: 0,
     kills: 0,
     beatCount: 0,
-    titleIntroTime: 0
+    titleIntroTime: 0,
+    upgradeOptions: [],
+    upgradeSelectedIndex: 0,
+    upgradeConfirmCooldown: 0,
+    upgradeNoticeTimer: 0,
+    upgradeCardRects: []
   };
 
   const player = {
@@ -303,13 +363,402 @@
     vx: 0,
     vy: 0,
     radius: 14,
-    maxHearts: 3,
-    hearts: 3,
+    maxHearts: BASE_MAX_HP,
+    hearts: BASE_MAX_HP,
     invuln: 0,
     fireCooldown: 0,
     lastAimX: 0,
-    lastAimY: -1
+    lastAimY: -1,
+    shieldCharges: 0,
+    shieldBreakFlash: 0
   };
+
+  const UPGRADE_DEFS = [
+    {
+      id: "comfy_soles",
+      name: "Comfy Soles",
+      desc: "+6% move speed per stack.",
+      tags: ["utility"],
+      maxStacks: 5,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.moveSpeedMult *= Math.pow(1.06, stack);
+      }
+    },
+    {
+      id: "quick_trigger",
+      name: "Quick Trigger",
+      desc: "-6% shot cooldown per stack.",
+      tags: ["offense"],
+      maxStacks: 6,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.fireCooldownMult *= Math.pow(0.94, stack);
+      }
+    },
+    {
+      id: "wide_shots",
+      name: "Wide Shots",
+      desc: "+10% bullet radius per stack.",
+      tags: ["offense"],
+      maxStacks: 6,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.bulletRadiusMult *= Math.pow(1.1, stack);
+      }
+    },
+    {
+      id: "fast_rounds",
+      name: "Fast Rounds",
+      desc: "+8% bullet speed per stack.",
+      tags: ["offense"],
+      maxStacks: 5,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.bulletSpeedMult *= Math.pow(1.08, stack);
+      }
+    },
+    {
+      id: "ghost_rounds",
+      name: "Ghost Rounds",
+      desc: "+1 bullet pierce per stack.",
+      tags: ["offense"],
+      maxStacks: 3,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.bulletPierceBonus += stack;
+      }
+    },
+    {
+      id: "heart_container",
+      name: "Heart Container",
+      desc: "+1 max HP per stack and heal +1 immediately.",
+      tags: ["defense"],
+      maxStacks: 3,
+      apply: () => {
+        syncPlayerMaxHP(false);
+        player.hearts = clamp(player.hearts + 1, 0, player.maxHearts);
+      },
+      modifier: (stats, stack) => {
+        stats.maxHpBonus += stack;
+      }
+    },
+    {
+      id: "bubble_shield",
+      name: "Bubble Shield",
+      desc: "Start each floor with +1 shield charge per stack.",
+      tags: ["defense"],
+      maxStacks: 3,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.floorShieldCharges += stack;
+      }
+    },
+    {
+      id: "grace_frames",
+      name: "Grace Frames",
+      desc: "+0.12s post-hit invulnerability per stack.",
+      tags: ["defense"],
+      maxStacks: 5,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.invulnBonus += 0.12 * stack;
+      }
+    },
+    {
+      id: "magnet_hands",
+      name: "Magnet Hands",
+      desc: "+40px pickup magnet radius per stack.",
+      tags: ["utility"],
+      maxStacks: 5,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.pickupMagnetBonus += 40 * stack;
+      }
+    },
+    {
+      id: "slowmo_aura",
+      name: "Slowmo Aura",
+      desc: "Enemy bullet speed x0.93 per stack.",
+      tags: ["utility", "defense"],
+      maxStacks: 5,
+      apply: null,
+      modifier: (stats, stack) => {
+        stats.enemyBulletSpeedMult *= Math.pow(0.93, stack);
+      }
+    }
+  ];
+
+  const upgradeState = {
+    stacks: Object.create(null),
+    history: [],
+    lastTakenSerial: Object.create(null),
+    serial: 0
+  };
+
+  function resetUpgradeRun() {
+    upgradeState.stacks = Object.create(null);
+    upgradeState.history = [];
+    upgradeState.lastTakenSerial = Object.create(null);
+    upgradeState.serial = 0;
+  }
+
+  function getUpgradeDef(id) {
+    return UPGRADE_DEFS.find((upgrade) => upgrade.id === id) || null;
+  }
+
+  function getStack(id) {
+    return upgradeState.stacks[id] || 0;
+  }
+
+  function canTakeUpgrade(id) {
+    const def = getUpgradeDef(id);
+    return !!def && getStack(id) < def.maxStacks;
+  }
+
+  function applyUpgrade(id) {
+    const def = getUpgradeDef(id);
+    if (!def || !canTakeUpgrade(id)) {
+      return null;
+    }
+
+    const newStack = getStack(id) + 1;
+    upgradeState.stacks[id] = newStack;
+    upgradeState.serial += 1;
+    upgradeState.lastTakenSerial[id] = upgradeState.serial;
+    upgradeState.history.push({
+      id,
+      floor: (currentFloor() && currentFloor().id) || game.currentFloorIndex + 1,
+      stack: newStack,
+      serial: upgradeState.serial
+    });
+
+    if (typeof def.apply === "function") {
+      def.apply({ game, player, newStack });
+    }
+
+    return { def, newStack };
+  }
+
+  function rollUpgradeOptions(floorIndex, count = 3) {
+    void floorIndex;
+    const eligible = UPGRADE_DEFS.filter((upgrade) => canTakeUpgrade(upgrade.id));
+    if (eligible.length <= count) {
+      return shuffleArray([...eligible]).slice(0, count);
+    }
+
+    const picks = [];
+    const offense = eligible.filter((upgrade) => upgrade.tags.includes("offense"));
+    const defenseOrUtility = eligible.filter(
+      (upgrade) => upgrade.tags.includes("defense") || upgrade.tags.includes("utility")
+    );
+
+    if (offense.length > 0) {
+      picks.push(randomFrom(offense));
+    }
+
+    if (defenseOrUtility.length > 0) {
+      const supportPool = defenseOrUtility.filter((upgrade) => !picks.some((pick) => pick.id === upgrade.id));
+      if (supportPool.length > 0) {
+        picks.push(randomFrom(supportPool));
+      }
+    }
+
+    let remaining = eligible.filter((upgrade) => !picks.some((pick) => pick.id === upgrade.id));
+
+    while (picks.length < count && remaining.length > 0) {
+      const rolled = randomFrom(remaining);
+      picks.push(rolled);
+      remaining = remaining.filter((upgrade) => upgrade.id !== rolled.id);
+    }
+
+    return picks.slice(0, count);
+  }
+
+  function computeDerivedStats() {
+    const derived = {
+      moveSpeedMult: 1,
+      fireCooldownMult: 1,
+      bulletRadiusMult: 1,
+      bulletSpeedMult: 1,
+      bulletPierceBonus: 0,
+      maxHpBonus: 0,
+      floorShieldCharges: 0,
+      invulnBonus: 0,
+      pickupMagnetBonus: 0,
+      enemyBulletSpeedMult: 1
+    };
+
+    for (const upgrade of UPGRADE_DEFS) {
+      const stack = getStack(upgrade.id);
+      if (stack <= 0 || typeof upgrade.modifier !== "function") {
+        continue;
+      }
+      upgrade.modifier(derived, stack, game.currentFloorIndex);
+    }
+
+    return derived;
+  }
+
+  function getPlayerSpeed() {
+    const stats = computeDerivedStats();
+    return BASE_PLAYER_SPEED * stats.moveSpeedMult;
+  }
+
+  function getFireCooldown() {
+    const stats = computeDerivedStats();
+    return BASE_FIRE_COOLDOWN * stats.fireCooldownMult;
+  }
+
+  function getBulletRadius() {
+    const stats = computeDerivedStats();
+    return BASE_BULLET_RADIUS * stats.bulletRadiusMult;
+  }
+
+  function getBulletSpeed() {
+    const stats = computeDerivedStats();
+    return BASE_BULLET_SPEED * stats.bulletSpeedMult;
+  }
+
+  function getBulletPierce() {
+    const stats = computeDerivedStats();
+    return BASE_BULLET_PIERCE + stats.bulletPierceBonus;
+  }
+
+  function getPlayerMaxHP() {
+    const stats = computeDerivedStats();
+    return BASE_MAX_HP + stats.maxHpBonus;
+  }
+
+  function getShieldChargesPerFloor() {
+    const stats = computeDerivedStats();
+    return stats.floorShieldCharges;
+  }
+
+  function getInvulnDuration() {
+    const stats = computeDerivedStats();
+    return BASE_INVULN_TIME + stats.invulnBonus;
+  }
+
+  function getPickupMagnetRadius() {
+    const stats = computeDerivedStats();
+    return stats.pickupMagnetBonus;
+  }
+
+  function getEnemyBulletSpeedMultiplier() {
+    const stats = computeDerivedStats();
+    return stats.enemyBulletSpeedMult;
+  }
+
+  function syncPlayerMaxHP(healToFull = false) {
+    player.maxHearts = getPlayerMaxHP();
+    if (healToFull) {
+      player.hearts = player.maxHearts;
+      return;
+    }
+    player.hearts = clamp(player.hearts, 0, player.maxHearts);
+  }
+
+  function getCollectedUpgradeEntries() {
+    return UPGRADE_DEFS.map((def) => ({
+      def,
+      stack: getStack(def.id),
+      lastSerial: upgradeState.lastTakenSerial[def.id] || 0
+    }))
+      .filter((entry) => entry.stack > 0)
+      .sort((a, b) => {
+        if (b.stack !== a.stack) return b.stack - a.stack;
+        if (b.lastSerial !== a.lastSerial) return b.lastSerial - a.lastSerial;
+        return a.def.name.localeCompare(b.def.name);
+      });
+  }
+
+  function getUpgradeHudRows(maxRows = 5) {
+    const entries = getCollectedUpgradeEntries();
+    if (entries.length === 0) {
+      return ["None yet"];
+    }
+
+    const rows = entries.slice(0, maxRows).map((entry) => `${entry.def.name} x${entry.stack}`);
+    if (entries.length > maxRows) {
+      rows.push(`+${entries.length - maxRows} more`);
+    }
+    return rows;
+  }
+
+  function getRunBuildEntries() {
+    const seen = new Set();
+    const ordered = [];
+
+    for (const record of upgradeState.history) {
+      if (seen.has(record.id)) {
+        continue;
+      }
+      seen.add(record.id);
+      const def = getUpgradeDef(record.id);
+      if (!def) {
+        continue;
+      }
+      ordered.push({ def, stack: getStack(record.id), firstFloor: record.floor });
+    }
+
+    return ordered;
+  }
+
+  function getFloorsClearedCount() {
+    if (game.state === GameState.VICTORY) {
+      return FLOORS.length;
+    }
+    return clamp(game.currentFloorIndex, 0, FLOORS.length);
+  }
+
+  function normalizeUpgradeSelection() {
+    if (game.upgradeOptions.length === 0) {
+      game.upgradeSelectedIndex = 0;
+      return;
+    }
+    game.upgradeSelectedIndex = clamp(game.upgradeSelectedIndex, 0, game.upgradeOptions.length - 1);
+  }
+
+  function shiftUpgradeSelection(delta) {
+    if (game.state !== GameState.UPGRADE_SELECT || game.upgradeOptions.length === 0) {
+      return;
+    }
+
+    const total = game.upgradeOptions.length;
+    game.upgradeSelectedIndex = (game.upgradeSelectedIndex + delta + total) % total;
+  }
+
+  function confirmUpgradeSelection(index) {
+    if (game.state !== GameState.UPGRADE_SELECT) {
+      return;
+    }
+
+    if (game.upgradeConfirmCooldown > 0) {
+      return;
+    }
+
+    const option = game.upgradeOptions[index];
+    if (!option) {
+      game.upgradeNoticeTimer = 1.2;
+      return;
+    }
+
+    game.upgradeSelectedIndex = index;
+    const result = applyUpgrade(option.id);
+    if (!result) {
+      game.upgradeNoticeTimer = 1.2;
+      return;
+    }
+
+    console.log(
+      `[upgrade] floor ${currentFloor().id}: picked ${option.name} (stack ${result.newStack}/${option.maxStacks})`
+    );
+
+    game.upgradeConfirmCooldown = 0.18;
+    game.upgradeNoticeTimer = 0;
+    beginCurrentFloor();
+  }
 
   let activeWaves = [];
   let bullets = [];
@@ -334,23 +783,64 @@
     game.clearTimer = 0;
     game.kills = 0;
     game.titleIntroTime = 0;
+    game.upgradeOptions = [];
+    game.upgradeSelectedIndex = 0;
+    game.upgradeConfirmCooldown = 0;
+    game.upgradeNoticeTimer = 0;
+    game.upgradeCardRects = [];
+    resetUpgradeRun();
     bullets = [];
     enemyBullets = [];
     enemies = [];
     pickups = [];
     particles = [];
-    player.hearts = player.maxHearts;
+    player.maxHearts = BASE_MAX_HP;
+    player.hearts = BASE_MAX_HP;
+    player.shieldCharges = 0;
+    player.shieldBreakFlash = 0;
     resetPlayerPosition();
   }
 
   function startRun() {
     game.kills = 0;
+    resetUpgradeRun();
     startFloor(0);
   }
 
   function startFloor(index) {
     game.currentFloorIndex = index;
+    game.floorDuration = 0;
+    game.floorTimer = 0;
+    game.floorElapsed = 0;
+    game.introTimer = 0;
+    game.clearTimer = 0;
+    game.beatCount = 0;
+    game.state = GameState.UPGRADE_SELECT;
+
+    bullets = [];
+    enemyBullets = [];
+    enemies = [];
+    pickups = [];
+    particles = [];
+
+    game.upgradeOptions = rollUpgradeOptions(index, 3);
+    game.upgradeSelectedIndex = 0;
+    game.upgradeConfirmCooldown = 0;
+    game.upgradeNoticeTimer = 0;
+    game.upgradeCardRects = [];
+    normalizeUpgradeSelection();
+    syncPlayerMaxHP(false);
+    player.invuln = 0;
+    player.fireCooldown = 0;
+    player.shieldBreakFlash = 0;
+    resetPlayerPosition();
+  }
+
+  function beginCurrentFloor() {
     const floor = currentFloor();
+    if (!floor) {
+      return;
+    }
 
     game.floorDuration = floor.durationSeconds;
     game.floorTimer = floor.durationSeconds;
@@ -367,10 +857,12 @@
     particles = [];
 
     activeWaves = floor.enemyWaves.map((w) => ({ ...w, _accum: 0 }));
-
-    player.hearts = player.maxHearts;
+    syncPlayerMaxHP(true);
+    player.shieldCharges = getShieldChargesPerFloor();
+    player.shieldBreakFlash = 0;
     player.invuln = 0;
     player.fireCooldown = 0;
+    game.upgradeConfirmCooldown = 0;
     resetPlayerPosition();
 
     spawnInitialHearts(floor);
@@ -411,10 +903,26 @@
       player.fireCooldown = Math.max(0, player.fireCooldown - dt);
     }
 
+    if (game.upgradeConfirmCooldown > 0) {
+      game.upgradeConfirmCooldown = Math.max(0, game.upgradeConfirmCooldown - dt);
+    }
+
+    if (game.upgradeNoticeTimer > 0) {
+      game.upgradeNoticeTimer = Math.max(0, game.upgradeNoticeTimer - dt);
+    }
+
+    if (player.shieldBreakFlash > 0) {
+      player.shieldBreakFlash = Math.max(0, player.shieldBreakFlash - dt);
+    }
+
     updateParticles(dt);
 
     if (game.state === GameState.TITLE) {
       game.titleIntroTime += dt;
+      return;
+    }
+
+    if (game.state === GameState.UPGRADE_SELECT) {
       return;
     }
 
@@ -481,8 +989,9 @@
     const moveY = (isMoveDown() ? 1 : 0) - (isMoveUp() ? 1 : 0);
 
     const length = Math.hypot(moveX, moveY) || 1;
-    const targetX = (moveX / length) * 238;
-    const targetY = (moveY / length) * 238;
+    const speed = getPlayerSpeed();
+    const targetX = (moveX / length) * speed;
+    const targetY = (moveY / length) * speed;
 
     if (moveX !== 0 || moveY !== 0) {
       player.vx = approach(player.vx, targetX, 1880 * dt);
@@ -512,17 +1021,21 @@
       return;
     }
 
-    const bulletSpeed = 528;
+    const bulletSpeed = getBulletSpeed();
+    const bulletRadius = getBulletRadius();
+    const bulletPierce = getBulletPierce();
     bullets.push({
       x: player.x + dir.x * (player.radius + 9),
       y: player.y + dir.y * (player.radius + 9),
       vx: dir.x * bulletSpeed,
       vy: dir.y * bulletSpeed,
-      radius: 4,
-      life: 0.95
+      radius: bulletRadius,
+      pierce: bulletPierce,
+      life: 0.95,
+      hitEnemyIds: new Set()
     });
 
-    player.fireCooldown = 0.14;
+    player.fireCooldown = getFireCooldown();
   }
 
   function getShootDirection() {
@@ -781,11 +1294,13 @@
   }
 
   function spawnEnemyBullet(x, y, dirX, dirY, speed, damage) {
+    const speedMultiplier = getEnemyBulletSpeedMultiplier();
+    const adjustedSpeed = speed * speedMultiplier;
     enemyBullets.push({
       x,
       y,
-      vx: dirX * speed,
-      vy: dirY * speed,
+      vx: dirX * adjustedSpeed,
+      vy: dirY * adjustedSpeed,
       damage,
       radius: 6,
       life: 2.3
@@ -793,8 +1308,29 @@
   }
 
   function updatePickups(dt) {
+    const magnetRadius = getPickupMagnetRadius();
     for (const pickup of pickups) {
       pickup.wobble += dt * 2.2;
+
+      if (magnetRadius <= 0) {
+        continue;
+      }
+
+      const dx = player.x - pickup.x;
+      const dy = player.y - pickup.y;
+      const distance = Math.hypot(dx, dy) || 1;
+
+      if (distance >= magnetRadius) {
+        continue;
+      }
+
+      const intensity = 1 - distance / magnetRadius;
+      const pull = 85 + intensity * 260;
+      pickup.x += (dx / distance) * pull * dt;
+      pickup.y += (dy / distance) * pull * dt;
+
+      pickup.x = clamp(pickup.x, WORLD.x + pickup.radius, WORLD.x + WORLD.w - pickup.radius);
+      pickup.y = clamp(pickup.y, WORLD.y + pickup.radius, WORLD.y + WORLD.h - pickup.radius);
     }
   }
 
@@ -804,6 +1340,9 @@
       let hitIndex = -1;
 
       for (let j = 0; j < enemies.length; j += 1) {
+        if (bullet.hitEnemyIds && bullet.hitEnemyIds.has(enemies[j].id)) {
+          continue;
+        }
         if (circleHit(bullet.x, bullet.y, bullet.radius, enemies[j].x, enemies[j].y, enemies[j].radius)) {
           hitIndex = j;
           break;
@@ -814,12 +1353,20 @@
         const enemy = enemies[hitIndex];
         enemy.hp -= 1;
         enemy.hurtFlash = 1;
-        bullets.splice(i, 1);
+        if (bullet.hitEnemyIds) {
+          bullet.hitEnemyIds.add(enemy.id);
+        }
         emitBurst(enemy.x, enemy.y, currentAccent(), 7, 145);
 
         if (enemy.hp <= 0) {
           onEnemyDefeated(enemy);
           enemies.splice(hitIndex, 1);
+        }
+
+        if (bullet.pierce > 0) {
+          bullet.pierce -= 1;
+        } else {
+          bullets.splice(i, 1);
         }
       }
     }
@@ -914,8 +1461,17 @@
       return;
     }
 
-    player.hearts -= amount;
-    player.invuln = 0.9;
+    const invulnDuration = getInvulnDuration();
+    if (player.shieldCharges > 0) {
+      player.shieldCharges -= 1;
+      player.shieldBreakFlash = 0.22;
+      player.invuln = invulnDuration;
+      emitBurst(player.x, player.y, accentColor("blue"), 10, 175);
+      return;
+    }
+
+    player.hearts = clamp(player.hearts - amount, 0, player.maxHearts);
+    player.invuln = invulnDuration;
 
     const away = unitVector(player.x - sourceX, player.y - sourceY);
     player.x += away.x * 18;
@@ -926,7 +1482,6 @@
     emitBurst(player.x, player.y, TOKENS.white, 14, 200);
 
     if (player.hearts <= 0) {
-      player.hearts = 0;
       game.state = GameState.GAME_OVER;
     }
   }
@@ -970,6 +1525,12 @@
       return;
     }
 
+    if (game.state === GameState.UPGRADE_SELECT) {
+      drawBackdrop(accent);
+      drawUpgradeSelect(floor, accent);
+      return;
+    }
+
     drawBackdrop(accent);
     drawCorridor(floor, accent);
 
@@ -981,6 +1542,133 @@
 
     drawHud(floor, accent);
     drawStateOverlay(floor, accent);
+  }
+
+  function drawUpgradeSelect(floor, accent) {
+    const panelX = 84;
+    const panelY = 70;
+    const panelW = WIDTH - 168;
+    const panelH = HEIGHT - 140;
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 22);
+
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 26, panelY + 26, panelW - 52, 10, 999);
+
+    const rawFloorTitle = floor.overlayTitle || floor.name;
+    const normalizedFloorTitle = rawFloorTitle.replace(/^Floor\\s*\\d+\\s*-\\s*/i, "");
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textBaseline = "top";
+    ctx.font = '700 38px "Sora", "Inter", sans-serif';
+    ctx.fillText(`Floor ${floor.id}: ${normalizedFloorTitle}`, panelX + 34, panelY + 50);
+
+    ctx.font = '500 20px "Inter", sans-serif';
+    drawWrappedText(floor.overlaySubtitle, panelX + 34, panelY + 104, panelW - 68, 30);
+
+    ctx.font = '600 18px "Inter", sans-serif';
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText("Choose 1 upgrade to begin this floor.", panelX + 34, panelY + 174);
+
+    const cardRects = computeUpgradeCardRects(panelX, panelY, panelW, panelH, game.upgradeOptions.length);
+    game.upgradeCardRects = cardRects;
+    normalizeUpgradeSelection();
+
+    for (let i = 0; i < game.upgradeOptions.length; i += 1) {
+      const option = game.upgradeOptions[i];
+      const rect = cardRects[i];
+      const selected = i === game.upgradeSelectedIndex;
+      drawUpgradeCard(option, rect, selected, accent);
+    }
+
+    const footerText = "1-3 to pick • Enter to confirm • Esc to skip (NOT allowed)";
+    ctx.font = '600 17px "Inter", sans-serif';
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText(footerText, panelX + 34, panelY + panelH - 56);
+
+    if (game.upgradeNoticeTimer > 0) {
+      ctx.fillStyle = rgba(accent, 0.18);
+      fillRoundRect(panelX + panelW - 282, panelY + panelH - 74, 246, 32, 999);
+      ctx.strokeStyle = TOKENS.ink;
+      strokeRoundRect(panelX + panelW - 282, panelY + panelH - 74, 246, 32, 999);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 15px "Inter", sans-serif';
+      ctx.fillText("Choose one to continue.", panelX + panelW - 258, panelY + panelH - 66);
+    }
+  }
+
+  function computeUpgradeCardRects(panelX, panelY, panelW, panelH, optionCount) {
+    if (optionCount <= 0) {
+      return [];
+    }
+
+    const innerX = panelX + 34;
+    const innerY = panelY + 210;
+    const innerW = panelW - 68;
+    const gap = 20;
+
+    if (optionCount === 3 && innerW < 800) {
+      const cardW = Math.floor((innerW - gap) / 2);
+      const cardH = 148;
+      return [
+        { x: innerX, y: innerY, w: cardW, h: cardH },
+        { x: innerX + cardW + gap, y: innerY, w: cardW, h: cardH },
+        { x: innerX + Math.floor((innerW - cardW) * 0.5), y: innerY + cardH + gap, w: cardW, h: cardH }
+      ];
+    }
+
+    const cardW = Math.floor((innerW - gap * (optionCount - 1)) / optionCount);
+    const cardH = 230;
+    const rects = [];
+    for (let i = 0; i < optionCount; i += 1) {
+      rects.push({ x: innerX + i * (cardW + gap), y: innerY, w: cardW, h: cardH });
+    }
+    return rects;
+  }
+
+  function drawUpgradeCard(option, rect, selected, accent) {
+    const stack = getStack(option.id);
+    const nextStack = Math.min(stack + 1, option.maxStacks);
+    const tags = option.tags.join(" / ");
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(rect.x, rect.y, rect.w, rect.h, 16);
+
+    ctx.strokeStyle = selected ? accent : TOKENS.ink;
+    ctx.lineWidth = selected ? 4 : 2;
+    strokeRoundRect(rect.x, rect.y, rect.w, rect.h, 16);
+
+    if (selected) {
+      ctx.fillStyle = accent;
+      fillRoundRect(rect.x + rect.w - 86, rect.y + 12, 70, 16, 999);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 12px "Inter", sans-serif';
+      ctx.fillText("SELECTED", rect.x + rect.w - 80, rect.y + 14);
+    }
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 24px "Sora", "Inter", sans-serif';
+    drawWrappedText(option.name, rect.x + 16, rect.y + 16, rect.w - 32, 30);
+
+    ctx.font = '500 16px "Inter", sans-serif';
+    drawWrappedText(option.desc, rect.x + 16, rect.y + 78, rect.w - 32, 24);
+
+    ctx.fillStyle = rgba(accent, 0.18);
+    fillRoundRect(rect.x + 16, rect.y + rect.h - 84, rect.w - 32, 28, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(rect.x + 16, rect.y + rect.h - 84, rect.w - 32, 28, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 14px "Inter", sans-serif';
+    ctx.fillText(`Tags: ${tags}`, rect.x + 26, rect.y + rect.h - 76);
+
+    ctx.font = '600 16px "Inter", sans-serif';
+    ctx.fillText(`Stacks: ${stack} -> ${nextStack}`, rect.x + 16, rect.y + rect.h - 42);
   }
 
   function isTitleSequenceComplete() {
@@ -1589,6 +2277,20 @@
     ctx.font = '600 14px "Inter", sans-serif';
     ctx.fillText("HP", 92, 52);
 
+    if (player.shieldCharges > 0) {
+      const shieldX = 252;
+      const shieldY = 36;
+      ctx.fillStyle = rgba(accentColor("blue"), 0.22);
+      fillRoundRect(shieldX, shieldY, 118, 30, 999);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(shieldX, shieldY, 118, 30, 999);
+
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 14px "Inter", sans-serif';
+      ctx.fillText(`Shield ${player.shieldCharges}`, shieldX + 14, shieldY + 18);
+    }
+
     const floorLabel = `Floor ${floor.id} / 9`;
     ctx.font = '700 20px "Sora", "Inter", sans-serif';
     const floorLabelWidth = ctx.measureText(floorLabel).width;
@@ -1623,10 +2325,43 @@
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 16px "Inter", sans-serif';
     ctx.fillText(timerText, timerBoxX + timerW + 14, timerBoxY + timerH * 0.5 + 1);
+
+    drawUpgradeHudPanel(accent);
+  }
+
+  function drawUpgradeHudPanel(accent) {
+    const rows = getUpgradeHudRows(5);
+    const panelX = WIDTH - 342;
+    const panelY = 98;
+    const panelW = 272;
+    const panelH = 34 + rows.length * 19;
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(panelX, panelY, panelW, panelH, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 14);
+
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 12, panelY + 10, panelW - 24, 7, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 14px "Sora", "Inter", sans-serif';
+    ctx.fillText("Upgrades", panelX + 14, panelY + 20);
+
+    ctx.font = '600 13px "Inter", sans-serif';
+    for (let i = 0; i < rows.length; i += 1) {
+      ctx.fillText(rows[i], panelX + 14, panelY + 41 + i * 19);
+    }
   }
 
   function drawStateOverlay(floor, accent) {
-    if (game.state === GameState.PLAYING || game.state === GameState.TITLE) {
+    if (game.state === GameState.PLAYING || game.state === GameState.TITLE || game.state === GameState.UPGRADE_SELECT) {
+      return;
+    }
+
+    if (game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) {
+      drawRunSummaryOverlay(floor, accent);
       return;
     }
 
@@ -1642,14 +2377,6 @@
       title = `Floor ${floor.id} Survived`;
       body = floor.id < 9 ? "The corridor shifts. Hold your shape for the next chapter." : "The hallway finally releases its grip.";
       footer = floor.id < 9 ? "Transitioning..." : "";
-    } else if (game.state === GameState.GAME_OVER) {
-      title = "Run Failed";
-      body = "The run ended before your workflow fully stabilized.";
-      footer = "Press R to restart";
-    } else if (game.state === GameState.VICTORY) {
-      title = "Run Complete";
-      body = "You completed all nine floors of the AI tooling timeline.";
-      footer = "Press R to play again";
     }
 
     const panelW = 760;
@@ -1680,6 +2407,106 @@
       ctx.font = '700 16px "Inter", sans-serif';
       ctx.fillText(footer, WIDTH * 0.5, panelY + panelH - 38);
     }
+
+    ctx.textAlign = "left";
+  }
+
+  function drawRunSummaryOverlay(floor, accent) {
+    const isVictory = game.state === GameState.VICTORY;
+    const title = isVictory ? "Run Complete" : "Run Failed";
+    const body = isVictory
+      ? "You completed the AI tooling climb and finalized a stable build."
+      : "The run ended before the build fully stabilized.";
+    const footer = "Press R to restart";
+    const floorsCleared = getFloorsClearedCount();
+    const totalTaken = upgradeState.history.length;
+    const buildEntries = getRunBuildEntries();
+
+    const panelW = 920;
+    const panelH = 460;
+    const panelX = (WIDTH - panelW) * 0.5;
+    const panelY = (HEIGHT - panelH) * 0.5;
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.96);
+    fillRoundRect(panelX, panelY, panelW, panelH, 20);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 20);
+
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 20, panelY + 20, panelW - 40, 10, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.font = '700 36px "Sora", "Inter", sans-serif';
+    ctx.fillText(title, WIDTH * 0.5, panelY + 44);
+
+    ctx.font = '500 20px "Inter", sans-serif';
+    drawWrappedText(body, WIDTH * 0.5, panelY + 94, panelW - 70, 30);
+    ctx.textAlign = "left";
+
+    const pillY = panelY + 142;
+    const pillW = 212;
+    const pillH = 40;
+
+    ctx.fillStyle = rgba(accent, 0.18);
+    fillRoundRect(panelX + 48, pillY, pillW, pillH, 999);
+    fillRoundRect(panelX + 286, pillY, pillW, pillH, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX + 48, pillY, pillW, pillH, 999);
+    strokeRoundRect(panelX + 286, pillY, pillW, pillH, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 17px "Inter", sans-serif';
+    ctx.fillText(`Floors cleared: ${floorsCleared}`, panelX + 68, pillY + 11);
+    ctx.fillText(`Upgrades taken: ${totalTaken}`, panelX + 305, pillY + 11);
+
+    const listX = panelX + 48;
+    const listY = panelY + 208;
+    const listW = panelW - 96;
+    const listH = panelH - 292;
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(listX, listY, listW, listH, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    strokeRoundRect(listX, listY, listW, listH, 14);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 20px "Sora", "Inter", sans-serif';
+    ctx.fillText("Run build", listX + 16, listY + 12);
+
+    if (buildEntries.length === 0) {
+      ctx.font = '600 16px "Inter", sans-serif';
+      ctx.fillText("No upgrades collected.", listX + 16, listY + 50);
+    } else {
+      const columns = 2;
+      const colGap = 24;
+      const colW = Math.floor((listW - 32 - colGap) / columns);
+      const rowH = 28;
+      const maxRows = Math.floor((listH - 52) / rowH);
+
+      ctx.font = '600 15px "Inter", sans-serif';
+      for (let i = 0; i < buildEntries.length; i += 1) {
+        const col = i % columns;
+        const row = Math.floor(i / columns);
+        if (row >= maxRows) {
+          const remaining = buildEntries.length - i;
+          ctx.fillText(`+${remaining} more`, listX + 16 + col * (colW + colGap), listY + 50 + row * rowH);
+          break;
+        }
+
+        const entry = buildEntries[i];
+        const label = `${i + 1}. ${entry.def.name} x${entry.stack}`;
+        ctx.fillText(label, listX + 16 + col * (colW + colGap), listY + 50 + row * rowH);
+      }
+    }
+
+    ctx.textAlign = "center";
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText(footer, WIDTH * 0.5, panelY + panelH - 36);
 
     ctx.textAlign = "left";
   }
@@ -1860,6 +2687,29 @@
     return dx * dx + dy * dy <= radius * radius;
   }
 
+  function pointInRect(x, y, rect) {
+    return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+  }
+
+  function getUpgradeCardIndexAt(x, y) {
+    for (let i = 0; i < game.upgradeCardRects.length; i += 1) {
+      if (pointInRect(x, y, game.upgradeCardRects[i])) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function getMouseCanvasPosition(event) {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = WIDTH / rect.width;
+    const scaleY = HEIGHT / rect.height;
+    return {
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY
+    };
+  }
+
   function unitVector(x, y) {
     const len = Math.hypot(x, y) || 1;
     return { x: x / len, y: y / len };
@@ -1877,6 +2727,22 @@
     if (value < target) return Math.min(value + step, target);
     if (value > target) return Math.max(value - step, target);
     return target;
+  }
+
+  function randomFrom(list) {
+    if (!list || list.length === 0) {
+      return null;
+    }
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  function shuffleArray(list) {
+    const copy = [...list];
+    for (let i = copy.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
   }
 
   function rand(min, max) {

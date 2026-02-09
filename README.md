@@ -17,6 +17,7 @@ Option 2 (recommended):
 - Move: `WASD`
 - Shoot: `Arrow Keys` (4 directions)
 - Start / Skip floor intro: `Enter` or `Space`
+- Upgrade select: `1-3` instant pick, `A/D` or `Left/Right` to move, `Enter`/`Space` to confirm, mouse hover/click supported
 - Restart after game over/victory: `R`
 
 ## Gameplay
