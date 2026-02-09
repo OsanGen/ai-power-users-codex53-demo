@@ -165,61 +165,71 @@
       context.stroke();
     };
 
+    const fitLine = (context, text, maxWidth) => {
+      let value = (text || "").trim();
+      if (!value) {
+        return "";
+      }
+      if (context.measureText(value).width <= maxWidth) {
+        return value;
+      }
+
+      const ellipsis = "...";
+      while (value.length > 1 && context.measureText(`${value}${ellipsis}`).width > maxWidth) {
+        value = value.slice(0, -1);
+      }
+      return `${value}${ellipsis}`;
+    };
+
+    const framePad = 30;
+    const innerPad = 72;
+
     cardCtx.fillStyle = TOKENS.white;
     cardCtx.fillRect(0, 0, width, height);
 
     cardCtx.strokeStyle = TOKENS.ink;
-    cardCtx.lineWidth = 6;
-    strokeRoundRectOn(cardCtx, 16, 16, width - 32, height - 32, 24);
-
-    cardCtx.fillStyle = TOKENS.fog;
-    fillRoundRectOn(cardCtx, 48, 80, width - 96, height - 146, 20);
-    cardCtx.strokeStyle = TOKENS.ink;
-    cardCtx.lineWidth = 3;
-    strokeRoundRectOn(cardCtx, 48, 80, width - 96, height - 146, 20);
+    cardCtx.lineWidth = 4;
+    strokeRoundRectOn(cardCtx, framePad, framePad, width - framePad * 2, height - framePad * 2, 20);
 
     cardCtx.fillStyle = accent;
-    fillRoundRectOn(cardCtx, 84, 118, width - 168, 12, 999);
+    fillRoundRectOn(cardCtx, innerPad, 82, width - innerPad * 2, 10, 999);
 
     cardCtx.fillStyle = TOKENS.ink;
     cardCtx.textAlign = "left";
     cardCtx.textBaseline = "top";
-    cardCtx.font = '700 62px "Sora", "Inter", sans-serif';
-    cardCtx.fillText(`Floor ${floorReached} of ${maxFloors}`, 88, 162);
+    cardCtx.font = '700 82px "Sora", "Inter", sans-serif';
+    cardCtx.fillText(`Floor ${floorReached} of ${maxFloors}`, innerPad, 124);
 
-    cardCtx.font = '700 30px "Inter", sans-serif';
-    cardCtx.fillText("AI Power Users - Codex 5.3 Tech Demo", 88, 242);
+    cardCtx.font = '700 36px "Inter", sans-serif';
+    cardCtx.fillText("AI Power Users - Codex 5.3 Tech Demo", innerPad, 232);
 
-    const buildY = 292;
-    cardCtx.fillStyle = TOKENS.white;
-    fillRoundRectOn(cardCtx, 88, buildY, width - 176, 214, 16);
-    cardCtx.strokeStyle = TOKENS.ink;
-    cardCtx.lineWidth = 3;
-    strokeRoundRectOn(cardCtx, 88, buildY, width - 176, 214, 16);
-
-    cardCtx.fillStyle = accent;
-    fillRoundRectOn(cardCtx, 110, buildY + 18, 188, 34, 999);
+    const buildPanelY = 300;
+    const buildPanelH = 228;
+    cardCtx.fillStyle = TOKENS.fog;
+    fillRoundRectOn(cardCtx, innerPad, buildPanelY, width - innerPad * 2, buildPanelH, 16);
     cardCtx.strokeStyle = TOKENS.ink;
     cardCtx.lineWidth = 2;
-    strokeRoundRectOn(cardCtx, 110, buildY + 18, 188, 34, 999);
+    strokeRoundRectOn(cardCtx, innerPad, buildPanelY, width - innerPad * 2, buildPanelH, 16);
 
     cardCtx.fillStyle = TOKENS.ink;
-    cardCtx.font = '700 24px "Inter", sans-serif';
-    cardCtx.fillText("Run build", 128, buildY + 24);
+    cardCtx.font = '700 30px "Inter", sans-serif';
+    cardCtx.fillText("Run build", innerPad + 30, buildPanelY + 28);
 
-    cardCtx.font = '600 28px "Inter", sans-serif';
+    cardCtx.font = '600 33px "Inter", sans-serif';
     if (upgradeLines.length === 0) {
-      cardCtx.fillText("No upgrades stacked this run.", 114, buildY + 86);
+      cardCtx.fillText("No upgrades stacked this run.", innerPad + 30, buildPanelY + 84);
     } else {
-      for (let i = 0; i < upgradeLines.length; i += 1) {
-        cardCtx.fillText(`${i + 1}. ${upgradeLines[i]}`, 114, buildY + 86 + i * 44);
+      for (let i = 0; i < Math.min(3, upgradeLines.length); i += 1) {
+        const line = fitLine(cardCtx, `${i + 1}. ${upgradeLines[i]}`, width - innerPad * 2 - 70);
+        cardCtx.fillText(line, innerPad + 30, buildPanelY + 84 + i * 48);
       }
     }
 
     if (isHttpShareUrl(shareUrl)) {
       cardCtx.fillStyle = TOKENS.ink;
-      cardCtx.font = '600 21px "Inter", sans-serif';
-      cardCtx.fillText(`Try it: ${shareUrl}`, 88, height - 78);
+      cardCtx.font = '600 22px "Inter", sans-serif';
+      const line = fitLine(cardCtx, `Try it: ${shareUrl}`, width - innerPad * 2);
+      cardCtx.fillText(line, innerPad, height - 66);
     }
 
     return cardCanvas.toDataURL("image/png");
@@ -448,11 +458,7 @@
       if (panelEl && !this._statusEl) {
         const statusEl = document.createElement("p");
         statusEl.setAttribute("aria-live", "polite");
-        statusEl.style.margin = "0.55rem 0 0";
-        statusEl.style.fontSize = "0.86rem";
-        statusEl.style.lineHeight = "1.35";
-        statusEl.style.color = "var(--ink)";
-        statusEl.style.display = "none";
+        statusEl.className = "modal-status";
         this._statusEl = statusEl;
         if (actionsEl && actionsEl.parentNode === panelEl) {
           panelEl.insertBefore(statusEl, actionsEl.nextSibling);
@@ -504,7 +510,14 @@
         });
       }
 
-      if (actionsEl && navigator.share && !this._nativeShareBtn) {
+      const canNativeShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+      const isCompactViewport =
+        typeof window.matchMedia === "function" ? window.matchMedia("(max-width: 860px)").matches : window.innerWidth <= 860;
+      const isTouchDevice =
+        (typeof navigator !== "undefined" && typeof navigator.maxTouchPoints === "number" && navigator.maxTouchPoints > 0) ||
+        "ontouchstart" in window;
+
+      if (actionsEl && canNativeShare && (isCompactViewport || isTouchDevice) && !this._nativeShareBtn) {
         const nativeBtn = document.createElement("button");
         nativeBtn.type = "button";
         nativeBtn.className = "btn";
@@ -1550,7 +1563,7 @@
     if (!overlayRestartBtn) {
       return;
     }
-    const show = game.state === GameState.GAME_OVER;
+    const show = game.state === GameState.GAME_OVER && !shareUI.isOpen();
     overlayRestartBtn.classList.toggle("hidden", !show);
   }
 

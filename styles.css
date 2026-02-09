@@ -8,7 +8,7 @@
   --white: #ffffff;
   --fog: #f2f5f8;
 
-  --shadow: 0 12px 30px rgba(31, 36, 48, 0.12);
+  --shadow: 0 10px 24px rgba(31, 36, 48, 0.1);
 }
 
 * {
@@ -24,10 +24,7 @@ body {
 body {
   font-family: "Inter", system-ui, -apple-system, sans-serif;
   color: var(--ink);
-  background:
-    radial-gradient(1200px 450px at 10% -10%, rgba(137, 182, 255, 0.2), transparent 70%),
-    radial-gradient(900px 350px at 90% 105%, rgba(244, 172, 205, 0.2), transparent 72%),
-    var(--fog);
+  background: var(--fog);
   display: grid;
   place-items: center;
   padding: 1rem;
@@ -92,7 +89,7 @@ canvas {
   left: 50%;
   bottom: 26px;
   transform: translateX(-50%);
-  z-index: 6;
+  z-index: 4;
   border: 2px solid var(--ink);
   border-radius: 999px;
   background: var(--white);
@@ -120,7 +117,7 @@ canvas {
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 1rem;
+  padding: 0.85rem;
   background: rgba(242, 245, 248, 0.76);
   z-index: 5;
 }
@@ -130,64 +127,72 @@ canvas {
 }
 
 .modal-panel {
-  width: min(700px, calc(100% - 1rem));
+  width: min(620px, calc(100% - 1rem));
   background: var(--white);
   border: 2px solid var(--ink);
   border-radius: 18px;
-  box-shadow: 0 10px 20px rgba(31, 36, 48, 0.15);
-  padding: 1rem 1rem 0.9rem;
+  box-shadow: 0 8px 16px rgba(31, 36, 48, 0.12);
+  padding: 0.95rem 0.95rem 0.8rem;
+  max-height: calc(100% - 1rem);
+  overflow-y: auto;
 }
 
 .modal-accent {
-  height: 8px;
+  height: 6px;
   border-radius: 999px;
   background: var(--share-accent, var(--cog-pink));
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.72rem;
 }
 
 .modal-panel h2 {
   margin: 0;
   font-family: "Sora", "Inter", sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   line-height: 1.2;
 }
 
 .modal-summary {
-  margin: 0.4rem 0 0.65rem;
-  font-size: 0.98rem;
+  margin: 0.4rem 0 0.66rem;
+  font-size: 0.94rem;
+  font-weight: 600;
 }
 
 .share-card-wrap {
-  margin: 0 0 0.72rem;
+  margin: 0 auto 0.62rem;
+  width: min(100%, 500px);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: var(--white);
+  padding: 6px;
 }
 
 .share-card-preview {
   width: 100%;
   display: block;
-  border: 2px solid var(--ink);
-  border-radius: 12px;
-  background: var(--fog);
+  border: 0;
+  border-radius: 8px;
+  background: var(--white);
   aspect-ratio: 1200 / 627;
   object-fit: cover;
 }
 
 .share-text {
   width: 100%;
-  min-height: 116px;
+  min-height: 98px;
   border: 2px solid var(--ink);
   border-radius: 12px;
-  padding: 0.7rem;
+  padding: 0.58rem 0.62rem;
   resize: vertical;
-  background: var(--fog);
+  background: var(--white);
   color: var(--ink);
-  font: 500 0.92rem/1.45 "Inter", sans-serif;
+  font: 500 0.9rem/1.42 "Inter", sans-serif;
 }
 
 .modal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.46rem;
+  margin-top: 0.56rem;
 }
 
 .btn {
@@ -195,8 +200,11 @@ canvas {
   border-radius: 999px;
   background: var(--white);
   color: var(--ink);
-  font: 600 0.9rem/1.2 "Inter", sans-serif;
-  padding: 0.45rem 0.85rem;
+  font: 600 0.88rem/1.2 "Inter", sans-serif;
+  padding: 0.44rem 0.68rem;
+  min-height: 40px;
+  width: 100%;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -219,8 +227,8 @@ canvas {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.7rem;
-  font-size: 0.9rem;
+  margin-top: 0.5rem;
+  font-size: 0.88rem;
 }
 
 .modal-check input {
@@ -230,8 +238,17 @@ canvas {
 }
 
 .modal-note {
-  margin: 0.36rem 0 0;
-  font-size: 0.8rem;
+  margin: 0.26rem 0 0;
+  font-size: 0.78rem;
+  opacity: 0.86;
+}
+
+.modal-status {
+  margin: 0.5rem 0 0;
+  font-size: 0.84rem;
+  line-height: 1.35;
+  color: var(--ink);
+  display: none;
 }
 
 .sr-only {
@@ -274,10 +291,10 @@ canvas {
   }
 
   .modal-actions {
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
-  .btn {
+  .share-card-wrap {
     width: 100%;
   }
 }
