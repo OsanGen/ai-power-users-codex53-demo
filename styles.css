@@ -1,0 +1,98 @@
+:root {
+  --cog-yellow: #f4d66d;
+  --cog-blue: #89b6ff;
+  --cog-mint: #90dec9;
+  --cog-pink: #f4accd;
+
+  --ink: #1f2430;
+  --white: #ffffff;
+  --fog: #f2f5f8;
+
+  --shadow: 0 12px 30px rgba(31, 36, 48, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 450px at 10% -10%, rgba(137, 182, 255, 0.2), transparent 70%),
+    radial-gradient(900px 350px at 90% 105%, rgba(244, 172, 205, 0.2), transparent 72%),
+    var(--fog);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.app-shell {
+  width: min(96vw, 1380px);
+  border: 3px solid var(--ink);
+  border-radius: 22px;
+  background: var(--white);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.app-header,
+.app-footer {
+  padding: 0.85rem 1rem;
+  background: var(--fog);
+  border-bottom: 2px solid var(--ink);
+}
+
+.app-footer {
+  border-bottom: 0;
+  border-top: 2px solid var(--ink);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.92rem;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-family: "Sora", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: clamp(1rem, 1.6vw, 1.35rem);
+  letter-spacing: 0.01em;
+}
+
+.app-header p {
+  margin: 0.25rem 0 0;
+  font-size: clamp(0.8rem, 1.3vw, 0.95rem);
+}
+
+.game-frame {
+  padding: 10px;
+  background: var(--white);
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  background: var(--white);
+}
+
+@media (max-width: 860px) {
+  .app-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .app-shell {
+    width: 100%;
+  }
+}

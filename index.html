@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wonderland: Invocation Corridor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Sora:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="Wonderland game container">
+      <header class="app-header">
+        <h1>Wonderland: Invocation Corridor</h1>
+        <p>Top-down corridor survival shooter. Move: WASD. Shoot: Arrow Keys.</p>
+      </header>
+
+      <section class="game-frame">
+        <canvas id="game" width="1280" height="720" aria-label="Wonderland game canvas"></canvas>
+      </section>
+
+      <footer class="app-footer">
+        <span>Survive each timer to advance floors 1-9.</span>
+        <span>Restart run: <strong>R</strong></span>
+      </footer>
+    </main>
+
+    <script src="./game.js"></script>
+  </body>
+</html>
