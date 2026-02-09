@@ -18,10 +18,13 @@ Option 2 (recommended):
 - Shoot: `Arrow Keys` (4 directions)
 - Start / Skip floor intro: `Enter` or `Space`
 - Upgrade select: `1-3` instant pick, `A/D` or `Left/Right` to move, `Enter`/`Space` to confirm, mouse hover/click supported
+- Debug stats toggle: ``~`` (off by default)
 - Restart after game over/victory: `R`
 
 ## Gameplay
 
 - Survive each floor timer to advance.
-- Health is heart-based (3 max) and replenishes between floors.
+- Health is heart-based and partially replenishes between floors (+1 heart, up to max).
+- At the start of each floor you must choose 1 upgrade; stackable upgrades persist across the run.
+- If upgrade pools run low, safe fallback options can appear (`Patch Job` heal or `Breathe` short iFrame boost for the floor).
 - 9 floors progress in sequence with floor-specific enemies, overlays, and corridor skins.

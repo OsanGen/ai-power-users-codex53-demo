@@ -42,7 +42,11 @@
   const BASE_BULLET_SPEED = 528;
   const BASE_BULLET_PIERCE = 0;
   const BASE_MAX_HP = 3;
-  const BASE_INVULN_TIME = 0.9;
+  const BASE_INVULN_TIME = 0.8;
+  const MAX_INVULN_TIME = 1.35;
+  const MAX_FLOOR_SHIELD_CHARGES = 2;
+  const FALLBACK_IFRAME_BONUS = 0.05;
+  const MAX_FALLBACK_IFRAME_BONUS = 0.15;
 
   const keys = Object.create(null);
   let lastShootKey = "ArrowUp";
@@ -67,6 +71,11 @@
 
     if (event.key.startsWith("Arrow")) {
       lastShootKey = event.key;
+    }
+
+    if (event.key === "`" || event.key === "~") {
+      game.showDebugStats = !game.showDebugStats;
+      return;
     }
 
     const lower = event.key.toLowerCase();
@@ -354,7 +363,9 @@
     upgradeSelectedIndex: 0,
     upgradeConfirmCooldown: 0,
     upgradeNoticeTimer: 0,
-    upgradeCardRects: []
+    upgradeCardRects: [],
+    floorFallbackInvulnBonus: 0,
+    showDebugStats: false
   };
 
   const player = {
@@ -448,7 +459,7 @@
       name: "Bubble Shield",
       desc: "Start each floor with +1 shield charge per stack.",
       tags: ["defense"],
-      maxStacks: 3,
+      maxStacks: 2,
       apply: null,
       modifier: (stats, stack) => {
         stats.floorShieldCharges += stack;
@@ -457,12 +468,12 @@
     {
       id: "grace_frames",
       name: "Grace Frames",
-      desc: "+0.12s post-hit invulnerability per stack.",
+      desc: "+0.10s post-hit invulnerability per stack.",
       tags: ["defense"],
-      maxStacks: 5,
+      maxStacks: 4,
       apply: null,
       modifier: (stats, stack) => {
-        stats.invulnBonus += 0.12 * stack;
+        stats.invulnBonus += 0.1 * stack;
       }
     },
     {
@@ -486,6 +497,23 @@
       modifier: (stats, stack) => {
         stats.enemyBulletSpeedMult *= Math.pow(0.93, stack);
       }
+    }
+  ];
+
+  const FALLBACK_UPGRADE_DEFS = [
+    {
+      id: "fallback_heal",
+      name: "Patch Job",
+      desc: "Heal +1 immediately.",
+      tags: ["utility"],
+      stackless: true
+    },
+    {
+      id: "fallback_gold",
+      name: "Breathe",
+      desc: "+0.05s iFrames this floor.",
+      tags: ["defense", "utility"],
+      stackless: true
     }
   ];
 
@@ -516,6 +544,69 @@
     return !!def && getStack(id) < def.maxStacks;
   }
 
+  function getFallbackDef(id) {
+    return FALLBACK_UPGRADE_DEFS.find((fallback) => fallback.id === id) || null;
+  }
+
+  function buildFallbackOffer(slotIndex, usedIds) {
+    if (FALLBACK_UPGRADE_DEFS.length === 0) {
+      return null;
+    }
+
+    const primaryPool = FALLBACK_UPGRADE_DEFS.filter((fallback) => !usedIds.has(fallback.id));
+    const base =
+      primaryPool.length > 0
+        ? randomFrom(primaryPool)
+        : FALLBACK_UPGRADE_DEFS[slotIndex % FALLBACK_UPGRADE_DEFS.length];
+
+    let offerId = base.id;
+    let suffix = 1;
+    while (usedIds.has(offerId)) {
+      offerId = `${base.id}_${slotIndex + suffix}`;
+      suffix += 1;
+    }
+
+    return {
+      ...base,
+      id: offerId,
+      fallbackBaseId: base.id
+    };
+  }
+
+  function applyFallbackUpgrade(option) {
+    const baseId = option.fallbackBaseId || option.id;
+    const fallback = getFallbackDef(baseId);
+    if (!fallback) {
+      return null;
+    }
+
+    if (baseId === "fallback_heal") {
+      const before = player.hearts;
+      player.hearts = clamp(player.hearts + 1, 0, player.maxHearts);
+      const healed = player.hearts - before;
+      return {
+        fallback,
+        effectText: healed > 0 ? `heal +${healed}` : "HP already full"
+      };
+    }
+
+    if (baseId === "fallback_gold") {
+      const before = game.floorFallbackInvulnBonus;
+      game.floorFallbackInvulnBonus = clamp(
+        game.floorFallbackInvulnBonus + FALLBACK_IFRAME_BONUS,
+        0,
+        MAX_FALLBACK_IFRAME_BONUS
+      );
+      const gained = game.floorFallbackInvulnBonus - before;
+      return {
+        fallback,
+        effectText: gained > 0 ? `+${gained.toFixed(2)}s iFrames (floor)` : "iFrames already capped"
+      };
+    }
+
+    return null;
+  }
+
   function applyUpgrade(id) {
     const def = getUpgradeDef(id);
     if (!def || !canTakeUpgrade(id)) {
@@ -540,36 +631,85 @@
     return { def, newStack };
   }
 
+  function applyUpgradeChoice(option) {
+    if (!option) {
+      return null;
+    }
+
+    if (option.fallbackBaseId) {
+      const fallbackResult = applyFallbackUpgrade(option);
+      if (!fallbackResult) {
+        return null;
+      }
+      return {
+        type: "fallback",
+        option,
+        effectText: fallbackResult.effectText
+      };
+    }
+
+    const upgradeResult = applyUpgrade(option.id);
+    if (!upgradeResult) {
+      return null;
+    }
+
+    return {
+      type: "upgrade",
+      option,
+      newStack: upgradeResult.newStack,
+      maxStacks: upgradeResult.def.maxStacks
+    };
+  }
+
   function rollUpgradeOptions(floorIndex, count = 3) {
     void floorIndex;
     const eligible = UPGRADE_DEFS.filter((upgrade) => canTakeUpgrade(upgrade.id));
-    if (eligible.length <= count) {
-      return shuffleArray([...eligible]).slice(0, count);
-    }
-
     const picks = [];
+    const usedIds = new Set();
     const offense = eligible.filter((upgrade) => upgrade.tags.includes("offense"));
     const defenseOrUtility = eligible.filter(
       (upgrade) => upgrade.tags.includes("defense") || upgrade.tags.includes("utility")
     );
 
     if (offense.length > 0) {
-      picks.push(randomFrom(offense));
-    }
-
-    if (defenseOrUtility.length > 0) {
-      const supportPool = defenseOrUtility.filter((upgrade) => !picks.some((pick) => pick.id === upgrade.id));
-      if (supportPool.length > 0) {
-        picks.push(randomFrom(supportPool));
+      const rolledOffense = randomFrom(offense.filter((upgrade) => !usedIds.has(upgrade.id)));
+      if (rolledOffense) {
+        picks.push(rolledOffense);
+        usedIds.add(rolledOffense.id);
       }
     }
 
-    let remaining = eligible.filter((upgrade) => !picks.some((pick) => pick.id === upgrade.id));
+    if (defenseOrUtility.length > 0) {
+      const supportPool = defenseOrUtility.filter((upgrade) => !usedIds.has(upgrade.id));
+      if (supportPool.length > 0) {
+        const rolledSupport = randomFrom(supportPool);
+        if (rolledSupport) {
+          picks.push(rolledSupport);
+          usedIds.add(rolledSupport.id);
+        }
+      }
+    }
+
+    let remaining = shuffleArray(eligible.filter((upgrade) => !usedIds.has(upgrade.id)));
 
     while (picks.length < count && remaining.length > 0) {
-      const rolled = randomFrom(remaining);
+      const rolled = remaining.shift();
+      if (!rolled || usedIds.has(rolled.id)) {
+        continue;
+      }
       picks.push(rolled);
-      remaining = remaining.filter((upgrade) => upgrade.id !== rolled.id);
+      usedIds.add(rolled.id);
+    }
+
+    let fallbackSlot = 0;
+    while (picks.length < count) {
+      const fallbackOffer = buildFallbackOffer(fallbackSlot, usedIds);
+      if (!fallbackOffer) {
+        break;
+      }
+      picks.push(fallbackOffer);
+      usedIds.add(fallbackOffer.id);
+      fallbackSlot += 1;
     }
 
     return picks.slice(0, count);
@@ -596,6 +736,9 @@
       }
       upgrade.modifier(derived, stack, game.currentFloorIndex);
     }
+
+    derived.floorShieldCharges = clamp(derived.floorShieldCharges, 0, MAX_FLOOR_SHIELD_CHARGES);
+    derived.invulnBonus = clamp(derived.invulnBonus, 0, MAX_INVULN_TIME - BASE_INVULN_TIME);
 
     return derived;
   }
@@ -632,12 +775,12 @@
 
   function getShieldChargesPerFloor() {
     const stats = computeDerivedStats();
-    return stats.floorShieldCharges;
+    return clamp(Math.round(stats.floorShieldCharges), 0, MAX_FLOOR_SHIELD_CHARGES);
   }
 
   function getInvulnDuration() {
     const stats = computeDerivedStats();
-    return BASE_INVULN_TIME + stats.invulnBonus;
+    return clamp(BASE_INVULN_TIME + stats.invulnBonus + game.floorFallbackInvulnBonus, 0.25, MAX_INVULN_TIME);
   }
 
   function getPickupMagnetRadius() {
@@ -745,15 +888,17 @@
     }
 
     game.upgradeSelectedIndex = index;
-    const result = applyUpgrade(option.id);
+    const result = applyUpgradeChoice(option);
     if (!result) {
       game.upgradeNoticeTimer = 1.2;
       return;
     }
 
-    console.log(
-      `[upgrade] floor ${currentFloor().id}: picked ${option.name} (stack ${result.newStack}/${option.maxStacks})`
-    );
+    if (result.type === "fallback") {
+      console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (${result.effectText})`);
+    } else {
+      console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (stack ${result.newStack}/${result.maxStacks})`);
+    }
 
     game.upgradeConfirmCooldown = 0.18;
     game.upgradeNoticeTimer = 0;
@@ -788,6 +933,7 @@
     game.upgradeConfirmCooldown = 0;
     game.upgradeNoticeTimer = 0;
     game.upgradeCardRects = [];
+    game.floorFallbackInvulnBonus = 0;
     resetUpgradeRun();
     bullets = [];
     enemyBullets = [];
@@ -828,6 +974,7 @@
     game.upgradeConfirmCooldown = 0;
     game.upgradeNoticeTimer = 0;
     game.upgradeCardRects = [];
+    game.floorFallbackInvulnBonus = 0;
     normalizeUpgradeSelection();
     syncPlayerMaxHP(false);
     player.invuln = 0;
@@ -857,7 +1004,8 @@
     particles = [];
 
     activeWaves = floor.enemyWaves.map((w) => ({ ...w, _accum: 0 }));
-    syncPlayerMaxHP(true);
+    syncPlayerMaxHP(false);
+    player.hearts = clamp(player.hearts + 1, 0, player.maxHearts);
     player.shieldCharges = getShieldChargesPerFloor();
     player.shieldBreakFlash = 0;
     player.invuln = 0;
@@ -1631,8 +1779,9 @@
   }
 
   function drawUpgradeCard(option, rect, selected, accent) {
-    const stack = getStack(option.id);
-    const nextStack = Math.min(stack + 1, option.maxStacks);
+    const isStackless = !!option.stackless || !!option.fallbackBaseId;
+    const stack = isStackless ? 0 : getStack(option.id);
+    const nextStack = isStackless ? 0 : Math.min(stack + 1, option.maxStacks);
     const tags = option.tags.join(" / ");
 
     ctx.fillStyle = TOKENS.fog;
@@ -1668,7 +1817,11 @@
     ctx.fillText(`Tags: ${tags}`, rect.x + 26, rect.y + rect.h - 76);
 
     ctx.font = '600 16px "Inter", sans-serif';
-    ctx.fillText(`Stacks: ${stack} -> ${nextStack}`, rect.x + 16, rect.y + rect.h - 42);
+    if (isStackless) {
+      ctx.fillText("Instant effect (no stacks)", rect.x + 16, rect.y + rect.h - 42);
+    } else {
+      ctx.fillText(`Stacks: ${stack} -> ${nextStack}`, rect.x + 16, rect.y + rect.h - 42);
+    }
   }
 
   function isTitleSequenceComplete() {
@@ -2327,6 +2480,7 @@
     ctx.fillText(timerText, timerBoxX + timerW + 14, timerBoxY + timerH * 0.5 + 1);
 
     drawUpgradeHudPanel(accent);
+    drawDebugStatsLine(accent);
   }
 
   function drawUpgradeHudPanel(accent) {
@@ -2353,6 +2507,40 @@
     for (let i = 0; i < rows.length; i += 1) {
       ctx.fillText(rows[i], panelX + 14, panelY + 41 + i * 19);
     }
+  }
+
+  function drawDebugStatsLine(accent) {
+    if (!game.showDebugStats) {
+      return;
+    }
+
+    const stats = computeDerivedStats();
+    const speed = BASE_PLAYER_SPEED * stats.moveSpeedMult;
+    const cooldown = BASE_FIRE_COOLDOWN * stats.fireCooldownMult;
+    const bulletRadius = BASE_BULLET_RADIUS * stats.bulletRadiusMult;
+    const enemyBulletMult = stats.enemyBulletSpeedMult;
+    const invuln = getInvulnDuration();
+    const debugText =
+      `dbg speed ${speed.toFixed(0)} | cooldown ${cooldown.toFixed(3)} | radius ${bulletRadius.toFixed(2)} | ` +
+      `enemyBullet ${enemyBulletMult.toFixed(2)} | iFrames ${invuln.toFixed(2)}`;
+
+    const panelX = 70;
+    const panelY = 98;
+    const panelW = 620;
+    const panelH = 30;
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(panelX, panelY, panelW, panelH, 10);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 10);
+
+    ctx.fillStyle = rgba(accent, 0.18);
+    fillRoundRect(panelX + 8, panelY + 8, panelW - 16, 5, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillText(debugText, panelX + 12, panelY + 21);
   }
 
   function drawStateOverlay(floor, accent) {
