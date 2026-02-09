@@ -28,3 +28,10 @@ Option 2 (recommended):
 - At the start of each floor you must choose 1 upgrade; stackable upgrades persist across the run.
 - If upgrade pools run low, safe fallback options can appear (`Patch Job` heal or `Breathe` short iFrame boost for the floor).
 - 9 floors progress in sequence with floor-specific enemies, overlays, and corridor skins.
+
+## Narrative layer (neural nets)
+
+- The run uses a rabbit-hole story to teach neural-net concepts, floor by floor.
+- Narrative content is data-only in `narrative.js` (titles, subtitles, lore, upgrade labels).
+- Core mechanics are unchanged by the narrative layer.
+- Floor concepts: weights and bias, data and labels, activations, loss to gradients, capacity and overfitting, optimization loop, generalization, inference reality, emergence and control.

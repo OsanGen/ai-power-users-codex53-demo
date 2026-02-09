@@ -14,6 +14,8 @@
   const shareCloseBtn = document.getElementById("shareCloseBtn");
   const shareDontAskEl = document.getElementById("shareDontAsk");
   const overlayRestartBtn = document.getElementById("overlayRestartBtn");
+  const N = window.AI_POWER_USER_NARRATIVE || null;
+  console.log("[narrative] loaded:", !!window.AI_POWER_USER_NARRATIVE);
 
   const WIDTH = canvas.width;
   const HEIGHT = canvas.height;
@@ -77,6 +79,85 @@
     } else if (typeof reducedMotionQuery.addListener === "function") {
       reducedMotionQuery.addListener(onReducedMotionChange);
     }
+  }
+
+  function pickNarrativeText(value, fallback) {
+    return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  }
+
+  function getNarrativeTitleCard() {
+    const gameTitle = pickNarrativeText(N && N.gameTitle, "AI POWER USERS");
+    const tagline = pickNarrativeText(N && N.tagline, "Codex 5.3 Tech Demo");
+    const fallbackBlurb = [
+      "Follow one builder into the AI tooling rabbit hole, then emerge as an AI power user with repeatable workflows."
+    ];
+    const lines = Array.isArray(N && N.titleBlurb)
+      ? N.titleBlurb.filter((line) => typeof line === "string" && line.trim()).slice(0, 3).map((line) => line.trim())
+      : [];
+
+    return {
+      gameTitle,
+      tagline,
+      blurbLines: lines.length > 0 ? lines : fallbackBlurb
+    };
+  }
+
+  function getNarrativeFloorCopy(floor) {
+    const floorFallbackTitle = floor && floor.overlayTitle ? floor.overlayTitle : floor && floor.name ? floor.name : "";
+    const floorFallbackSubtitle = floor && floor.overlaySubtitle ? floor.overlaySubtitle : "";
+    const floorList = Array.isArray(N && N.floors) ? N.floors : [];
+    const index = floor && Number.isFinite(floor.id) ? floor.id - 1 : -1;
+    const entry = index >= 0 && index < floorList.length ? floorList[index] : null;
+
+    return {
+      title: pickNarrativeText(entry && entry.title, floorFallbackTitle),
+      subtitle: pickNarrativeText(entry && entry.subtitle, floorFallbackSubtitle)
+    };
+  }
+
+  function getNarrativeOutcomeCopy(isVictory) {
+    if (isVictory) {
+      const block = N && N.victory;
+      return {
+        title: pickNarrativeText(block && block.title, "Run Complete"),
+        subtitle: pickNarrativeText(block && block.subtitle, "You completed the AI tooling climb and finalized a stable build.")
+      };
+    }
+
+    const block = N && N.gameOver;
+    return {
+      title: pickNarrativeText(block && block.title, "Run Failed"),
+      subtitle: pickNarrativeText(block && block.subtitle, "The run ended before the build fully stabilized.")
+    };
+  }
+
+  function getThreatGlossaryRows(maxRows = 4, namesOnly = false) {
+    const lore = N && N.enemyLore && typeof N.enemyLore === "object" ? N.enemyLore : null;
+    if (!lore) {
+      return [];
+    }
+
+    const rows = [];
+    const enemyIds = Object.keys(ENEMY_DEFS);
+    for (const id of enemyIds) {
+      const entry = lore[id];
+      if (!entry || typeof entry !== "object") {
+        continue;
+      }
+
+      const name = typeof entry.name === "string" ? entry.name.trim() : "";
+      const means = typeof entry.means === "string" ? entry.means.trim() : "";
+      if (!name) {
+        continue;
+      }
+
+      rows.push(namesOnly || !means ? name : `${name}: ${means}`);
+      if (rows.length >= maxRows) {
+        break;
+      }
+    }
+
+    return rows;
   }
 
   function isHttpShareUrl(value) {
@@ -1035,6 +1116,28 @@
     lastTakenSerial: Object.create(null),
     serial: 0
   };
+
+  function applyNarrativeUpgradeRename() {
+    if (!N || typeof N !== "object" || !N.upgradeRename || typeof N.upgradeRename !== "object") {
+      return;
+    }
+
+    for (const upgrade of UPGRADE_DEFS) {
+      const renamed = N.upgradeRename[upgrade.id];
+      if (!renamed || typeof renamed !== "object") {
+        continue;
+      }
+
+      if (typeof renamed.name === "string" && renamed.name.trim()) {
+        upgrade.name = renamed.name.trim();
+      }
+      if (typeof renamed.desc === "string" && renamed.desc.trim()) {
+        upgrade.desc = renamed.desc.trim();
+      }
+    }
+  }
+
+  applyNarrativeUpgradeRename();
 
   function resetUpgradeRun() {
     upgradeState.stacks = Object.create(null);
@@ -2460,16 +2563,15 @@
     ctx.fillStyle = rgba(accent, 0.22);
     fillRoundRect(panelX + 26, panelY + 26, panelW - 52, 10, 999);
 
-    const rawFloorTitle = floor.overlayTitle || floor.name;
-    const normalizedFloorTitle = rawFloorTitle.replace(/^Floor\\s*\\d+\\s*-\\s*/i, "");
+    const floorCopy = getNarrativeFloorCopy(floor);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "top";
     ctx.font = '700 38px "Sora", "Inter", sans-serif';
-    ctx.fillText(`Floor ${floor.id}: ${normalizedFloorTitle}`, panelX + 34, panelY + 50);
+    ctx.fillText(floorCopy.title, panelX + 34, panelY + 50);
 
     ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(floor.overlaySubtitle, panelX + 34, panelY + 104, panelW - 68, 30);
+    drawWrappedText(floorCopy.subtitle, panelX + 34, panelY + 104, panelW - 68, 30);
 
     ctx.font = '600 18px "Inter", sans-serif';
     ctx.fillStyle = TOKENS.ink;
@@ -2641,6 +2743,7 @@
 
   function drawTitleFinalFrame(options = {}) {
     const accent = accentColor("yellow");
+    const titleCard = getNarrativeTitleCard();
     const panelAppear = options.panelAppear ?? 1;
     const verticalOffset = options.verticalOffset ?? 0;
     const panelAlpha = options.panelAlpha ?? 1;
@@ -2667,19 +2770,16 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.font = '700 58px "Sora", "Inter", sans-serif';
-    ctx.fillText("AI POWER USERS", WIDTH * 0.5, panelY + 54 + (1 - panelAppear) * 8);
+    ctx.fillText(titleCard.gameTitle, WIDTH * 0.5, panelY + 54 + (1 - panelAppear) * 8);
 
     ctx.font = '700 24px "Inter", sans-serif';
-    ctx.fillText("Codex 5.3 Tech Demo", WIDTH * 0.5, panelY + 130 + (1 - panelAppear) * 6);
+    ctx.fillText(titleCard.tagline, WIDTH * 0.5, panelY + 130 + (1 - panelAppear) * 6);
 
     ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(
-      "Follow one builder into the AI tooling rabbit hole, then emerge as an AI power user with repeatable workflows.",
-      WIDTH * 0.5,
-      panelY + 186 + (1 - panelAppear) * 4,
-      panelW - 96,
-      30
-    );
+    let blurbY = panelY + 186 + (1 - panelAppear) * 4;
+    for (let i = 0; i < titleCard.blurbLines.length; i += 1) {
+      blurbY = drawWrappedText(titleCard.blurbLines[i], WIDTH * 0.5, blurbY, panelW - 96, 30);
+    }
 
     const prompt = "Press Enter or Space to start";
     ctx.font = '700 18px "Inter", sans-serif';
@@ -3333,10 +3433,11 @@
     let title = "";
     let body = "";
     let footer = "";
+    const floorCopy = getNarrativeFloorCopy(floor);
 
     if (game.state === GameState.FLOOR_INTRO) {
-      title = floor.overlayTitle;
-      body = floor.overlaySubtitle;
+      title = floorCopy.title;
+      body = floorCopy.subtitle;
       footer = "Press Enter to skip intro";
     } else if (game.state === GameState.FLOOR_CLEAR) {
       title = `Floor ${floor.id} Survived`;
@@ -3378,10 +3479,9 @@
 
   function drawRunSummaryOverlay(floor, accent) {
     const isVictory = game.state === GameState.VICTORY;
-    const title = isVictory ? "Run Complete" : "Run Failed";
-    const body = isVictory
-      ? "You completed the AI tooling climb and finalized a stable build."
-      : "The run ended before the build fully stabilized.";
+    const outcomeCopy = getNarrativeOutcomeCopy(isVictory);
+    const title = outcomeCopy.title;
+    const body = outcomeCopy.subtitle;
     const footer = "Press R to restart";
     const floorsCleared = getFloorsClearedCount();
     const totalTaken = upgradeState.history.length;
@@ -3438,33 +3538,46 @@
     ctx.strokeStyle = TOKENS.ink;
     strokeRoundRect(listX, listY, listW, listH, 14);
 
+    const sectionGap = 24;
+    const sectionW = Math.floor((listW - 32 - sectionGap) / 2);
+    const runSectionX = listX + 16;
+    const glossarySectionX = runSectionX + sectionW + sectionGap;
+    const contentTop = listY + 12;
+    const rowsTop = listY + 50;
+    const rowH = 24;
+    const maxRows = Math.max(1, Math.floor((listH - 56) / rowH));
+    const namesOnlyGlossary = sectionW < 290;
+    const glossaryRows = getThreatGlossaryRows(6, namesOnlyGlossary).slice(0, 4);
+
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 20px "Sora", "Inter", sans-serif';
-    ctx.fillText("Run build", listX + 16, listY + 12);
+    ctx.fillText("Run build", runSectionX, contentTop);
+    ctx.fillText("Threat glossary", glossarySectionX, contentTop);
 
+    ctx.font = '600 15px "Inter", sans-serif';
     if (buildEntries.length === 0) {
-      ctx.font = '600 16px "Inter", sans-serif';
-      ctx.fillText("No upgrades collected.", listX + 16, listY + 50);
+      ctx.fillText("No upgrades collected.", runSectionX, rowsTop);
     } else {
-      const columns = 2;
-      const colGap = 24;
-      const colW = Math.floor((listW - 32 - colGap) / columns);
-      const rowH = 28;
-      const maxRows = Math.floor((listH - 52) / rowH);
-
-      ctx.font = '600 15px "Inter", sans-serif';
-      for (let i = 0; i < buildEntries.length; i += 1) {
-        const col = i % columns;
-        const row = Math.floor(i / columns);
-        if (row >= maxRows) {
-          const remaining = buildEntries.length - i;
-          ctx.fillText(`+${remaining} more`, listX + 16 + col * (colW + colGap), listY + 50 + row * rowH);
-          break;
-        }
-
+      const visibleBuildRows = Math.min(buildEntries.length, maxRows);
+      for (let i = 0; i < visibleBuildRows; i += 1) {
         const entry = buildEntries[i];
         const label = `${i + 1}. ${entry.def.name} x${entry.stack}`;
-        ctx.fillText(label, listX + 16 + col * (colW + colGap), listY + 50 + row * rowH);
+        ctx.fillText(fitCanvasText(label, sectionW), runSectionX, rowsTop + i * rowH);
+      }
+
+      if (buildEntries.length > visibleBuildRows) {
+        const remaining = buildEntries.length - visibleBuildRows;
+        const overflowY = rowsTop + (visibleBuildRows - 1) * rowH;
+        ctx.fillText(`+${remaining} more`, runSectionX, overflowY);
+      }
+    }
+
+    if (glossaryRows.length === 0) {
+      ctx.fillText("Threat glossary unavailable.", glossarySectionX, rowsTop);
+    } else {
+      const visibleGlossaryRows = Math.min(glossaryRows.length, maxRows);
+      for (let i = 0; i < visibleGlossaryRows; i += 1) {
+        ctx.fillText(fitCanvasText(glossaryRows[i], sectionW), glossarySectionX, rowsTop + i * rowH);
       }
     }
 
@@ -3566,6 +3679,23 @@
     }
 
     return y + lineHeight;
+  }
+
+  function fitCanvasText(text, maxWidth) {
+    let value = typeof text === "string" ? text.trim() : "";
+    if (!value) {
+      return "";
+    }
+
+    if (ctx.measureText(value).width <= maxWidth) {
+      return value;
+    }
+
+    const ellipsis = "...";
+    while (value.length > 1 && ctx.measureText(`${value}${ellipsis}`).width > maxWidth) {
+      value = value.slice(0, -1);
+    }
+    return `${value}${ellipsis}`;
   }
 
   function fillRoundRect(x, y, w, h, r) {
