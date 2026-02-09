@@ -50,6 +50,20 @@
 
   const keys = Object.create(null);
   let lastShootKey = "ArrowUp";
+  const reducedMotionQuery =
+    typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  let prefersReducedMotion = reducedMotionQuery ? reducedMotionQuery.matches : false;
+
+  if (reducedMotionQuery) {
+    const onReducedMotionChange = (event) => {
+      prefersReducedMotion = !!event.matches;
+    };
+    if (typeof reducedMotionQuery.addEventListener === "function") {
+      reducedMotionQuery.addEventListener("change", onReducedMotionChange);
+    } else if (typeof reducedMotionQuery.addListener === "function") {
+      reducedMotionQuery.addListener(onReducedMotionChange);
+    }
+  }
 
   window.addEventListener("keydown", (event) => {
     keys[event.key] = true;
@@ -300,27 +314,12 @@
   ];
 
   const TITLE_SEQUENCE = {
-    textOnStart: 0.9,
-    textOnEnd: 1.9,
-    blackGapEnd: 2.35,
-    strobeStart: 2.35,
-    strobeEnd: 5.45,
-    finish: 6.2,
-    flashWindows: [
-      { time: 2.38, length: 0.07, color: "yellow" },
-      { time: 2.56, length: 0.09, color: "pink" },
-      { time: 2.77, length: 0.06, color: "blue" },
-      { time: 3.02, length: 0.08, color: "mint" },
-      { time: 3.31, length: 0.07, color: "pink" },
-      { time: 3.48, length: 0.05, color: "yellow" },
-      { time: 3.76, length: 0.1, color: "blue" },
-      { time: 4.02, length: 0.06, color: "mint" },
-      { time: 4.27, length: 0.07, color: "yellow" },
-      { time: 4.51, length: 0.11, color: "pink" },
-      { time: 4.81, length: 0.07, color: "blue" },
-      { time: 5.08, length: 0.08, color: "mint" },
-      { time: 5.29, length: 0.07, color: "yellow" }
-    ]
+    fadeInEnd: 1.2,
+    panelInStart: 0.4,
+    panelInEnd: 2.5,
+    accentSweepStart: 0.9,
+    accentSweepEnd: 3.6,
+    finish: 6.2
   };
 
   const ENEMY_DEFS = {
@@ -1830,62 +1829,76 @@
 
   function drawTitleCinematic() {
     const t = game.titleIntroTime;
-    const titleText = "AI POWER USERS";
-
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-    if (t < TITLE_SEQUENCE.textOnStart) {
-      return;
-    }
-
-    if (t <= TITLE_SEQUENCE.textOnEnd) {
-      drawTitleCenterText(titleText, TOKENS.white, 78);
-      return;
-    }
-
-    if (t < TITLE_SEQUENCE.blackGapEnd) {
-      return;
-    }
-
-    if (t <= TITLE_SEQUENCE.strobeEnd) {
-      const flash = activeStrobeFlash(t);
-      if (flash) {
-        const flashColor = accentColor(flash.color);
-        ctx.fillStyle = flashColor;
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
-        drawTitleCenterText(titleText, TOKENS.ink, 78);
-      }
-      return;
-    }
-
-    drawTitleFinalFrame();
-  }
-
-  function activeStrobeFlash(time) {
-    for (const flash of TITLE_SEQUENCE.flashWindows) {
-      if (time >= flash.time && time <= flash.time + flash.length) {
-        return flash;
-      }
-    }
-    return null;
-  }
-
-  function drawTitleCenterText(text, color, size) {
-    ctx.fillStyle = color;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.font = `700 ${size}px "Sora", "Inter", sans-serif`;
-    ctx.fillText(text, WIDTH * 0.5, HEIGHT * 0.5);
-    ctx.textAlign = "left";
-  }
-
-  function drawTitleFinalFrame() {
     const accent = accentColor("yellow");
+
+    drawBackdrop(accent);
+
+    if (prefersReducedMotion) {
+      drawTitleFinalFrame({
+        panelAppear: 1,
+        verticalOffset: 0,
+        panelAlpha: 1,
+        promptAlpha: 1,
+        animatePrompt: false
+      });
+      return;
+    }
+
+    const fadeIn = easeOutCubic(clamp(t / TITLE_SEQUENCE.fadeInEnd, 0, 1));
+    const panelAppear = easeOutCubic(
+      clamp((t - TITLE_SEQUENCE.panelInStart) / (TITLE_SEQUENCE.panelInEnd - TITLE_SEQUENCE.panelInStart), 0, 1)
+    );
+    const sweepProgress = easeInOutSine(
+      clamp(
+        (t - TITLE_SEQUENCE.accentSweepStart) /
+          (TITLE_SEQUENCE.accentSweepEnd - TITLE_SEQUENCE.accentSweepStart),
+        0,
+        1
+      )
+    );
+
+    if (fadeIn < 1) {
+      ctx.fillStyle = rgba(TOKENS.ink, 1 - fadeIn);
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    }
+
+    const railX = 112;
+    const railY = 132;
+    const railW = WIDTH - railX * 2;
+    const sweepW = 220;
+    const sweepX = railX + (railW - sweepW) * sweepProgress;
+
+    ctx.fillStyle = rgba(accent, 0.12);
+    fillRoundRect(railX, railY, railW, 8, 999);
+    ctx.fillStyle = rgba(accent, 0.26);
+    fillRoundRect(sweepX, railY - 2, sweepW, 12, 999);
+
+    const verticalOffset = (1 - panelAppear) * 30 + Math.sin(game.globalTime * 1.3) * 2.4 * panelAppear;
+    const promptAlpha = 0.76 + (Math.sin(game.globalTime * 2.3) * 0.5 + 0.5) * 0.24;
+
+    drawTitleFinalFrame({
+      panelAppear,
+      verticalOffset,
+      panelAlpha: clamp(0.68 + panelAppear * 0.32, 0, 1),
+      promptAlpha,
+      animatePrompt: true
+    });
+  }
+
+  function drawTitleFinalFrame(options = {}) {
+    const accent = accentColor("yellow");
+    const panelAppear = options.panelAppear ?? 1;
+    const verticalOffset = options.verticalOffset ?? 0;
+    const panelAlpha = options.panelAlpha ?? 1;
+    const promptAlpha = options.promptAlpha ?? 1;
+    const animatePrompt = options.animatePrompt !== false;
     const panelX = 152;
-    const panelY = 164;
+    const panelY = 164 + verticalOffset;
     const panelW = WIDTH - 304;
     const panelH = HEIGHT - 268;
+
+    ctx.save();
+    ctx.globalAlpha = clamp(panelAlpha, 0, 1);
 
     ctx.fillStyle = TOKENS.white;
     fillRoundRect(panelX, panelY, panelW, panelH, 22);
@@ -1900,16 +1913,16 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.font = '700 58px "Sora", "Inter", sans-serif';
-    ctx.fillText("AI POWER USERS", WIDTH * 0.5, panelY + 54);
+    ctx.fillText("AI POWER USERS", WIDTH * 0.5, panelY + 54 + (1 - panelAppear) * 8);
 
     ctx.font = '700 24px "Inter", sans-serif';
-    ctx.fillText("Codex 5.3 Tech Demo", WIDTH * 0.5, panelY + 130);
+    ctx.fillText("Codex 5.3 Tech Demo", WIDTH * 0.5, panelY + 130 + (1 - panelAppear) * 6);
 
     ctx.font = '500 20px "Inter", sans-serif';
     drawWrappedText(
       "Follow one builder into the AI tooling rabbit hole, then emerge as an AI power user with repeatable workflows.",
       WIDTH * 0.5,
-      panelY + 186,
+      panelY + 186 + (1 - panelAppear) * 4,
       panelW - 96,
       30
     );
@@ -1917,14 +1930,19 @@
     const prompt = "Press Enter or Space to start";
     ctx.font = '700 18px "Inter", sans-serif';
     const promptWidth = ctx.measureText(prompt).width;
-    ctx.fillStyle = rgba(accent, 0.26);
+    ctx.fillStyle = rgba(accent, 0.2 + clamp(promptAlpha, 0, 1) * 0.18);
     fillRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, panelY + panelH - 68, promptWidth + 40, 38, 999);
     ctx.strokeStyle = TOKENS.ink;
     strokeRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, panelY + panelH - 68, promptWidth + 40, 38, 999);
+
+    ctx.save();
+    ctx.globalAlpha = animatePrompt ? clamp(promptAlpha, 0.65, 1) : 1;
     ctx.fillStyle = TOKENS.ink;
     ctx.fillText(prompt, WIDTH * 0.5, panelY + panelH - 58);
+    ctx.restore();
 
     ctx.textAlign = "left";
+    ctx.restore();
   }
 
   function drawBackdrop(accent) {
@@ -2909,6 +2927,16 @@
 
   function lerp(a, b, t) {
     return a + (b - a) * t;
+  }
+
+  function easeOutCubic(t) {
+    const x = clamp(t, 0, 1);
+    return 1 - Math.pow(1 - x, 3);
+  }
+
+  function easeInOutSine(t) {
+    const x = clamp(t, 0, 1);
+    return -(Math.cos(Math.PI * x) - 1) * 0.5;
   }
 
   function approach(value, target, step) {
