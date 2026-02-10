@@ -32,6 +32,7 @@
   let simAccumulator = 0;
   const SIM_STEP = 1 / 60;
   const MAX_ACCUMULATED_TIME = 0.25;
+  const CHECKPOINT_FLOOR_KEY = "checkpoint_floor_v1";
   let neuralGlassInitialized = false;
   const DEV_TEACH_CARD_GUARD =
     typeof window !== "undefined" &&
@@ -51,6 +52,45 @@
       if (Object.prototype.hasOwnProperty.call(keys, key)) {
         keys[key] = false;
       }
+    }
+  }
+
+  function normalizeCheckpointFloor(value) {
+    const maxFloors = Math.max(1, FLOORS.length);
+    const parsed = Number.parseInt(String(value), 10);
+    if (!Number.isFinite(parsed)) {
+      return 1;
+    }
+    return clamp(parsed, 1, maxFloors);
+  }
+
+  function getCheckpointFloor() {
+    try {
+      const raw = localStorage.getItem(CHECKPOINT_FLOOR_KEY);
+      if (raw == null) {
+        return 1;
+      }
+      return normalizeCheckpointFloor(raw);
+    } catch (error) {
+      return 1;
+    }
+  }
+
+  function setCheckpointFloor(n) {
+    const floor = normalizeCheckpointFloor(n);
+    try {
+      localStorage.setItem(CHECKPOINT_FLOOR_KEY, String(floor));
+    } catch (error) {
+      void error;
+    }
+    return floor;
+  }
+
+  function clearCheckpointFloor() {
+    try {
+      localStorage.removeItem(CHECKPOINT_FLOOR_KEY);
+    } catch (error) {
+      void error;
     }
   }
 
@@ -112,11 +152,16 @@
     }
 
     const lower = event.key.toLowerCase();
-    if (game.state === GameState.TITLE && (event.key === " " || event.key === "Enter")) {
-      if (AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete()) {
-        startRun();
-      } else {
-        game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
+    if (game.state === GameState.TITLE) {
+      if (event.key === " " || event.key === "Enter") {
+        if (AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete()) {
+          startRun();
+        } else {
+          game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
+        }
+      } else if (lower === "r") {
+        clearCheckpointFloor();
+        startRun(1);
       }
     } else if (game.state === GameState.TEACH_CARD) {
       const neuralGlass = getNeuralGlass();
@@ -437,11 +482,12 @@
     resetPlayerPosition();
   }
 
-  function startRun() {
+  function startRun(forcedStartFloor = null) {
     game.kills = 0;
     game.gameOverEntryHandled = false;
     upgrades.resetUpgradeRun();
-    startFloor(0);
+    const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
+    startFloor(checkpointFloor - 1);
   }
 
   function buildFallbackTeachLesson(floorNumber) {
@@ -672,6 +718,7 @@
         if (game.currentFloorIndex < FLOORS.length - 1) {
           startFloor(game.currentFloorIndex + 1);
         } else {
+          clearCheckpointFloor();
           game.state = GameState.VICTORY;
         }
       }
@@ -1203,6 +1250,8 @@
     player.hearts = clamp(player.hearts - amount, 0, player.maxHearts);
     if (player.hearts <= 0) {
       player.hearts = 0;
+      const deathFloor = currentFloor();
+      setCheckpointFloor((deathFloor && deathFloor.id) || game.currentFloorIndex + 1);
       startDeathAnim();
       return;
     }
@@ -1328,6 +1377,9 @@
     getShareRunData,
     enterGameOver,
     requestRestart,
+    getCheckpointFloor,
+    setCheckpointFloor,
+    clearCheckpointFloor,
     syncOverlayRestartButton,
     toTitle,
     startRun,

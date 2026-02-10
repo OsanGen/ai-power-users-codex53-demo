@@ -686,6 +686,12 @@
     ctx.fillText(prompt, WIDTH * 0.5, panelY + panelH - 58);
     ctx.restore();
 
+    const checkpointFloor = typeof systems.getCheckpointFloor === "function" ? systems.getCheckpointFloor() : 1;
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '600 14px "Inter", sans-serif';
+    ctx.fillText(`Start floor: ${checkpointFloor}`, WIDTH * 0.5, panelY + panelH - 28);
+    ctx.fillText("R: reset to Floor 1", WIDTH * 0.5, panelY + panelH - 12);
+
     ctx.textAlign = "left";
     ctx.restore();
   }
