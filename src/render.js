@@ -7,7 +7,16 @@
   const { TOKENS, GameState, WIDTH, HEIGHT, CORRIDOR, WALL_WIDTH, WORLD, RENDER_CACHE_ENABLED, DYNAMIC_FX_FPS } =
     AIPU.constants;
   const { game, player } = AIPU.state;
-  const { FLOORS, TITLE_SEQUENCE, getNarrativeTitleCard, getNarrativeFloorCopy, getNarrativeOutcomeCopy, getThreatGlossaryRows } =
+  const {
+    FLOORS,
+    TITLE_SEQUENCE,
+    getNarrativeTitleCard,
+    getNarrativeFloorCopy,
+    getNarrativeOutcomeCopy,
+    getNarrativeUiText,
+    getWhatYouLearnedBullets,
+    getThreatGlossaryRows
+  } =
     AIPU.content;
   const upgrades = AIPU.upgrades;
   const systems = AIPU.systems;
@@ -200,6 +209,12 @@
       return;
     }
 
+    if (game.state === GameState.TEACH_CARD) {
+      drawBackdrop(accent);
+      drawTeachCard(floor, accent);
+      return;
+    }
+
     if (game.state === GameState.UPGRADE_SELECT) {
       drawBackdrop(accent);
       drawUpgradeSelect(floor, accent);
@@ -308,25 +323,28 @@
     fillRoundRect(panelX + 26, panelY + 26, panelW - 52, 10, 999);
 
     const floorCopy = getNarrativeFloorCopy(floor);
+    const pickTitle = getNarrativeUiText("upgradePickTitle", "Pick an upgrade");
+    const pickSubtitle = getNarrativeUiText("upgradePickSubtitle", "Stack small power. Keep control.");
+    const floorLesson = floorCopy && floorCopy.title ? floorCopy.title : `Floor ${floor.id}`;
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "top";
     const floorTitleFontSize = fitFontSizeForLine(
-      floorCopy.title,
+      pickTitle,
       panelW - 68,
       38,
       30,
       '700 ${size}px "Sora", "Inter", sans-serif'
     );
     ctx.font = `700 ${floorTitleFontSize}px "Sora", "Inter", sans-serif`;
-    ctx.fillText(fitCanvasText(floorCopy.title, panelW - 68), panelX + 34, panelY + 50);
+    ctx.fillText(fitCanvasText(pickTitle, panelW - 68), panelX + 34, panelY + 50);
 
     ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(floorCopy.subtitle, panelX + 34, panelY + 104, panelW - 68, 30, { maxLines: 2 });
+    drawWrappedText(pickSubtitle, panelX + 34, panelY + 104, panelW - 68, 30, { maxLines: 2 });
 
-    ctx.font = '600 18px "Inter", sans-serif';
+    ctx.font = '600 17px "Inter", sans-serif';
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText("Choose 1 upgrade to begin this floor.", panelX + 34, panelY + 174);
+    ctx.fillText(fitCanvasText(`Floor ${floor.id}: ${floorLesson}`, panelW - 68), panelX + 34, panelY + 174);
 
     const cardRects = computeUpgradeCardRects(panelX, panelY, panelW, panelH, game.upgradeOptions.length);
     game.upgradeCardRects = cardRects;
@@ -339,7 +357,7 @@
       drawUpgradeCard(option, rect, selected, accent);
     }
 
-    const footerText = "1-3 to pick • Enter to confirm • Esc to skip (NOT allowed)";
+    const footerText = "1-3 pick • Enter confirm • Esc disabled";
     ctx.font = '600 17px "Inter", sans-serif';
     ctx.fillStyle = TOKENS.ink;
     ctx.fillText(fitCanvasText(footerText, panelW - 68), panelX + 34, panelY + panelH - 56);
@@ -353,6 +371,78 @@
       ctx.font = '700 15px "Inter", sans-serif';
       ctx.fillText("Choose one to continue.", panelX + panelW - 258, panelY + panelH - 66);
     }
+  }
+
+  function drawTeachCard(floor, accent) {
+    const cardRect = {
+      x: 56,
+      y: 38,
+      w: WIDTH - 112,
+      h: HEIGHT - 98
+    };
+    game.teachCard.rect = cardRect;
+
+    const neuralGlass = window.NeuralGlass;
+    if (neuralGlass && typeof neuralGlass.draw === "function") {
+      neuralGlass.draw(ctx, cardRect);
+    } else {
+      const panelX = cardRect.x;
+      const panelY = cardRect.y;
+      const panelW = cardRect.w;
+      const panelH = cardRect.h;
+      ctx.fillStyle = TOKENS.white;
+      fillRoundRect(panelX, panelY, panelW, panelH, 20);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 3;
+      strokeRoundRect(panelX, panelY, panelW, panelH, 20);
+      ctx.fillStyle = rgba(accent, 0.24);
+      fillRoundRect(panelX + 20, panelY + 20, panelW - 40, 10, 999);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 30px "Sora", "Inter", sans-serif';
+      ctx.fillText("Teach card unavailable.", panelX + 30, panelY + 56);
+    }
+
+    const lesson = game.teachCard.lesson || {};
+    const floorNumber = floor && Number.isFinite(floor.id) ? floor.id : game.teachCard.floorIndex || game.currentFloorIndex + 1;
+    const totalFloors = FLOORS.length || 9;
+    const header = `Teach Card ${floorNumber}/${totalFloors}`;
+    const lessonTitle = typeof lesson.title === "string" && lesson.title.trim() ? lesson.title.trim() : "";
+    const titleLine = lessonTitle ? `${header}: ${lessonTitle}` : header;
+    const neuralGlassState =
+      neuralGlass && typeof neuralGlass.getState === "function" ? neuralGlass.getState() : null;
+    const challengeComplete = !!(neuralGlassState && neuralGlassState.challengeComplete);
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(cardRect.x + 16, cardRect.y + 12, cardRect.w - 32, 34, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(cardRect.x + 16, cardRect.y + 12, cardRect.w - 32, 34, 14);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillText(fitCanvasText(titleLine, cardRect.w - 220), cardRect.x + 28, cardRect.y + 20);
+
+    const badgeW = 132;
+    const badgeH = 24;
+    const badgeX = cardRect.x + cardRect.w - badgeW - 20;
+    const badgeY = cardRect.y + 16;
+    ctx.fillStyle = challengeComplete ? rgba(accent, 0.35) : rgba(TOKENS.white, 0.96);
+    fillRoundRect(badgeX, badgeY, badgeW, badgeH, 12);
+    ctx.strokeStyle = challengeComplete ? accent : TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(badgeX, badgeY, badgeW, badgeH, 12);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 13px "Inter", sans-serif';
+    ctx.fillText(challengeComplete ? "Challenge ✓" : "Challenge", badgeX + 14, badgeY + 5);
+
+    const hint = getNarrativeUiText("teachCardHint", "Enter: continue");
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(cardRect.x + 16, cardRect.y + cardRect.h - 38, cardRect.w - 32, 26, 12);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(cardRect.x + 16, cardRect.y + cardRect.h - 38, cardRect.w - 32, 26, 12);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 14px "Inter", sans-serif';
+    ctx.fillText(fitCanvasText(hint, cardRect.w - 58), cardRect.x + 28, cardRect.y + cardRect.h - 33);
   }
 
   function computeUpgradeCardRects(panelX, panelY, panelW, panelH, optionCount) {
@@ -582,7 +672,7 @@
     // Title copy is drawn in a clipped context. Re-apply prompt anchors after clip restore.
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    const prompt = "Press Enter or Space to start";
+    const prompt = titleCard.footerHint || "Enter: start";
     ctx.font = '700 18px "Inter", sans-serif';
     const promptWidth = ctx.measureText(prompt).width;
     ctx.fillStyle = rgba(accent, 0.2 + clamp(promptAlpha, 0, 1) * 0.18);
@@ -1334,8 +1424,8 @@
       body = floorCopy.subtitle;
       footer = "Press Enter to skip intro";
     } else if (game.state === GameState.FLOOR_CLEAR) {
-      title = `Floor ${floor.id} Survived`;
-      body = floor.id < 9 ? "Hold shape. Next floor in 2 seconds." : "Final floor cleared.";
+      title = getNarrativeUiText("floorClearTitle", "Floor cleared");
+      body = getNarrativeUiText("floorClearSubtitle", "Raw data -> weights -> concepts -> prediction.");
       footer = floor.id < 9 ? "Transitioning..." : "";
     }
 
@@ -1387,6 +1477,9 @@
     const floorsCleared = upgrades.getFloorsClearedCount();
     const totalTaken = upgrades.upgradeState.history.length;
     const buildEntries = upgrades.getRunBuildEntries();
+    const learnedBullets = (typeof getWhatYouLearnedBullets === "function" ? getWhatYouLearnedBullets() : [])
+      .filter((line) => typeof line === "string" && line.trim())
+      .slice(0, 3);
 
     const panelW = 920;
     const panelH = 460;
@@ -1432,8 +1525,27 @@
     ctx.fillText(fitCanvasText(`Floors cleared: ${floorsCleared}`, pillW - 26), panelX + 68, pillY + 11);
     ctx.fillText(fitCanvasText(`Upgrades taken: ${totalTaken}`, pillW - 26), panelX + 305, pillY + 11);
 
+    const learnedX = panelX + 48;
+    const learnedY = pillY + 54;
+    const learnedW = panelW - 96;
+    const learnedH = 90;
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(learnedX, learnedY, learnedW, learnedH, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    strokeRoundRect(learnedX, learnedY, learnedW, learnedH, 14);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 18px "Sora", "Inter", sans-serif';
+    ctx.fillText("What you learned", learnedX + 14, learnedY + 10);
+    ctx.font = '600 14px "Inter", sans-serif';
+    for (let i = 0; i < learnedBullets.length; i += 1) {
+      const y = learnedY + 38 + i * 16;
+      ctx.fillText(`• ${fitCanvasText(learnedBullets[i], learnedW - 30)}`, learnedX + 16, y);
+    }
+
     const listX = panelX + 48;
-    const listY = pillY + 66;
+    const listY = learnedY + learnedH + 12;
     const listW = panelW - 96;
     const listBottom = panelY + panelH - 52;
     const listH = Math.max(80, listBottom - listY);

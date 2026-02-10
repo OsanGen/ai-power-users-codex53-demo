@@ -1,73 +1,165 @@
 window.AI_POWER_USER_NARRATIVE = {
-  "gameTitle": "AI Power User: Neural Net Rabbit Hole",
-  "tagline": "Stop chasing outputs. Learn the loop.",
-  "titleBlurb": [
-    "You started as an AI power user.",
-    "Then the rabbit moved.",
-    "Go deeper. Learn the net. Catch the loop."
+  version: "neural_glass_v1",
+  titleScreen: {
+    title: "Neural Glass: Neural Nets",
+    subtitle: "Drag inputs. Watch concepts. Predict churn.",
+    bullets: [
+      "Neural nets learn signal vs noise.",
+      "They learn weights from data.",
+      "They output one prediction."
+    ],
+    footerHint: "Enter: start • Esc: none"
+  },
+
+  // Teach card per floor (1..9). Each card is a micro-lesson + micro-challenge.
+  teachCards: [
+    {
+      floor: 1,
+      title: "Neural net = smart filter",
+      oneLiner: "It turns messy data into one prediction.",
+      bullets: [
+        "Inputs are raw data.",
+        "Hidden layer learns concepts.",
+        "Output is churn risk."
+      ],
+      microChallenge: "Press 1 then 2. Watch risk flip.",
+      visualMode: "fundamentals"
+    },
+    {
+      floor: 2,
+      title: "Inputs are raw data",
+      oneLiner: "The net starts with no meaning.",
+      bullets: [
+        "Logins: last 30 days.",
+        "Tickets: support pain.",
+        "Tenure and features matter."
+      ],
+      microChallenge: "Move one slider. See concept change.",
+      visualMode: "inputs"
+    },
+    {
+      floor: 3,
+      title: "Weights turn volume knobs",
+      oneLiner: "Weights say what matters most.",
+      bullets: [
+        "High weight: strong signal.",
+        "Low weight: mostly noise.",
+        "Weighted = input × weight."
+      ],
+      microChallenge: "Make tickets dominate the flow.",
+      visualMode: "weights"
+    },
+    {
+      floor: 4,
+      title: "Hidden layer learns concepts",
+      oneLiner: "Concepts compress raw signals.",
+      bullets: [
+        "LOYAL, FRUSTRATED, ENGAGED.",
+        "Activation is 0–100%.",
+        "Top activation is dominant."
+      ],
+      microChallenge: "Make ENGAGED dominant.",
+      visualMode: "hidden"
+    },
+    {
+      floor: 5,
+      title: "Output = churn risk",
+      oneLiner: "Dominant concept drives the prediction.",
+      bullets: [
+        "0% stay. 100% leave.",
+        "Dominant concept pushes risk.",
+        "Small changes swing output."
+      ],
+      microChallenge: "Get risk above 70%.",
+      visualMode: "output"
+    },
+    {
+      floor: 6,
+      title: "Golden thread",
+      oneLiner: "Say the full loop in one breath.",
+      bullets: [
+        "Raw data → weighted signals.",
+        "Weighted signals → concepts.",
+        "Concepts → prediction."
+      ],
+      microChallenge: "Match one input to one concept.",
+      visualMode: "golden_thread"
+    },
+    {
+      floor: 7,
+      title: "Learner, not thinker",
+      oneLiner: "No rules are hard-coded.",
+      bullets: [
+        "Weights come from data.",
+        "Different data learns different weights.",
+        "Bad data teaches bad patterns."
+      ],
+      microChallenge: "Ask: what changed between 1 and 2?",
+      visualMode: "learners_not_thinkers"
+    },
+    {
+      floor: 8,
+      title: "Interpret the prediction",
+      oneLiner: "Explain the why, not just the %.",
+      bullets: [
+        "Check dominant concept.",
+        "Check strongest signals.",
+        "Explain in one sentence."
+      ],
+      microChallenge: "Explain At-Risk in one line.",
+      visualMode: "interpretability"
+    },
+    {
+      floor: 9,
+      title: "Apply it anywhere",
+      oneLiner: "Same loop. New domain.",
+      bullets: [
+        "Fraud, loans, recommendations.",
+        "Inputs change the output.",
+        "You can explain the loop."
+      ],
+      microChallenge: "Name inputs and output for a domain.",
+      visualMode: "transfer"
+    }
   ],
 
-  "floors": [
-    { "title": "Floor 1: Weights and bias", "subtitle": "Every model starts as math. Multiply, add, decide." },
-    { "title": "Floor 2: Data and labels", "subtitle": "The rabbit learns what you reward. Clean inputs beat clever prompts." },
-    { "title": "Floor 3: Activations", "subtitle": "Signals flow forward. Nonlinearity turns input into features." },
-    { "title": "Floor 4: Loss to gradients", "subtitle": "Measure error. Send correction backward. Repeat small updates." },
-    { "title": "Floor 5: Capacity and overfitting", "subtitle": "Memorization looks like progress until you test it." },
-    { "title": "Floor 6: Optimization loop", "subtitle": "Same loop. Better steps. Tune learning rate and momentum." },
-    { "title": "Floor 7: Generalization", "subtitle": "Train is not test. Validate. Regularize. Keep receipts." },
-    { "title": "Floor 8: Inference reality", "subtitle": "Deployment is different. Latency and edge cases show up fast." },
-    { "title": "Floor 9: Emergence and control", "subtitle": "Debug the full system: data, loss, gradients, behavior." }
-  ],
-
-  "enemyLore": {
-    "signal_echo": { "name": "Gradient Echo", "means": "Feedback loop that feels right but does not improve." },
-    "rabbit_glimpse": { "name": "Stochastic Jump", "means": "Randomness and variance. Same input, different output." },
-    "notification_swarm": { "name": "Noisy Labels", "means": "Small errors that compound into chaos." },
-    "name_glitch_shade": { "name": "Data Leakage Shade", "means": "Shortcut features and contaminated splits." },
-    "speaker_wraith": { "name": "Hallucination Wraith", "means": "Confident output without grounding." },
-    "chair_knight": { "name": "Overfitting Knight", "means": "Strong in training. Weak in reality." },
-    "hammer_rabbit": { "name": "Exploding Gradient Hare", "means": "Unstable updates. Steps too large." },
-    "loop_ghost": { "name": "Optimization Ghost", "means": "The loop punishes sloppy control." },
-    "decay_mote": { "name": "Vanishing Gradient Motes", "means": "Signal fades. Learning stalls." },
-    "double": { "name": "Shadow Model", "means": "You copied a system. You also copied its bugs." },
-    "apex_rabbit": { "name": "Momentum Spike", "means": "Speed without control." },
-    "cell_blob": { "name": "Batch Blob", "means": "Clumps, shift, and uneven sampling." },
-    "reach_shadow": { "name": "Dead ReLU Hand", "means": "Parts of the net stop contributing." },
-    "evolution_rabbit": { "name": "The Deep Net", "means": "Emergence. You cannot brute force it." }
+  // Small UI lines used elsewhere (upgrade screen, etc.)
+  ui: {
+    teachCardHint: "Enter: upgrades • 1: happy • 2: at-risk",
+    teachCardTitlePrefix: "Teach Card",
+    upgradePickTitle: "Pick an upgrade",
+    upgradePickSubtitle: "Stack small power. Keep control.",
+    floorClearTitle: "Floor cleared",
+    floorClearSubtitle: "Raw data → weights → concepts → prediction.",
+    victoryTitle: "You can explain a neural net.",
+    victorySubtitle: "You learned the loop, not magic.",
+    gameOverTitle: "Run ended. Lesson stays.",
+    gameOverSubtitle: "Try again. Watch the dominant concept."
   },
 
-  "pickupLore": {
-    "anchor": "Ground truth",
-    "refuge": "Validation split",
-    "memory": "Checkpoint",
-    "noise_cancel": "Regularization",
-    "table": "Ablation table",
-    "checkpoint": "Eval gate",
-    "mirror": "Shadow eval",
-    "bloom": "Fine-tune moment",
-    "final": "Deployment confidence"
+  // Rename upgrades only (do not touch effects).
+  upgradeRename: {
+    comfy_soles:   { name: "Faster iteration", desc: "Move faster. Run more tests." },
+    quick_trigger: { name: "Lower latency", desc: "Shorter delay. More output." },
+    wide_shots:    { name: "Wider coverage", desc: "Bigger hit window." },
+    fast_rounds:   { name: "Higher throughput", desc: "Faster shots. More tries." },
+    ghost_rounds:  { name: "Residual pass", desc: "One shot hits again." },
+    heart_container:{ name: "Error budget", desc: "More max health. Heal +1." },
+    bubble_shield: { name: "Guardrails", desc: "Block a mistake." },
+    grace_frames:  { name: "Stability window", desc: "More time after a hit." },
+    magnet_hands:  { name: "Data magnet", desc: "Pull pickups in." },
+    slowmo_aura:   { name: "Time dilation", desc: "Slow incoming bullets." }
   },
 
-  "upgradeRename": {
-    "comfy_soles": { "name": "Batch runner", "desc": "Move faster. Stay in flow." },
-    "quick_trigger": { "name": "Faster forward pass", "desc": "Fire sooner. Reduce latency." },
-    "wide_shots": { "name": "Wider receptive field", "desc": "Bigger shots. Easier hits." },
-    "fast_rounds": { "name": "Higher throughput", "desc": "Faster bullets. More coverage." },
-    "ghost_rounds": { "name": "Residual connection", "desc": "Shots pass through extra targets." },
-    "heart_container": { "name": "Error budget", "desc": "More max health. Heal +1 now." },
-    "bubble_shield": { "name": "Guardrails", "desc": "Start floors with shield charges." },
-    "grace_frames": { "name": "Stability window", "desc": "More invulnerability after hits." },
-    "magnet_hands": { "name": "Data magnet", "desc": "Pull pickups from farther away." },
-    "slowmo_aura": { "name": "Time dilation", "desc": "Enemy bullets move slower." }
-  },
-
-  "victory": {
-    "title": "You caught the loop.",
-    "subtitle": "Power user means: you can steer the system."
-  },
-
-  "gameOver": {
-    "title": "Run ended.",
-    "subtitle": "Review the loop. Try a cleaner run."
+  // Share copy helper (if share modal exists)
+  share: {
+    title: "Share what you learned",
+    oneLiner: "Post the floor you reached and the loop.",
+    buildPost: {
+      line1: "I reached Floor {floor} of 9 in Neural Glass.",
+      line2: "Neural nets: inputs → weights → concepts → prediction.",
+      line3: "Dominant concept drives the output.",
+      line4: "{url}"
+    }
   }
 };

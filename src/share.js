@@ -16,6 +16,9 @@
     shareDontAskEl
   } = AIPU.dom;
   const { TOKENS, SHARE_DONT_ASK_KEY } = AIPU.constants;
+  const N = AIPU.content && AIPU.content.N ? AIPU.content.N : null;
+  const shareTitleEl = document.getElementById("shareTitle");
+  const shareSummaryEl = shareModalEl ? shareModalEl.querySelector(".modal-summary") : null;
 
   const CANONICAL_SHARE_URL = "";
 
@@ -45,14 +48,43 @@
     const maxFloors = Math.max(floorReached, Number(data.maxFloors) || floorReached);
     const upgradesSummary = typeof data.upgradesSummary === "string" ? data.upgradesSummary.trim() : "";
     const shareUrl = typeof data.shareUrl === "string" ? data.shareUrl.trim() : "";
-    const lines = [`I reached Floor ${floorReached} of ${maxFloors} in AI Power Users.`, "Codex 5.3 tech demo run."];
+    const narrativeShare = N && N.share && typeof N.share === "object" ? N.share : null;
+    const buildPost = narrativeShare && narrativeShare.buildPost && typeof narrativeShare.buildPost === "object"
+      ? narrativeShare.buildPost
+      : null;
+    const urlValue = isHttpShareUrl(shareUrl) ? shareUrl : "";
+    const replaceVars = (line) =>
+      String(line)
+        .replace(/\{floor\}/g, String(floorReached))
+        .replace(/\{maxFloors\}/g, String(maxFloors))
+        .replace(/\{url\}/g, urlValue);
+
+    const templatedLines = [];
+    const lineKeys = ["line1", "line2", "line3", "line4"];
+    for (let i = 0; i < lineKeys.length; i += 1) {
+      const raw = buildPost ? buildPost[lineKeys[i]] : "";
+      if (typeof raw !== "string" || !raw.trim()) {
+        continue;
+      }
+      if (raw.includes("{url}") && !urlValue) {
+        continue;
+      }
+      const replaced = replaceVars(raw).trim();
+      if (replaced) {
+        templatedLines.push(replaced);
+      }
+    }
+
+    const lines =
+      templatedLines.length > 0
+        ? templatedLines
+        : [
+            `I reached Floor ${floorReached} of ${maxFloors} in Neural Glass.`,
+            "Neural nets: inputs -> weights -> concepts -> prediction."
+          ];
 
     if (upgradesSummary) {
       lines.push(`Run build: ${upgradesSummary}.`);
-    }
-
-    if (isHttpShareUrl(shareUrl)) {
-      lines.push(`Try it: ${shareUrl}`);
     }
 
     lines.push("AI-assisted; reviewed by humans; results vary.");
@@ -137,8 +169,13 @@
     cardCtx.font = '700 82px "Sora", "Inter", sans-serif';
     cardCtx.fillText(`Floor ${floorReached} of ${maxFloors}`, innerPad, 124);
 
+    const titleScreen = N && N.titleScreen && typeof N.titleScreen === "object" ? N.titleScreen : null;
+    const cardTitle =
+      titleScreen && typeof titleScreen.title === "string" && titleScreen.title.trim()
+        ? titleScreen.title.trim()
+        : "Neural Glass: Neural Nets";
     cardCtx.font = '700 36px "Inter", sans-serif';
-    cardCtx.fillText("AI Power Users - Codex 5.3 Tech Demo", innerPad, 232);
+    cardCtx.fillText(fitLine(cardCtx, cardTitle, width - innerPad * 2), innerPad, 232);
 
     const buildPanelY = 300;
     const buildPanelH = 228;
@@ -285,6 +322,33 @@
 
       if (shareFloorEl) {
         shareFloorEl.textContent = data.floorLabel || "Floor 1";
+      }
+
+      const narrativeShare = N && N.share && typeof N.share === "object" ? N.share : null;
+      if (shareTitleEl) {
+        const nextTitle =
+          narrativeShare && typeof narrativeShare.title === "string" && narrativeShare.title.trim()
+            ? narrativeShare.title.trim()
+            : "Share what you learned";
+        shareTitleEl.textContent = nextTitle;
+      }
+      if (shareSummaryEl) {
+        const oneLiner =
+          narrativeShare && typeof narrativeShare.oneLiner === "string" && narrativeShare.oneLiner.trim()
+            ? narrativeShare.oneLiner.trim()
+            : "";
+        if (oneLiner) {
+          const floorLabel = data.floorLabel || "Floor 1";
+          shareSummaryEl.textContent = "";
+          shareSummaryEl.appendChild(document.createTextNode(`${oneLiner} (`));
+          if (shareFloorEl) {
+            shareFloorEl.textContent = floorLabel;
+            shareSummaryEl.appendChild(shareFloorEl);
+          } else {
+            shareSummaryEl.appendChild(document.createTextNode(floorLabel));
+          }
+          shareSummaryEl.appendChild(document.createTextNode(")"));
+        }
       }
 
       if (shareTextEl) {

@@ -12,49 +12,74 @@
   }
 
   function getNarrativeTitleCard() {
-    const gameTitle = pickNarrativeText(N && N.gameTitle, "AI POWER USERS");
-    const tagline = pickNarrativeText(N && N.tagline, "Codex 5.3 Tech Demo");
-    const fallbackBlurb = [
-      "Follow one builder into the AI tooling rabbit hole, then emerge as an AI power user with repeatable workflows."
-    ];
-    const lines = Array.isArray(N && N.titleBlurb)
-      ? N.titleBlurb.filter((line) => typeof line === "string" && line.trim()).slice(0, 3).map((line) => line.trim())
+    const titleScreen = N && typeof N.titleScreen === "object" ? N.titleScreen : null;
+    const gameTitle = pickNarrativeText(titleScreen && titleScreen.title, "Neural Glass: Neural Nets");
+    const tagline = pickNarrativeText(titleScreen && titleScreen.subtitle, "Drag inputs. Watch concepts. Predict churn.");
+    const fallbackBlurb = ["Neural nets learn signal vs noise.", "They learn weights from data.", "They output one prediction."];
+    const lines = Array.isArray(titleScreen && titleScreen.bullets)
+      ? titleScreen.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3).map((line) => line.trim())
       : [];
+    const footerHint = pickNarrativeText(titleScreen && titleScreen.footerHint, "Enter: start");
 
     return {
       gameTitle,
       tagline,
-      blurbLines: lines.length > 0 ? lines : fallbackBlurb
+      blurbLines: lines.length > 0 ? lines : fallbackBlurb,
+      footerHint
     };
   }
 
   function getNarrativeFloorCopy(floor) {
-    const floorFallbackTitle = floor && floor.overlayTitle ? floor.overlayTitle : floor && floor.name ? floor.name : "";
-    const floorFallbackSubtitle = floor && floor.overlaySubtitle ? floor.overlaySubtitle : "";
-    const floorList = Array.isArray(N && N.floors) ? N.floors : [];
-    const index = floor && Number.isFinite(floor.id) ? floor.id - 1 : -1;
-    const entry = index >= 0 && index < floorList.length ? floorList[index] : null;
+    const cards = Array.isArray(N && N.teachCards) ? N.teachCards : [];
+    const floorId = floor && Number.isFinite(floor.id) ? floor.id : 1;
+    const entry = cards.find((card) => card && Number(card.floor) === floorId) || null;
+    const floorFallbackTitle = `Teach Card ${floorId}`;
+    const floorFallbackSubtitle = "Raw data -> weights -> concepts -> prediction.";
 
     return {
       title: pickNarrativeText(entry && entry.title, floorFallbackTitle),
-      subtitle: pickNarrativeText(entry && entry.subtitle, floorFallbackSubtitle)
+      subtitle: pickNarrativeText(entry && entry.oneLiner, floorFallbackSubtitle)
     };
   }
 
   function getNarrativeOutcomeCopy(isVictory) {
+    const ui = N && N.ui && typeof N.ui === "object" ? N.ui : null;
     if (isVictory) {
-      const block = N && N.victory;
       return {
-        title: pickNarrativeText(block && block.title, "Run Complete"),
-        subtitle: pickNarrativeText(block && block.subtitle, "You completed the AI tooling climb and finalized a stable build.")
+        title: pickNarrativeText(ui && ui.victoryTitle, "You can explain a neural net."),
+        subtitle: pickNarrativeText(ui && ui.victorySubtitle, "You learned the loop, not magic.")
       };
     }
 
-    const block = N && N.gameOver;
     return {
-      title: pickNarrativeText(block && block.title, "Run Failed"),
-      subtitle: pickNarrativeText(block && block.subtitle, "The run ended before the build fully stabilized.")
+      title: pickNarrativeText(ui && ui.gameOverTitle, "Run ended. Lesson stays."),
+      subtitle: pickNarrativeText(ui && ui.gameOverSubtitle, "Try again. Watch the dominant concept.")
     };
+  }
+
+  function getNarrativeTeachCard(floorNumber) {
+    const cards = Array.isArray(N && N.teachCards) ? N.teachCards : [];
+    const target = Number(floorNumber);
+    if (!Number.isFinite(target)) {
+      return null;
+    }
+    for (let i = 0; i < cards.length; i += 1) {
+      const card = cards[i];
+      if (!card || Number(card.floor) !== target) {
+        continue;
+      }
+      return card;
+    }
+    return null;
+  }
+
+  function getNarrativeUiText(key, fallback) {
+    const ui = N && N.ui && typeof N.ui === "object" ? N.ui : null;
+    return pickNarrativeText(ui && ui[key], fallback);
+  }
+
+  function getWhatYouLearnedBullets() {
+    return ["Inputs are raw data.", "Weights prioritize signals.", "Dominant concept drives output."];
   }
 
   function wave(
@@ -289,6 +314,9 @@
     getNarrativeTitleCard,
     getNarrativeFloorCopy,
     getNarrativeOutcomeCopy,
+    getNarrativeTeachCard,
+    getNarrativeUiText,
+    getWhatYouLearnedBullets,
     getThreatGlossaryRows
   };
 })();

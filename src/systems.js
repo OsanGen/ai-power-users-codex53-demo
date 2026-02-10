@@ -6,7 +6,7 @@
   const { TOKENS, GameState, WORLD, BASE_MAX_HP } = AIPU.constants;
   const { game, player } = AIPU.state;
   const { keys } = AIPU.input;
-  const { FLOORS, ENEMY_DEFS } = AIPU.content;
+  const { FLOORS, ENEMY_DEFS, getNarrativeTeachCard } = AIPU.content;
   const upgrades = AIPU.upgrades;
   const { shareUI, resolveShareUrl, buildShareCopy, buildRunCardDataUrl } = AIPU.share;
   const {
@@ -32,6 +32,15 @@
   let simAccumulator = 0;
   const SIM_STEP = 1 / 60;
   const MAX_ACCUMULATED_TIME = 0.25;
+  let neuralGlassInitialized = false;
+  const DEV_TEACH_CARD_GUARD =
+    typeof window !== "undefined" &&
+    window.location &&
+    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const teachCardGuard = {
+    gameplayUpdateCalled: false,
+    warned: false
+  };
 
   function isShareModalOpen() {
     return !!shareUI && shareUI.isOpen();
@@ -43,6 +52,32 @@
         keys[key] = false;
       }
     }
+  }
+
+  function getNeuralGlass() {
+    return window.NeuralGlass || null;
+  }
+
+  function ensureNeuralGlassInit() {
+    if (neuralGlassInitialized) {
+      return true;
+    }
+
+    const neuralGlass = getNeuralGlass();
+    if (!neuralGlass || typeof neuralGlass.init !== "function") {
+      return false;
+    }
+
+    neuralGlass.init({
+      INK: TOKENS.ink,
+      WHITE: TOKENS.white,
+      FOG: TOKENS.fog,
+      COG_MINT: TOKENS.mint,
+      COG_YELLOW: TOKENS.yellow,
+      COG_PINK: TOKENS.pink
+    });
+    neuralGlassInitialized = true;
+    return true;
   }
 
   window.addEventListener("keydown", (event) => {
@@ -83,6 +118,15 @@
       } else {
         game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
       }
+    } else if (game.state === GameState.TEACH_CARD) {
+      const neuralGlass = getNeuralGlass();
+      if (neuralGlass && typeof neuralGlass.onKeyDown === "function") {
+        neuralGlass.onKeyDown(event);
+      }
+
+      if (event.key === " " || event.key === "Enter") {
+        openUpgradeSelect();
+      }
     } else if (game.state === GameState.UPGRADE_SELECT) {
       if (event.key === "1") {
         confirmUpgradeSelection(0);
@@ -120,6 +164,8 @@
     }
   });
 
+  canvas.style.touchAction = "none";
+
   canvas.addEventListener("mousemove", (event) => {
     if (game.state !== GameState.UPGRADE_SELECT || isShareModalOpen()) {
       return;
@@ -144,6 +190,41 @@
     } else {
       game.upgradeNoticeTimer = 1.2;
     }
+  });
+
+  function forwardTeachCardPointer(methodName, event) {
+    if (game.state !== GameState.TEACH_CARD || isShareModalOpen()) {
+      return false;
+    }
+
+    const neuralGlass = getNeuralGlass();
+    const method = neuralGlass && neuralGlass[methodName];
+    if (typeof method !== "function") {
+      return false;
+    }
+
+    const mouse = getMouseCanvasPosition(event);
+    const handled = method(mouse.x, mouse.y);
+    if (handled) {
+      event.preventDefault();
+    }
+    return handled;
+  }
+
+  canvas.addEventListener("pointerdown", (event) => {
+    forwardTeachCardPointer("onPointerDown", event);
+  });
+
+  canvas.addEventListener("pointermove", (event) => {
+    forwardTeachCardPointer("onPointerMove", event);
+  });
+
+  canvas.addEventListener("pointerup", (event) => {
+    forwardTeachCardPointer("onPointerUp", event);
+  });
+
+  canvas.addEventListener("pointercancel", (event) => {
+    forwardTeachCardPointer("onPointerUp", event);
   });
 
   function getUpgradeCardIndexAt(x, y) {
@@ -333,6 +414,10 @@
     game.clearTimer = 0;
     game.kills = 0;
     game.titleIntroTime = 0;
+    game.teachCard.floorIndex = 1;
+    game.teachCard.lesson = null;
+    game.teachCard.rect = null;
+    game.teachCard.justOpened = false;
     game.upgradeOptions = [];
     game.upgradeSelectedIndex = 0;
     game.upgradeConfirmCooldown = 0;
@@ -359,6 +444,45 @@
     startFloor(0);
   }
 
+  function buildFallbackTeachLesson(floorNumber) {
+    return {
+      floor: floorNumber,
+      title: `Floor ${floorNumber} lesson`,
+      oneLiner: "Adjust inputs. Watch concepts. Read the risk.",
+      bullets: ["Inputs carry raw signal.", "Concept activations guide output.", "Dominant concept drives churn risk."],
+      microChallenge: "Press 1 then 2. Compare churn risk."
+    };
+  }
+
+  function openTeachCardForFloor(index) {
+    const floor = FLOORS[index] || null;
+    const floorNumber = floor ? floor.id : index + 1;
+    const lesson = getNarrativeTeachCard ? getNarrativeTeachCard(floorNumber) : null;
+
+    game.teachCard.floorIndex = floorNumber;
+    game.teachCard.lesson = lesson || buildFallbackTeachLesson(floorNumber);
+    game.teachCard.rect = null;
+    game.teachCard.justOpened = true;
+    game.state = GameState.TEACH_CARD;
+
+    if (ensureNeuralGlassInit()) {
+      const neuralGlass = getNeuralGlass();
+      if (neuralGlass && typeof neuralGlass.setLesson === "function") {
+        neuralGlass.setLesson(game.teachCard.lesson, {
+          prefersReducedMotion: !!AIPU.input.prefersReducedMotion
+        });
+      }
+    }
+  }
+
+  function openUpgradeSelect() {
+    if (game.state !== GameState.TEACH_CARD) {
+      return;
+    }
+    game.teachCard.justOpened = false;
+    game.state = GameState.UPGRADE_SELECT;
+  }
+
   function startFloor(index) {
     game.currentFloorIndex = index;
     simAccumulator = 0;
@@ -372,7 +496,7 @@
     game.introTimer = 0;
     game.clearTimer = 0;
     game.beatCount = 0;
-    game.state = GameState.UPGRADE_SELECT;
+    game.teachCard.rect = null;
 
     resetCollections();
 
@@ -392,6 +516,8 @@
     player.fireCooldown = 0;
     player.shieldBreakFlash = 0;
     resetPlayerPosition();
+
+    openTeachCardForFloor(index);
   }
 
   function beginCurrentFloor() {
@@ -460,6 +586,15 @@
   }
 
   function stepSimulation(dt) {
+    if (game.state === GameState.TEACH_CARD) {
+      const neuralGlass = getNeuralGlass();
+      if (neuralGlass && typeof neuralGlass.update === "function") {
+        neuralGlass.update(dt);
+      }
+      game.teachCard.justOpened = false;
+      return;
+    }
+
     game.globalTime += dt;
 
     if (player.invuln > 0) {
@@ -554,6 +689,15 @@
   }
 
   function updateGameplay(dt, allowSpawns) {
+    if (DEV_TEACH_CARD_GUARD && game.state === GameState.TEACH_CARD) {
+      teachCardGuard.gameplayUpdateCalled = true;
+      if (!teachCardGuard.warned) {
+        console.warn("[dev][teach-card] gameplay update attempted during TEACH_CARD; blocked.");
+        teachCardGuard.warned = true;
+      }
+      return;
+    }
+
     updatePlayerMovement(dt);
     updatePlayerShooting(dt);
 
@@ -1166,6 +1310,11 @@
     game.upgradeConfirmCooldown = 0.18;
     game.upgradeNoticeTimer = 0;
     beginCurrentFloor();
+  }
+
+  ensureNeuralGlassInit();
+  if (DEV_TEACH_CARD_GUARD) {
+    console.log("[dev][teach-card] gameplay guard enabled.");
   }
 
   AIPU.systems = {
