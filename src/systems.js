@@ -29,9 +29,20 @@
   let enemies = [];
   let pickups = [];
   let particles = [];
+  let simAccumulator = 0;
+  const SIM_STEP = 1 / 60;
+  const MAX_ACCUMULATED_TIME = 0.25;
 
   function isShareModalOpen() {
     return !!shareUI && shareUI.isOpen();
+  }
+
+  function clearInputState() {
+    for (const key in keys) {
+      if (Object.prototype.hasOwnProperty.call(keys, key)) {
+        keys[key] = false;
+      }
+    }
   }
 
   window.addEventListener("keydown", (event) => {
@@ -97,6 +108,16 @@
 
   window.addEventListener("keyup", (event) => {
     keys[event.key] = false;
+  });
+
+  window.addEventListener("blur", () => {
+    clearInputState();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      clearInputState();
+    }
   });
 
   canvas.addEventListener("mousemove", (event) => {
@@ -300,6 +321,7 @@
 
   function toTitle() {
     game.state = GameState.TITLE;
+    simAccumulator = 0;
     game.currentFloorIndex = 0;
     game.floorTimer = 0;
     game.floorDuration = 0;
@@ -336,6 +358,7 @@
 
   function startFloor(index) {
     game.currentFloorIndex = index;
+    simAccumulator = 0;
     game.floorDuration = 0;
     game.floorTimer = 0;
     game.floorElapsed = 0;
@@ -417,8 +440,16 @@
   }
 
   function update(deltaTime) {
-    const dt = Math.min(deltaTime, 1 / 30);
+    const frameDt = Math.max(0, Math.min(deltaTime, MAX_ACCUMULATED_TIME));
+    simAccumulator = Math.min(simAccumulator + frameDt, MAX_ACCUMULATED_TIME);
 
+    while (simAccumulator >= SIM_STEP) {
+      stepSimulation(SIM_STEP);
+      simAccumulator -= SIM_STEP;
+    }
+  }
+
+  function stepSimulation(dt) {
     game.globalTime += dt;
 
     if (player.invuln > 0) {

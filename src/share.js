@@ -275,7 +275,7 @@
       return true;
     },
 
-    setData(data) {
+    setData(data = {}) {
       if (!shareModalEl) {
         return;
       }
