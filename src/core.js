@@ -55,7 +55,10 @@
     MAX_INVULN_TIME: 1.35,
     MAX_FLOOR_SHIELD_CHARGES: 2,
     FALLBACK_IFRAME_BONUS: 0.05,
-    MAX_FALLBACK_IFRAME_BONUS: 0.15
+    MAX_FALLBACK_IFRAME_BONUS: 0.15,
+    RENDER_CACHE_ENABLED: true,
+    DYNAMIC_FX_FPS: 20,
+    CACHE_MAX_LAYERS: 1
   };
 
   constants.WORLD = {
@@ -86,7 +89,26 @@
       floorFallbackInvulnBonus: 0,
       showDebugStats: false,
       deathAnim: null,
-      gameOverEntryHandled: false
+      gameOverEntryHandled: false,
+      renderCache: {
+        floorId: null,
+        accent: "",
+        staticCanvas: null,
+        staticCtx: null,
+        dynamicCanvas: null,
+        dynamicCtx: null,
+        dirty: true,
+        dynamicDirty: true,
+        dynamicTimer: 0,
+        lastDrawTime: 0,
+        lastReason: "init",
+        stats: {
+          hits: 0,
+          misses: 0,
+          staticRebuilds: 0,
+          dynamicRebuilds: 0
+        }
+      }
     },
     player: {
       x: constants.WORLD.x + constants.WORLD.w * 0.5,

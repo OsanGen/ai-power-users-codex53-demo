@@ -322,6 +322,9 @@
   function toTitle() {
     game.state = GameState.TITLE;
     simAccumulator = 0;
+    if (AIPU.renderCache && typeof AIPU.renderCache.invalidate === "function") {
+      AIPU.renderCache.invalidate("toTitle");
+    }
     game.currentFloorIndex = 0;
     game.floorTimer = 0;
     game.floorDuration = 0;
@@ -359,6 +362,10 @@
   function startFloor(index) {
     game.currentFloorIndex = index;
     simAccumulator = 0;
+    const nextFloor = FLOORS[index] || null;
+    if (AIPU.renderCache && typeof AIPU.renderCache.markFloor === "function" && nextFloor) {
+      AIPU.renderCache.markFloor(nextFloor.id, nextFloor.accent);
+    }
     game.floorDuration = 0;
     game.floorTimer = 0;
     game.floorElapsed = 0;
@@ -391,6 +398,9 @@
     const floor = currentFloor();
     if (!floor) {
       return;
+    }
+    if (AIPU.renderCache && typeof AIPU.renderCache.markFloor === "function") {
+      AIPU.renderCache.markFloor(floor.id, floor.accent);
     }
 
     game.floorDuration = floor.durationSeconds;

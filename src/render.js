@@ -2,14 +2,17 @@
   "use strict";
 
   const AIPU = window.AIPU;
-  const ctx = AIPU.ctx;
-  const { TOKENS, GameState, WIDTH, HEIGHT, CORRIDOR, WALL_WIDTH, WORLD } = AIPU.constants;
+  const mainCtx = AIPU.ctx;
+  let ctx = mainCtx;
+  const { TOKENS, GameState, WIDTH, HEIGHT, CORRIDOR, WALL_WIDTH, WORLD, RENDER_CACHE_ENABLED, DYNAMIC_FX_FPS } =
+    AIPU.constants;
   const { game, player } = AIPU.state;
   const { FLOORS, TITLE_SEQUENCE, getNarrativeTitleCard, getNarrativeFloorCopy, getNarrativeOutcomeCopy, getThreatGlossaryRows } =
     AIPU.content;
   const upgrades = AIPU.upgrades;
   const systems = AIPU.systems;
   const { clamp, easeOutCubic, easeInOutSine, rgba, accentColor } = AIPU.utils;
+  const renderCacheState = game.renderCache || null;
 
   let activeWaves = [];
   let bullets = [];
@@ -17,6 +20,10 @@
   let enemies = [];
   let pickups = [];
   let particles = [];
+
+  if (renderCacheState && !renderCacheState.stats) {
+    renderCacheState.stats = { hits: 0, misses: 0, staticRebuilds: 0, dynamicRebuilds: 0 };
+  }
 
   function syncCollections() {
     const c = systems.getCollections();
@@ -28,8 +35,158 @@
     particles = c.particles;
   }
 
+  function withRenderContext(targetCtx, drawFn) {
+    const previousCtx = ctx;
+    ctx = targetCtx || mainCtx;
+    try {
+      drawFn();
+    } finally {
+      ctx = previousCtx;
+    }
+  }
+
+  function createLayerCanvasWithContext() {
+    let canvas = null;
+    if (typeof OffscreenCanvas === "function") {
+      canvas = new OffscreenCanvas(WIDTH, HEIGHT);
+    } else {
+      canvas = document.createElement("canvas");
+      canvas.width = WIDTH;
+      canvas.height = HEIGHT;
+    }
+
+    if (!canvas || typeof canvas.getContext !== "function") {
+      return { canvas: null, layerCtx: null };
+    }
+
+    const layerCtx = canvas.getContext("2d");
+    return { canvas, layerCtx };
+  }
+
+  function ensureRenderLayerCanvases() {
+    if (!renderCacheState) {
+      return false;
+    }
+
+    const needsStatic =
+      !renderCacheState.staticCanvas ||
+      !renderCacheState.staticCtx ||
+      renderCacheState.staticCanvas.width !== WIDTH ||
+      renderCacheState.staticCanvas.height !== HEIGHT;
+    if (needsStatic) {
+      const built = createLayerCanvasWithContext();
+      renderCacheState.staticCanvas = built.canvas;
+      renderCacheState.staticCtx = built.layerCtx;
+      renderCacheState.dirty = true;
+    }
+
+    const needsDynamic =
+      !renderCacheState.dynamicCanvas ||
+      !renderCacheState.dynamicCtx ||
+      renderCacheState.dynamicCanvas.width !== WIDTH ||
+      renderCacheState.dynamicCanvas.height !== HEIGHT;
+    if (needsDynamic) {
+      const built = createLayerCanvasWithContext();
+      renderCacheState.dynamicCanvas = built.canvas;
+      renderCacheState.dynamicCtx = built.layerCtx;
+      renderCacheState.dynamicDirty = true;
+    }
+
+    return !!(renderCacheState.staticCanvas && renderCacheState.staticCtx && renderCacheState.dynamicCanvas && renderCacheState.dynamicCtx);
+  }
+
+  function clearCurrentContext() {
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  }
+
+  function hasDynamicFloorVisuals(floor) {
+    const id = floor && floor.id;
+    return id === 1 || id === 2 || id === 3 || id === 4 || id === 8 || id === 9;
+  }
+
+  function drawEnvironment(floor, accent) {
+    if (!RENDER_CACHE_ENABLED || !renderCacheState) {
+      drawBackdrop(accent);
+      drawCorridor(floor, accent);
+      return;
+    }
+
+    markRenderCacheFloor(floor && floor.id, floor && floor.accent);
+
+    if (!ensureRenderLayerCanvases()) {
+      renderCacheState.stats.misses += 1;
+      drawBackdrop(accent);
+      drawCorridor(floor, accent);
+      return;
+    }
+
+    if (renderCacheState.dirty) {
+      rebuildFloorStaticLayer(floor, accent);
+    }
+    if (renderCacheState.staticCanvas) {
+      ctx.drawImage(renderCacheState.staticCanvas, 0, 0);
+    }
+
+    updateDynamicLayer(floor, accent);
+    if (renderCacheState.dynamicCanvas) {
+      ctx.drawImage(renderCacheState.dynamicCanvas, 0, 0);
+    }
+    renderCacheState.stats.hits += 1;
+  }
+
+  function rebuildFloorStaticLayer(floor, accent) {
+    if (!renderCacheState || !renderCacheState.staticCtx) {
+      return;
+    }
+
+    withRenderContext(renderCacheState.staticCtx, () => {
+      clearCurrentContext();
+      drawBackdrop(accent);
+      drawCorridorStaticLayer(floor, accent);
+    });
+
+    renderCacheState.dirty = false;
+    renderCacheState.dynamicDirty = true;
+    renderCacheState.dynamicTimer = 0;
+    renderCacheState.stats.staticRebuilds += 1;
+  }
+
+  function updateDynamicLayer(floor, accent) {
+    if (!renderCacheState || !renderCacheState.dynamicCtx) {
+      return;
+    }
+
+    const dynamicActive = hasDynamicFloorVisuals(floor);
+    const now = performance.now();
+    if (!renderCacheState.lastDrawTime) {
+      renderCacheState.lastDrawTime = now;
+    }
+    const elapsed = Math.min((now - renderCacheState.lastDrawTime) / 1000, 0.25);
+    renderCacheState.lastDrawTime = now;
+    renderCacheState.dynamicTimer += elapsed;
+
+    const interval = DYNAMIC_FX_FPS > 0 ? 1 / DYNAMIC_FX_FPS : 0;
+    const shouldRebuild =
+      renderCacheState.dynamicDirty || (dynamicActive && (interval === 0 || renderCacheState.dynamicTimer >= interval));
+    if (!shouldRebuild) {
+      return;
+    }
+
+    withRenderContext(renderCacheState.dynamicCtx, () => {
+      clearCurrentContext();
+      if (dynamicActive) {
+        drawCorridorDynamicLayer(floor, accent);
+      }
+    });
+
+    renderCacheState.dynamicDirty = false;
+    renderCacheState.dynamicTimer = 0;
+    renderCacheState.stats.dynamicRebuilds += 1;
+  }
+
   function draw() {
     syncCollections();
+    ctx = mainCtx;
 
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
     const accent = accentColor(floor.accent);
@@ -54,8 +211,7 @@
       ctx.translate(deathShake.x, deathShake.y);
     }
 
-    drawBackdrop(accent);
-    drawCorridor(floor, accent);
+    drawEnvironment(floor, accent);
 
     drawPickups(accent);
     drawBullets(accent);
@@ -491,7 +647,70 @@
     fillRoundRect(WORLD.x + 18, WORLD.y + WORLD.h + 4, WORLD.w - 36, 6, 999);
   }
 
-  function drawFloorSkin(floor, accent, wallLeft, wallRight) {
+  function drawCorridorStaticLayer(floor, accent) {
+    ctx.fillStyle = rgba(TOKENS.ink, 0.08);
+    fillRoundRect(CORRIDOR.x + 8, CORRIDOR.y + 10, CORRIDOR.w, CORRIDOR.h, 24);
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(CORRIDOR.x, CORRIDOR.y, CORRIDOR.w, CORRIDOR.h, 24);
+
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(CORRIDOR.x, CORRIDOR.y, CORRIDOR.w, CORRIDOR.h, 24);
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(WORLD.x, WORLD.y, WORLD.w, WORLD.h, 18);
+
+    const wallLeft = { x: CORRIDOR.x + 20, y: WORLD.y, w: WALL_WIDTH - 20, h: WORLD.h };
+    const wallRight = { x: WORLD.x + WORLD.w, y: WORLD.y, w: WALL_WIDTH - 20, h: WORLD.h };
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(wallLeft.x, wallLeft.y, wallLeft.w, wallLeft.h, 14);
+    fillRoundRect(wallRight.x, wallRight.y, wallRight.w, wallRight.h, 14);
+
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(wallLeft.x, wallLeft.y, wallLeft.w, wallLeft.h, 14);
+    strokeRoundRect(wallRight.x, wallRight.y, wallRight.w, wallRight.h, 14);
+
+    drawFloorSkinStatic(floor, accent, wallLeft, wallRight);
+
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(WORLD.x, WORLD.y, WORLD.w, WORLD.h, 18);
+
+    ctx.fillStyle = rgba(accent, 0.35);
+    fillRoundRect(WORLD.x + 18, WORLD.y - 10, WORLD.w - 36, 6, 999);
+    fillRoundRect(WORLD.x + 18, WORLD.y + WORLD.h + 4, WORLD.w - 36, 6, 999);
+  }
+
+  function drawCorridorDynamicLayer(floor, accent) {
+    drawFloorSkinDynamic(floor, accent);
+  }
+
+  function drawFloorSkinStatic(floor, accent, wallLeft, wallRight) {
+    ctx.save();
+    ctx.beginPath();
+    roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
+    ctx.clip();
+
+    drawWorldGridLines();
+
+    if (floor.id === 1) {
+      drawWordBlocks(accent);
+    } else if (floor.id === 5) {
+      drawKitchenPanels(accent);
+    } else if (floor.id === 6) {
+      drawDoorLoop(accent);
+    } else if (floor.id === 7) {
+      drawCracksAndFrames(accent);
+    }
+
+    ctx.restore();
+    drawWallDecor(floor, accent, wallLeft, wallRight);
+  }
+
+  function drawFloorSkinDynamic(floor, accent) {
     const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
 
     ctx.save();
@@ -499,6 +718,25 @@
     roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
     ctx.clip();
 
+    if (floor.id === 1) {
+      drawMotifFlicker(accent);
+    } else if (floor.id === 2) {
+      drawTileToWoodTransition(accent, progress);
+    } else if (floor.id === 3) {
+      drawLoadingBars(accent);
+      drawFloatingIcons(accent);
+    } else if (floor.id === 4) {
+      drawWaveBands(accent);
+    } else if (floor.id === 8) {
+      drawThresholdBands(accent, progress);
+    } else if (floor.id === 9) {
+      drawEvolutionDissolve(accent, progress);
+    }
+
+    ctx.restore();
+  }
+
+  function drawWorldGridLines() {
     ctx.strokeStyle = rgba(TOKENS.ink, 0.16);
     ctx.lineWidth = 1;
     for (let y = WORLD.y + 24; y < WORLD.y + WORLD.h; y += 26) {
@@ -507,6 +745,17 @@
       ctx.lineTo(WORLD.x + WORLD.w - 14, y);
       ctx.stroke();
     }
+  }
+
+  function drawFloorSkin(floor, accent, wallLeft, wallRight) {
+    const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
+
+    ctx.save();
+    ctx.beginPath();
+    roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
+    ctx.clip();
+
+    drawWorldGridLines();
 
     if (floor.id === 1) {
       drawMotifFlicker(accent);
@@ -1441,6 +1690,67 @@
     ctx.quadraticCurveTo(x, y, x + radius, y);
     ctx.closePath();
   }
+
+  function invalidateRenderCache(reason = "manual") {
+    if (!renderCacheState) {
+      return;
+    }
+    renderCacheState.dirty = true;
+    renderCacheState.dynamicDirty = true;
+    renderCacheState.dynamicTimer = 0;
+    renderCacheState.lastDrawTime = 0;
+    renderCacheState.lastReason = reason;
+  }
+
+  function markRenderCacheFloor(floorId, accentName) {
+    if (!renderCacheState) {
+      return;
+    }
+
+    const nextFloorId = Number.isFinite(floorId) ? floorId : null;
+    const nextAccent = typeof accentName === "string" ? accentName : "";
+    if (renderCacheState.floorId === nextFloorId && renderCacheState.accent === nextAccent) {
+      return;
+    }
+
+    renderCacheState.floorId = nextFloorId;
+    renderCacheState.accent = nextAccent;
+    invalidateRenderCache(`floor:${nextFloorId ?? "none"}`);
+  }
+
+  function getRenderCacheStats() {
+    if (!renderCacheState) {
+      return {
+        enabled: false,
+        hits: 0,
+        misses: 0,
+        staticRebuilds: 0,
+        dynamicRebuilds: 0,
+        dirty: false,
+        dynamicDirty: false,
+        floorId: null,
+        reason: "unavailable"
+      };
+    }
+
+    return {
+      enabled: !!RENDER_CACHE_ENABLED,
+      hits: renderCacheState.stats.hits,
+      misses: renderCacheState.stats.misses,
+      staticRebuilds: renderCacheState.stats.staticRebuilds,
+      dynamicRebuilds: renderCacheState.stats.dynamicRebuilds,
+      dirty: !!renderCacheState.dirty,
+      dynamicDirty: !!renderCacheState.dynamicDirty,
+      floorId: renderCacheState.floorId,
+      reason: renderCacheState.lastReason
+    };
+  }
+
+  AIPU.renderCache = {
+    invalidate: invalidateRenderCache,
+    markFloor: markRenderCacheFloor,
+    getStats: getRenderCacheStats
+  };
 
   AIPU.render = {
     draw,
