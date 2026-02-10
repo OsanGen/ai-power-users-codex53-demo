@@ -196,6 +196,12 @@
   function draw() {
     syncCollections();
     ctx = mainCtx;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.setLineDash([]);
+    ctx.lineDashOffset = 0;
 
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
     const accent = accentColor(floor.accent);

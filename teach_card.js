@@ -368,14 +368,15 @@
   function drawNode(ctx, x, y, label, opts) {
     const token = state.tokens;
     const accent = opts.accent;
-    const selected = !!opts.selected;
+    const highlight = !!opts.highlight;
+    const showDominantBadge = !!opts.showDominantBadge;
     const radius = opts.radius || BASE_NODE_RADIUS;
     const valueText = opts.valueText == null ? "" : String(opts.valueText);
 
     ctx.save();
     ctx.fillStyle = token.WHITE;
-    ctx.strokeStyle = selected ? accent : token.INK;
-    ctx.lineWidth = selected ? 3 : 2;
+    ctx.strokeStyle = highlight ? accent : token.INK;
+    ctx.lineWidth = highlight ? 3 : 2;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
@@ -393,7 +394,7 @@
       ctx.fillText(valueText, x, y + radius + 6);
     }
 
-    if (selected) {
+    if (showDominantBadge) {
       const badgeW = Math.max(66, Math.round(radius * 4));
       const badgeH = Math.max(18, Math.round(radius * 1.1));
       fillRoundRect(ctx, x - badgeW * 0.5, y - radius - badgeH - 10, badgeW, badgeH, 10, accent);
@@ -471,6 +472,7 @@
   }
 
   function drawRiskPill(ctx, x, y, riskPct, bucket, accent) {
+    ctx.save();
     const token = state.tokens;
     const label = `${riskPct}% ${bucket}`;
     const w = 126;
@@ -482,10 +484,12 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(label, x + w * 0.5, y + h * 0.5);
+    ctx.restore();
   }
 
   function draw(ctx, rect) {
     if (!ctx) return;
+    ctx.save();
     const token = state.tokens;
     const panelRect = rect || { x: 0, y: 0, w: 1280, h: 720 };
     const accent = state.derived.accent;
@@ -671,7 +675,8 @@
       for (let i = 0; i < inputNodes.length; i += 1) {
         const slider = state.sliders[i];
         drawNode(ctx, inputNodes[i].x, inputNodes[i].y, inputNodes[i].label, {
-          selected: i === state.selectedSlider,
+          highlight: i === state.selectedSlider,
+          showDominantBadge: false,
           accent,
           radius: nodeRadius,
           valueText: `${slider.value}`
@@ -679,25 +684,29 @@
       }
 
       drawNode(ctx, hiddenNodes[0].x, hiddenNodes[0].y, hiddenNodes[0].label, {
-        selected: state.derived.dominantKey === "loyal",
+        highlight: state.derived.dominantKey === "loyal",
+        showDominantBadge: state.derived.dominantKey === "loyal",
         accent,
         radius: nodeRadius,
         valueText: `${Math.round(state.derived.loyal * 100)}%`
       });
       drawNode(ctx, hiddenNodes[1].x, hiddenNodes[1].y, hiddenNodes[1].label, {
-        selected: state.derived.dominantKey === "frustrated",
+        highlight: state.derived.dominantKey === "frustrated",
+        showDominantBadge: state.derived.dominantKey === "frustrated",
         accent,
         radius: nodeRadius,
         valueText: `${Math.round(state.derived.frustrated * 100)}%`
       });
       drawNode(ctx, hiddenNodes[2].x, hiddenNodes[2].y, hiddenNodes[2].label, {
-        selected: state.derived.dominantKey === "engaged",
+        highlight: state.derived.dominantKey === "engaged",
+        showDominantBadge: state.derived.dominantKey === "engaged",
         accent,
         radius: nodeRadius,
         valueText: `${Math.round(state.derived.engaged * 100)}%`
       });
       drawNode(ctx, outputNode.x, outputNode.y, outputNode.label, {
-        selected: true,
+        highlight: true,
+        showDominantBadge: false,
         accent,
         radius: nodeRadius,
         valueText: `${state.derived.riskPct}%`
@@ -721,23 +730,47 @@
       );
 
       ctx.font = `700 ${controlsTitleSize}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
-      ctx.fillText(controlsTitle, rightBox.x + 16, rightBox.y + 12);
+      const controlsTitleTop = rightBox.y + 12;
+      const controlsTitleBottom = drawWrappedText(
+        ctx,
+        controlsTitle,
+        rightBox.x + 16,
+        controlsTitleTop,
+        rightBox.w - 32,
+        Math.round(controlsTitleSize * 1.02),
+        2,
+        "left"
+      );
 
       ctx.font = "600 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-      drawWrappedText(ctx, controlsHint, rightBox.x + 16, rightBox.y + 46, rightBox.w - 32, 19, 2, "left");
+      const controlsHintBottom = drawWrappedText(
+        ctx,
+        controlsHint,
+        rightBox.x + 16,
+        controlsTitleBottom + 4,
+        rightBox.w - 32,
+        19,
+        2,
+        "left"
+      );
+
+      const sliderTopPad = Math.max(72, Math.round(controlsHintBottom - rightBox.y + 8));
+      const sliderAreaHeight = Math.max(0, rightBox.h - sliderTopPad - 10);
+      const baseRowHeight = Math.floor(sliderAreaHeight / state.sliders.length);
 
       const metrics = {
         contentPad: 16,
-        topPad: 90,
-        rowHeight: clamp(Math.floor((rightBox.h - 102) / state.sliders.length), 48, 72),
+        topPad: sliderTopPad,
+        rowHeight: clamp(baseRowHeight, 24, 72),
         labelFontSize: 16,
         labelGap: 8,
         trackHeight: 12,
         knobRadius: 11
       };
 
-      metrics.labelFontSize = clamp(Math.round(metrics.rowHeight * 0.31), 14, 20);
-      metrics.trackHeight = clamp(Math.round(metrics.rowHeight * 0.17), 9, 13);
+      metrics.labelFontSize = clamp(Math.round(metrics.rowHeight * 0.42), 11, 20);
+      metrics.labelGap = clamp(Math.round(metrics.rowHeight * 0.1), 3, 10);
+      metrics.trackHeight = clamp(Math.round(metrics.rowHeight * 0.24), 7, 13);
       metrics.knobRadius = clamp(metrics.trackHeight + 1, 9, 12);
 
       state.sliderTrackRects = [];
@@ -779,6 +812,8 @@
 
     const challengeText = (lesson && lesson.microChallenge) || "No challenge.";
     const challengeMarker = state.challengeComplete ? "[ok]" : "[ ]";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
     ctx.fillStyle = state.challengeComplete ? accent : token.INK;
     ctx.fillText(truncateText(ctx, `${challengeMarker} ${challengeText}`, rightZoneW), rightZoneX, topLineY);
 
@@ -787,6 +822,7 @@
     const footerHint = "Enter: upgrades | 1: happy | 2: at-risk";
     ctx.textAlign = "center";
     ctx.fillText(truncateText(ctx, footerHint, bottomRow.w - 24), bottomRow.x + bottomRow.w * 0.5, infoLineY);
+    ctx.restore();
   }
 
   function init(tokens) {
