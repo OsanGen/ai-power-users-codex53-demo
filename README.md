@@ -29,13 +29,6 @@ Option 2 (recommended):
 - If upgrade pools run low, safe fallback options can appear (`Patch Job` heal or `Breathe` short iFrame boost for the floor).
 - 9 floors progress in sequence with floor-specific enemies, overlays, and corridor skins.
 
-## Teach Cards (Neural Glass)
-
-- Between floors, a mini interactive neural-net demo appears.
-- It pauses gameplay and focuses on one lesson for that floor.
-- Controls: `Enter` continue, `1` happy, `2` at-risk.
-- Controls: `A/D` select slider, `Arrow` keys adjust values.
-
 ## Narrative layer (neural nets)
 
 - The run uses a rabbit-hole story to teach neural-net concepts, floor by floor.

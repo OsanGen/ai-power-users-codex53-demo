@@ -33,7 +33,7 @@
     const cards = Array.isArray(N && N.teachCards) ? N.teachCards : [];
     const floorId = floor && Number.isFinite(floor.id) ? floor.id : 1;
     const entry = cards.find((card) => card && Number(card.floor) === floorId) || null;
-    const floorFallbackTitle = `Teach Card ${floorId}`;
+    const floorFallbackTitle = `Floor ${floorId}`;
     const floorFallbackSubtitle = "Raw data -> weights -> concepts -> prediction.";
 
     return {
@@ -55,22 +55,6 @@
       title: pickNarrativeText(ui && ui.gameOverTitle, "Run ended. Lesson stays."),
       subtitle: pickNarrativeText(ui && ui.gameOverSubtitle, "Try again. Watch the dominant concept.")
     };
-  }
-
-  function getNarrativeTeachCard(floorNumber) {
-    const cards = Array.isArray(N && N.teachCards) ? N.teachCards : [];
-    const target = Number(floorNumber);
-    if (!Number.isFinite(target)) {
-      return null;
-    }
-    for (let i = 0; i < cards.length; i += 1) {
-      const card = cards[i];
-      if (!card || Number(card.floor) !== target) {
-        continue;
-      }
-      return card;
-    }
-    return null;
   }
 
   function getNarrativeUiText(key, fallback) {
@@ -314,7 +298,6 @@
     getNarrativeTitleCard,
     getNarrativeFloorCopy,
     getNarrativeOutcomeCopy,
-    getNarrativeTeachCard,
     getNarrativeUiText,
     getWhatYouLearnedBullets,
     getThreatGlossaryRows

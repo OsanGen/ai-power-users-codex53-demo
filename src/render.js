@@ -215,12 +215,6 @@
       return;
     }
 
-    if (game.state === GameState.TEACH_CARD) {
-      drawBackdrop(accent);
-      drawTeachCard(floor, accent);
-      return;
-    }
-
     if (game.state === GameState.UPGRADE_SELECT) {
       drawBackdrop(accent);
       drawUpgradeSelect(floor, accent);
@@ -378,37 +372,6 @@
       ctx.font = '700 15px "Inter", sans-serif';
       ctx.fillText("Choose one to continue.", panelX + panelW - 258, panelY + panelH - 66);
     }
-  }
-
-  function drawTeachCard(floor, accent) {
-    const cardRect = {
-      x: 56,
-      y: 38,
-      w: WIDTH - 112,
-      h: HEIGHT - 98
-    };
-    game.teachCard.rect = cardRect;
-
-    const neuralGlass = window.NeuralGlass;
-    if (neuralGlass && typeof neuralGlass.draw === "function") {
-      neuralGlass.draw(ctx, cardRect);
-      return;
-    }
-
-    const panelX = cardRect.x;
-    const panelY = cardRect.y;
-    const panelW = cardRect.w;
-    const panelH = cardRect.h;
-    ctx.fillStyle = TOKENS.white;
-    fillRoundRect(panelX, panelY, panelW, panelH, 20);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 3;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 20);
-    ctx.fillStyle = rgba(accent, 0.24);
-    fillRoundRect(panelX + 20, panelY + 20, panelW - 40, 10, 999);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 30px "Sora", "Inter", sans-serif';
-    ctx.fillText("Teach card unavailable.", panelX + 30, panelY + 56);
   }
 
   function computeUpgradeCardRects(panelX, panelY, panelW, panelH, optionCount) {

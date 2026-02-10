@@ -35,7 +35,6 @@
     },
     GameState: {
       TITLE: "TITLE",
-      TEACH_CARD: "TEACH_CARD",
       UPGRADE_SELECT: "UPGRADE_SELECT",
       FLOOR_INTRO: "FLOOR_INTRO",
       PLAYING: "PLAYING",
@@ -82,12 +81,6 @@
       kills: 0,
       beatCount: 0,
       titleIntroTime: 0,
-      teachCard: {
-        floorIndex: 1,
-        lesson: null,
-        rect: null,
-        justOpened: false
-      },
       upgradeOptions: [],
       upgradeSelectedIndex: 0,
       upgradeConfirmCooldown: 0,
