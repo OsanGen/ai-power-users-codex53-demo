@@ -370,6 +370,8 @@
     const accent = opts.accent;
     const highlight = !!opts.highlight;
     const showDominantBadge = !!opts.showDominantBadge;
+    const showLabel = opts.showLabel !== false;
+    const showValue = opts.showValue !== false;
     const radius = opts.radius || BASE_NODE_RADIUS;
     const valueText = opts.valueText == null ? "" : String(opts.valueText);
 
@@ -382,13 +384,15 @@
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = token.INK;
-    ctx.font = `700 ${Math.max(11, Math.round(radius * 0.72))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "bottom";
-    ctx.fillText(label, x, y - radius - 7);
+    if (showLabel && label) {
+      ctx.fillStyle = token.INK;
+      ctx.font = `700 ${Math.max(11, Math.round(radius * 0.72))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText(label, x, y - radius - 7);
+    }
 
-    if (valueText) {
+    if (showValue && valueText) {
       ctx.font = `600 ${Math.max(10, Math.round(radius * 0.64))}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
       ctx.textBaseline = "top";
       ctx.fillText(valueText, x, y + radius + 6);
@@ -405,6 +409,29 @@
       ctx.fillText("DOMINANT", x, y - radius - badgeH * 0.5 - 10);
     }
     ctx.restore();
+  }
+
+  function drawChip(ctx, x, y, w, h, text, options) {
+    const token = state.tokens;
+    const accent = (options && options.accent) || state.derived.accent;
+    const active = !!(options && options.active);
+    const textAlign = (options && options.align) || "center";
+    const fill = active ? rgba(accent, 0.34) : rgba(token.WHITE, 0.94);
+    const stroke = active ? accent : token.INK;
+
+    fillRoundRect(ctx, x, y, w, h, Math.min(12, Math.round(h * 0.5)), fill);
+    strokeRoundRect(ctx, x, y, w, h, Math.min(12, Math.round(h * 0.5)), stroke, 2);
+
+    ctx.fillStyle = token.INK;
+    ctx.font = "700 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    ctx.textBaseline = "middle";
+    if (textAlign === "left") {
+      ctx.textAlign = "left";
+      ctx.fillText(truncateText(ctx, text, w - 18), x + 10, y + h * 0.5 + 1);
+    } else {
+      ctx.textAlign = "center";
+      ctx.fillText(truncateText(ctx, text, w - 16), x + w * 0.5, y + h * 0.5 + 1);
+    }
   }
 
   function drawWeightLine(ctx, ax, ay, bx, by, weight, maxAbsWeight, pulseT) {
@@ -514,125 +541,119 @@
     const floorNumber = Number.isFinite(lesson.floor) ? lesson.floor : 1;
     const progressText = `Teach Card ${floorNumber}/9`;
     const challengeBadgeText = state.challengeComplete ? "Challenge ✓" : "Challenge";
+    ctx.font = "700 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    const headerH = clamp(Math.round(panel.h * 0.34), 208, 250);
+    const footerH = clamp(Math.round(panel.h * 0.19), 108, 132);
+    const header = { x: innerX, y: panel.y + 24, w: innerW, h: headerH };
+    const footer = { x: innerX, y: panel.y + panel.h - footerH - 20, w: innerW, h: footerH };
+    const bodyY = header.y + header.h + 12;
+    const bodyH = Math.max(210, footer.y - bodyY - 12);
+    const body = { x: innerX, y: bodyY, w: innerW, h: bodyH };
 
-    const topRowY = panel.y + 24;
-    const topRowH = 30;
-
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    const chipH = 32;
     const progressW = Math.max(146, Math.min(260, Math.round(ctx.measureText(progressText).width + 26)));
-
-    fillRoundRect(ctx, innerX, topRowY, progressW, topRowH, 12, rgba(token.WHITE, 0.95));
-    strokeRoundRect(ctx, innerX, topRowY, progressW, topRowH, 12, token.INK, 2);
-    ctx.fillStyle = token.INK;
-    ctx.fillText(progressText, innerX + 14, topRowY + topRowH * 0.5 + 1);
-
-    const challengeW = 140;
-    const challengeX = innerX + innerW - challengeW;
-    fillRoundRect(ctx, challengeX, topRowY, challengeW, topRowH, 12, state.challengeComplete ? rgba(accent, 0.35) : rgba(token.WHITE, 0.95));
-    strokeRoundRect(ctx, challengeX, topRowY, challengeW, topRowH, 12, state.challengeComplete ? accent : token.INK, 2);
-    ctx.fillStyle = token.INK;
-    ctx.fillText(challengeBadgeText, challengeX + 14, topRowY + topRowH * 0.5 + 1);
+    drawChip(ctx, header.x, header.y, progressW, chipH, progressText, { active: false, align: "left" });
+    drawChip(ctx, header.x + header.w - 156, header.y, 156, chipH, challengeBadgeText, { active: state.challengeComplete });
 
     const titleText = String(lesson.title || "Teach Card");
     const oneLiner = String(lesson.oneLiner || "Neural net teaching view.");
     const bullets = Array.isArray(lesson.bullets) ? lesson.bullets.slice(0, 3) : [];
+    const headerCopyY = header.y + chipH + 14;
+    const headerCopyH = header.h - chipH - 16;
 
-    let textY = topRowY + topRowH + 16;
-    const titleFontSize = fitFontSize(ctx, titleText, innerW, 56, 34, '800 ${size}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif');
-    ctx.font = `800 ${titleFontSize}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
-    ctx.fillStyle = token.INK;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    textY = drawWrappedText(ctx, titleText, innerX, textY, innerW, Math.round(titleFontSize * 1.08), 2, "left");
+    withClipRect(ctx, header.x, headerCopyY, header.w, headerCopyH, () => {
+      let textY = headerCopyY;
+      const titleFontSize = fitFontSize(
+        ctx,
+        titleText,
+        header.w,
+        56,
+        34,
+        '800 ${size}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+      );
+      ctx.font = `800 ${titleFontSize}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+      ctx.fillStyle = token.INK;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      textY = drawWrappedText(ctx, titleText, header.x, textY, header.w, Math.round(titleFontSize * 1.08), 2, "left");
 
-    const oneLinerFontSize = fitFontSize(ctx, oneLiner, innerW, 25, 18, '600 ${size}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif');
-    ctx.font = `600 ${oneLinerFontSize}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
-    textY = drawWrappedText(ctx, oneLiner, innerX, textY + 8, innerW, Math.round(oneLinerFontSize * 1.28), 2, "left");
+      const oneLinerFontSize = fitFontSize(
+        ctx,
+        oneLiner,
+        header.w,
+        25,
+        18,
+        '600 ${size}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
+      );
+      ctx.font = `600 ${oneLinerFontSize}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
+      textY = drawWrappedText(ctx, oneLiner, header.x, textY + 6, header.w, Math.round(oneLinerFontSize * 1.24), 2, "left");
 
-    ctx.font = "500 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    for (let i = 0; i < bullets.length; i += 1) {
-      const line = truncateText(ctx, `- ${bullets[i]}`, innerW);
-      ctx.fillText(line, innerX, textY + 10 + i * 22);
-    }
+      ctx.font = "500 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      for (let i = 0; i < bullets.length; i += 1) {
+        const line = truncateText(ctx, `- ${bullets[i]}`, header.w);
+        ctx.fillText(line, header.x, textY + 8 + i * 21);
+      }
+    });
 
-    const minimumBodyTop = panel.y + Math.round(panel.h * 0.33);
-    const textBottom = textY + 10 + bullets.length * 22;
-    const bodyTop = Math.max(minimumBodyTop, textBottom + 8);
-
-    const bottomRow = {
-      x: panel.x + 24,
-      y: panel.y + panel.h - 82,
-      w: panel.w - 48,
-      h: 64
-    };
-
-    const bodyGap = 12;
-    const bodyHeight = Math.max(220, bottomRow.y - bodyGap - bodyTop);
-
-    const gap = 16;
-    const leftW = Math.round((innerW - gap) * 0.58);
-    const leftBox = {
-      x: innerX,
-      y: bodyTop,
-      w: leftW,
-      h: bodyHeight
-    };
-    const rightBox = {
-      x: leftBox.x + leftBox.w + gap,
-      y: bodyTop,
-      w: innerW - leftW - gap,
-      h: bodyHeight
-    };
+    const cardGap = 16;
+    const leftW = Math.round((body.w - cardGap) * 0.58);
+    const leftBox = { x: body.x, y: body.y, w: leftW, h: body.h };
+    const rightBox = { x: leftBox.x + leftBox.w + cardGap, y: body.y, w: body.w - leftW - cardGap, h: body.h };
 
     fillRoundRect(ctx, leftBox.x, leftBox.y, leftBox.w, leftBox.h, 14, token.FOG);
     strokeRoundRect(ctx, leftBox.x, leftBox.y, leftBox.w, leftBox.h, 14, token.INK, 2);
     fillRoundRect(ctx, rightBox.x, rightBox.y, rightBox.w, rightBox.h, 14, token.FOG);
     strokeRoundRect(ctx, rightBox.x, rightBox.y, rightBox.w, rightBox.h, 14, token.INK, 2);
 
-    const nodeRadius = clamp(Math.round(Math.min(leftBox.w, leftBox.h) * 0.045), 14, BASE_NODE_RADIUS);
+    const midCueW = 166;
+    drawChip(ctx, body.x + Math.round(body.w * 0.5) - Math.round(midCueW * 0.5), body.y - 15, midCueW, 30, "Then check risk", {
+      active: false
+    });
 
+    const nodeRadius = clamp(Math.round(Math.min(leftBox.w, leftBox.h) * 0.043), 14, BASE_NODE_RADIUS);
     withClipRect(ctx, leftBox.x + 2, leftBox.y + 2, leftBox.w - 4, leftBox.h - 4, () => {
+      const leftPad = 14;
+      const stripY = leftBox.y + 10;
+      const stripH = 34;
+
       ctx.fillStyle = token.INK;
-      ctx.textBaseline = "top";
-      ctx.font = "700 21px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-
-      const sectionY = leftBox.y + 12;
-      const inputsLabel = "Inputs";
-      const conceptsLabel = "Concepts";
-      const outputLabel = "Output";
-
+      ctx.textBaseline = "middle";
+      ctx.font = "700 20px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText(inputsLabel, leftBox.x + 16, sectionY);
-
+      ctx.fillText("Inputs", leftBox.x + leftPad, stripY + stripH * 0.5 + 1);
       ctx.textAlign = "center";
-      ctx.fillText(conceptsLabel, leftBox.x + leftBox.w * 0.5, sectionY);
-
+      ctx.fillText("Concepts", leftBox.x + leftBox.w * 0.5, stripY + stripH * 0.5 + 1);
       ctx.textAlign = "right";
-      ctx.fillText(outputLabel, leftBox.x + leftBox.w - 16, sectionY);
+      ctx.fillText("Output", leftBox.x + leftBox.w - leftPad, stripY + stripH * 0.5 + 1);
 
-      const netPadX = Math.max(56, Math.round(leftBox.w * 0.12));
-      const inputX = leftBox.x + netPadX;
-      const hiddenX = leftBox.x + leftBox.w * 0.5;
-      const outputX = leftBox.x + leftBox.w - netPadX;
-      const netTopPad = Math.max(74, Math.round(nodeRadius * 4.1));
-      const netBottomPad = Math.max(28, Math.round(nodeRadius * 2.1));
-      const netTop = leftBox.y + netTopPad;
-      const netBottom = leftBox.y + leftBox.h - netBottomPad;
+      const cueW = Math.min(206, leftBox.w - 28);
+      drawChip(ctx, leftBox.x + leftBox.w - cueW - 12, stripY + 40, cueW, 26, "Observe network flow", { active: false });
+
+      const netArea = {
+        x: leftBox.x + leftPad,
+        y: stripY + 74,
+        w: leftBox.w - leftPad * 2,
+        h: leftBox.h - 92
+      };
+
+      const inputX = netArea.x + Math.round(netArea.w * 0.1);
+      const hiddenX = netArea.x + Math.round(netArea.w * 0.52);
+      const outputX = netArea.x + netArea.w - Math.round(netArea.w * 0.1);
+      const nodeTop = netArea.y + 26;
+      const nodeBottom = netArea.y + netArea.h - 28;
 
       const inputNodes = [];
       for (let i = 0; i < INPUT_DEFS.length; i += 1) {
         const t = i / (INPUT_DEFS.length - 1);
-        inputNodes.push({ x: inputX, y: netTop + (netBottom - netTop) * t, key: INPUT_DEFS[i].id, label: INPUT_DEFS[i].label });
+        inputNodes.push({ x: inputX, y: nodeTop + (nodeBottom - nodeTop) * t, key: INPUT_DEFS[i].id, label: INPUT_DEFS[i].label });
       }
 
       const hiddenNodes = [];
       for (let i = 0; i < HIDDEN_KEYS.length; i += 1) {
         const t = (i + 1) / (HIDDEN_KEYS.length + 1);
-        hiddenNodes.push({ x: hiddenX, y: netTop + (netBottom - netTop) * t, key: HIDDEN_KEYS[i], label: HIDDEN_LABELS[HIDDEN_KEYS[i]] });
+        hiddenNodes.push({ x: hiddenX, y: nodeTop + (nodeBottom - nodeTop) * t, key: HIDDEN_KEYS[i], label: HIDDEN_LABELS[HIDDEN_KEYS[i]] });
       }
-      const outputNode = { x: outputX, y: (netTop + netBottom) * 0.5, key: "risk", label: "RISK" };
+      const outputNode = { x: outputX, y: (nodeTop + nodeBottom) * 0.5, key: "risk", label: "RISK" };
 
       const pulseT = state.pulseRemaining > 0 && !state.prefersReducedMotion ? 1 - state.pulseRemaining / PULSE_DURATION : -1;
 
@@ -675,44 +696,88 @@
       }
 
       for (let i = 0; i < inputNodes.length; i += 1) {
-        const slider = state.sliders[i];
-        drawNode(ctx, inputNodes[i].x, inputNodes[i].y, inputNodes[i].label, {
+        drawNode(ctx, inputNodes[i].x, inputNodes[i].y, "", {
           highlight: i === state.selectedSlider,
           showDominantBadge: false,
+          showLabel: false,
+          showValue: false,
           accent,
-          radius: nodeRadius,
-          valueText: `${slider.value}`
+          radius: nodeRadius
         });
       }
 
-      drawNode(ctx, hiddenNodes[0].x, hiddenNodes[0].y, hiddenNodes[0].label, {
+      drawNode(ctx, hiddenNodes[0].x, hiddenNodes[0].y, "", {
         highlight: state.derived.dominantKey === "loyal",
-        showDominantBadge: state.derived.dominantKey === "loyal",
+        showDominantBadge: false,
+        showLabel: false,
+        showValue: false,
         accent,
-        radius: nodeRadius,
-        valueText: `${Math.round(state.derived.loyal * 100)}%`
+        radius: nodeRadius
       });
-      drawNode(ctx, hiddenNodes[1].x, hiddenNodes[1].y, hiddenNodes[1].label, {
+      drawNode(ctx, hiddenNodes[1].x, hiddenNodes[1].y, "", {
         highlight: state.derived.dominantKey === "frustrated",
-        showDominantBadge: state.derived.dominantKey === "frustrated",
+        showDominantBadge: false,
+        showLabel: false,
+        showValue: false,
         accent,
-        radius: nodeRadius,
-        valueText: `${Math.round(state.derived.frustrated * 100)}%`
+        radius: nodeRadius
       });
-      drawNode(ctx, hiddenNodes[2].x, hiddenNodes[2].y, hiddenNodes[2].label, {
+      drawNode(ctx, hiddenNodes[2].x, hiddenNodes[2].y, "", {
         highlight: state.derived.dominantKey === "engaged",
-        showDominantBadge: state.derived.dominantKey === "engaged",
+        showDominantBadge: false,
+        showLabel: false,
+        showValue: false,
         accent,
-        radius: nodeRadius,
-        valueText: `${Math.round(state.derived.engaged * 100)}%`
+        radius: nodeRadius
       });
-      drawNode(ctx, outputNode.x, outputNode.y, outputNode.label, {
+      drawNode(ctx, outputNode.x, outputNode.y, "", {
         highlight: true,
         showDominantBadge: false,
+        showLabel: false,
+        showValue: false,
         accent,
-        radius: nodeRadius,
-        valueText: `${state.derived.riskPct}%`
+        radius: nodeRadius
       });
+
+      ctx.fillStyle = token.INK;
+      ctx.textBaseline = "bottom";
+      ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      for (let i = 0; i < inputNodes.length; i += 1) {
+        const slider = state.sliders[i];
+        const tx = inputNodes[i].x - nodeRadius - 12;
+        ctx.textAlign = "right";
+        ctx.fillText(inputNodes[i].label, tx, inputNodes[i].y - 4);
+        ctx.textBaseline = "top";
+        ctx.font = "600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+        ctx.fillText(`${slider.value}`, tx, inputNodes[i].y + 3);
+        ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+        ctx.textBaseline = "bottom";
+      }
+
+      const hiddenValues = [state.derived.loyal, state.derived.frustrated, state.derived.engaged];
+      ctx.textAlign = "center";
+      for (let i = 0; i < hiddenNodes.length; i += 1) {
+        const hidden = hiddenNodes[i];
+        ctx.textBaseline = "bottom";
+        ctx.fillText(hidden.label, hidden.x, hidden.y - nodeRadius - 6);
+        ctx.textBaseline = "top";
+        ctx.font = "600 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+        ctx.fillText(`${Math.round(hiddenValues[i] * 100)}%`, hidden.x, hidden.y + nodeRadius + 4);
+        ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      }
+
+      const dominantIndex = HIDDEN_KEYS.indexOf(state.derived.dominantKey);
+      if (dominantIndex >= 0) {
+        const domNode = hiddenNodes[dominantIndex];
+        drawChip(ctx, domNode.x + nodeRadius + 10, domNode.y - 13, 102, 26, "DOMINANT", { active: true });
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.fillText("RISK", outputNode.x, outputNode.y - nodeRadius - 6);
+      ctx.textBaseline = "top";
+      ctx.font = "700 16px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      ctx.fillText(`${state.derived.riskPct}%`, outputNode.x, outputNode.y + nodeRadius + 4);
     });
 
     withClipRect(ctx, rightBox.x + 2, rightBox.y + 2, rightBox.w - 4, rightBox.h - 4, () => {
@@ -726,18 +791,19 @@
         ctx,
         controlsTitle,
         rightBox.w - 32,
-        38,
-        26,
+        56,
+        34,
         '700 ${size}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif'
       );
 
+      const textX = rightBox.x + 16;
+      const controlsTop = rightBox.y + 12;
       ctx.font = `700 ${controlsTitleSize}px system-ui, -apple-system, Segoe UI, Roboto, sans-serif`;
-      const controlsTitleTop = rightBox.y + 12;
       const controlsTitleBottom = drawWrappedText(
         ctx,
         controlsTitle,
-        rightBox.x + 16,
-        controlsTitleTop,
+        textX,
+        controlsTop,
         rightBox.w - 32,
         Math.round(controlsTitleSize * 1.02),
         2,
@@ -748,16 +814,20 @@
       const controlsHintBottom = drawWrappedText(
         ctx,
         controlsHint,
-        rightBox.x + 16,
-        controlsTitleBottom + 4,
+        textX,
+        controlsTitleBottom + 2,
         rightBox.w - 32,
         19,
         2,
         "left"
       );
 
-      const sliderTopPad = Math.max(72, Math.round(controlsHintBottom - rightBox.y + 8));
-      const sliderAreaHeight = Math.max(0, rightBox.h - sliderTopPad - 10);
+      const cueW = Math.min(180, rightBox.w - 32);
+      const cueY = controlsHintBottom + 6;
+      drawChip(ctx, textX, cueY, cueW, 26, "Adjust one input", { active: true, align: "left" });
+
+      const sliderTopPad = Math.max(88, Math.round(cueY + 34 - rightBox.y));
+      const sliderAreaHeight = Math.max(0, rightBox.h - sliderTopPad - 12);
       const baseRowHeight = Math.floor(sliderAreaHeight / state.sliders.length);
 
       const metrics = {
@@ -770,9 +840,9 @@
         knobRadius: 11
       };
 
-      metrics.labelFontSize = clamp(Math.round(metrics.rowHeight * 0.42), 11, 20);
-      metrics.labelGap = clamp(Math.round(metrics.rowHeight * 0.1), 3, 10);
-      metrics.trackHeight = clamp(Math.round(metrics.rowHeight * 0.24), 7, 13);
+      metrics.labelFontSize = clamp(Math.round(metrics.rowHeight * 0.4), 11, 22);
+      metrics.labelGap = clamp(Math.round(metrics.rowHeight * 0.14), 3, 12);
+      metrics.trackHeight = clamp(Math.round(metrics.rowHeight * 0.22), 7, 13);
       metrics.knobRadius = clamp(metrics.trackHeight + 1, 9, 12);
 
       state.sliderTrackRects = [];
@@ -781,24 +851,24 @@
       }
     });
 
-    fillRoundRect(ctx, bottomRow.x, bottomRow.y, bottomRow.w, bottomRow.h, 12, token.FOG);
-    strokeRoundRect(ctx, bottomRow.x, bottomRow.y, bottomRow.w, bottomRow.h, 12, token.INK, 2);
+    fillRoundRect(ctx, footer.x, footer.y, footer.w, footer.h, 12, token.FOG);
+    strokeRoundRect(ctx, footer.x, footer.y, footer.w, footer.h, 12, token.INK, 2);
 
-    let riskPillW = 126;
+    let riskPillW = 132;
     const leftPad = 14;
-    const gapMid = 8;
-    const topLineY = bottomRow.y + 19;
-    const infoLineY = bottomRow.y + 42;
-    const availableW = bottomRow.w - leftPad * 2;
-    const minLeftZone = 170;
-    const minRightZone = 170;
-    let leftZoneW = Math.floor(availableW * 0.44);
+    const summaryY = footer.y + 20;
+    const topSummaryH = 28;
+    const availableW = footer.w - leftPad * 2;
+    const gapMid = 10;
+    const minLeftZone = 180;
+    const minRightZone = 180;
+    let leftZoneW = Math.floor(availableW * 0.35);
     leftZoneW = clamp(leftZoneW, minLeftZone, Math.max(minLeftZone, availableW - minRightZone - riskPillW - gapMid * 2));
     let rightZoneW = availableW - leftZoneW - riskPillW - gapMid * 2;
 
     if (rightZoneW < minRightZone) {
       const missing = minRightZone - rightZoneW;
-      riskPillW = clamp(riskPillW - missing, 108, 160);
+      riskPillW = clamp(riskPillW - missing, 110, 156);
       rightZoneW = availableW - leftZoneW - riskPillW - gapMid * 2;
     }
     if (rightZoneW < minRightZone) {
@@ -807,7 +877,7 @@
     }
     rightZoneW = Math.max(120, rightZoneW);
 
-    const leftZoneX = bottomRow.x + leftPad;
+    const leftZoneX = footer.x + leftPad;
     const riskX = leftZoneX + leftZoneW + gapMid;
     const rightZoneX = riskX + riskPillW + gapMid;
 
@@ -816,26 +886,31 @@
     ctx.textBaseline = "middle";
     ctx.font = "700 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     const dominantText = `Dominant concept: ${HIDDEN_LABELS[state.derived.dominantKey]}`;
-    withClipRect(ctx, leftZoneX, bottomRow.y + 6, leftZoneW, 28, () => {
-      ctx.fillText(truncateText(ctx, dominantText, leftZoneW), leftZoneX, topLineY);
+    withClipRect(ctx, leftZoneX, summaryY - 12, leftZoneW, topSummaryH, () => {
+      ctx.fillText(truncateText(ctx, dominantText, leftZoneW), leftZoneX, summaryY);
     });
 
-    drawRiskPill(ctx, riskX, bottomRow.y + 3, state.derived.riskPct, state.derived.bucket, accent, riskPillW);
+    drawRiskPill(ctx, riskX, summaryY - 17, state.derived.riskPct, state.derived.bucket, accent, riskPillW);
 
     const challengeText = (lesson && lesson.microChallenge) || "No challenge.";
     const challengeMarker = state.challengeComplete ? "[ok]" : "[ ]";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
     ctx.fillStyle = state.challengeComplete ? accent : token.INK;
-    withClipRect(ctx, rightZoneX, bottomRow.y + 6, rightZoneW, 28, () => {
-      ctx.fillText(truncateText(ctx, `${challengeMarker} ${challengeText}`, rightZoneW), rightZoneX, topLineY);
+    withClipRect(ctx, rightZoneX, summaryY - 12, rightZoneW, topSummaryH, () => {
+      ctx.fillText(truncateText(ctx, `${challengeMarker} ${challengeText}`, rightZoneW), rightZoneX, summaryY);
     });
 
+    const ctaW = Math.min(420, footer.w - 28);
+    const ctaH = 36;
+    const ctaX = footer.x + Math.round((footer.w - ctaW) * 0.5);
+    const ctaY = footer.y + 46;
+    drawChip(ctx, ctaX, ctaY, ctaW, ctaH, "Press Enter to continue", { active: true });
+
     ctx.fillStyle = token.INK;
-    ctx.font = "600 13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
-    const footerHint = "Enter: upgrades | 1: happy | 2: at-risk";
     ctx.textAlign = "center";
-    ctx.fillText(truncateText(ctx, footerHint, bottomRow.w - 24), bottomRow.x + bottomRow.w * 0.5, infoLineY);
+    ctx.textBaseline = "middle";
+    ctx.font = "600 13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+    const footerHint = "1 happy • 2 at-risk • A/D select • arrows adjust";
+    ctx.fillText(truncateText(ctx, footerHint, footer.w - 24), footer.x + footer.w * 0.5, footer.y + footer.h - 16);
     ctx.restore();
   }
 
