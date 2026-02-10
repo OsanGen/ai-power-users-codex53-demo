@@ -155,11 +155,18 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "top";
-    ctx.font = '700 38px "Sora", "Inter", sans-serif';
-    ctx.fillText(floorCopy.title, panelX + 34, panelY + 50);
+    const floorTitleFontSize = fitFontSizeForLine(
+      floorCopy.title,
+      panelW - 68,
+      38,
+      30,
+      '700 ${size}px "Sora", "Inter", sans-serif'
+    );
+    ctx.font = `700 ${floorTitleFontSize}px "Sora", "Inter", sans-serif`;
+    ctx.fillText(fitCanvasText(floorCopy.title, panelW - 68), panelX + 34, panelY + 50);
 
     ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(floorCopy.subtitle, panelX + 34, panelY + 104, panelW - 68, 30);
+    drawWrappedText(floorCopy.subtitle, panelX + 34, panelY + 104, panelW - 68, 30, { maxLines: 2 });
 
     ctx.font = '600 18px "Inter", sans-serif';
     ctx.fillStyle = TOKENS.ink;
@@ -179,7 +186,7 @@
     const footerText = "1-3 to pick • Enter to confirm • Esc to skip (NOT allowed)";
     ctx.font = '600 17px "Inter", sans-serif';
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(footerText, panelX + 34, panelY + panelH - 56);
+    ctx.fillText(fitCanvasText(footerText, panelW - 68), panelX + 34, panelY + panelH - 56);
 
     if (game.upgradeNoticeTimer > 0) {
       ctx.fillStyle = rgba(accent, 0.18);
@@ -234,20 +241,34 @@
     ctx.lineWidth = selected ? 4 : 2;
     strokeRoundRect(rect.x, rect.y, rect.w, rect.h, 16);
 
-    if (selected) {
-      ctx.fillStyle = accent;
-      fillRoundRect(rect.x + rect.w - 86, rect.y + 12, 70, 16, 999);
-      ctx.fillStyle = TOKENS.ink;
-      ctx.font = '700 12px "Inter", sans-serif';
-      ctx.fillText("SELECTED", rect.x + rect.w - 80, rect.y + 14);
-    }
-
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 24px "Sora", "Inter", sans-serif';
-    drawWrappedText(option.name, rect.x + 16, rect.y + 16, rect.w - 32, 30);
+    const badgeReserve = selected ? 94 : 0;
+    const titleWidth = Math.max(96, rect.w - 32 - badgeReserve);
+    const titleLineHeight = 30;
+    const titleBottom = drawWrappedText(option.name, rect.x + 16, rect.y + 16, titleWidth, titleLineHeight, {
+      maxLines: 2
+    });
 
     ctx.font = '500 16px "Inter", sans-serif';
-    drawWrappedText(option.desc, rect.x + 16, rect.y + 78, rect.w - 32, 24);
+    const descTop = titleBottom + 8;
+    const footerTop = rect.y + rect.h - 84;
+    const descSpace = Math.max(24, footerTop - descTop - 8);
+    const descLineHeight = 24;
+    const descMaxLines = Math.max(1, Math.floor(descSpace / descLineHeight));
+    drawWrappedText(option.desc, rect.x + 16, descTop, rect.w - 32, descLineHeight, { maxLines: descMaxLines });
+
+    if (selected) {
+      const badgeW = 78;
+      const badgeH = 18;
+      const badgeX = rect.x + rect.w - badgeW - 12;
+      const badgeY = rect.y + 12;
+      ctx.fillStyle = accent;
+      fillRoundRect(badgeX, badgeY, badgeW, badgeH, 999);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 12px "Inter", sans-serif';
+      ctx.fillText("SELECTED", badgeX + 7, badgeY + 2);
+    }
 
     ctx.fillStyle = rgba(accent, 0.18);
     fillRoundRect(rect.x + 16, rect.y + rect.h - 84, rect.w - 32, 28, 999);
@@ -357,20 +378,50 @@
     ctx.fillStyle = rgba(accent, 0.24);
     fillRoundRect(panelX + 24, panelY + 24, panelW - 48, 10, 999);
 
-    ctx.fillStyle = TOKENS.ink;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
-    ctx.font = '700 58px "Sora", "Inter", sans-serif';
-    ctx.fillText(titleCard.gameTitle, WIDTH * 0.5, panelY + 54 + (1 - panelAppear) * 8);
+    withClipRect(panelX + 6, panelY + 6, panelW - 12, panelH - 12, () => {
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
 
-    ctx.font = '700 24px "Inter", sans-serif';
-    ctx.fillText(titleCard.tagline, WIDTH * 0.5, panelY + 130 + (1 - panelAppear) * 6);
+      const titleMaxWidth = panelW - 96;
+      const titleFontSize = fitHeadingFontSize(titleCard.gameTitle, titleMaxWidth, 58, 40, 2);
+      ctx.font = `700 ${titleFontSize}px "Sora", "Inter", sans-serif`;
+      const titleLineHeight = Math.round(titleFontSize * 1.08);
+      const titleTop = panelY + 54 + (1 - panelAppear) * 8;
+      const titleBottom = drawWrappedText(titleCard.gameTitle, WIDTH * 0.5, titleTop, titleMaxWidth, titleLineHeight, {
+        maxLines: 2
+      });
 
-    ctx.font = '500 20px "Inter", sans-serif';
-    let blurbY = panelY + 186 + (1 - panelAppear) * 4;
-    for (let i = 0; i < titleCard.blurbLines.length; i += 1) {
-      blurbY = drawWrappedText(titleCard.blurbLines[i], WIDTH * 0.5, blurbY, panelW - 96, 30);
-    }
+      const taglineMaxWidth = panelW - 120;
+      const taglineFontSize = fitFontSizeForLine(
+        titleCard.tagline,
+        taglineMaxWidth,
+        24,
+        20,
+        '700 ${size}px "Inter", sans-serif'
+      );
+      ctx.font = `700 ${taglineFontSize}px "Inter", sans-serif`;
+      const taglineLineHeight = Math.round(taglineFontSize * 1.18);
+      const taglineBottom = drawWrappedText(
+        titleCard.tagline,
+        WIDTH * 0.5,
+        titleBottom + 12 + (1 - panelAppear) * 6,
+        taglineMaxWidth,
+        taglineLineHeight,
+        { maxLines: 2 }
+      );
+
+      ctx.font = '500 20px "Inter", sans-serif';
+      const blurbMaxY = panelY + panelH - 124;
+      let blurbY = taglineBottom + 18 + (1 - panelAppear) * 4;
+      for (let i = 0; i < titleCard.blurbLines.length; i += 1) {
+        if (blurbY > blurbMaxY) {
+          break;
+        }
+        const maxLines = Math.max(1, Math.floor((blurbMaxY - blurbY) / 30) + 1);
+        blurbY = drawWrappedText(titleCard.blurbLines[i], WIDTH * 0.5, blurbY, panelW - 96, 30, { maxLines });
+      }
+    });
 
     const prompt = "Press Enter or Space to start";
     ctx.font = '700 18px "Inter", sans-serif';
@@ -968,7 +1019,7 @@
 
     ctx.font = '600 13px "Inter", sans-serif';
     for (let i = 0; i < rows.length; i += 1) {
-      ctx.fillText(rows[i], panelX + 14, panelY + 41 + i * 19);
+      ctx.fillText(fitCanvasText(rows[i], panelW - 28), panelX + 14, panelY + 41 + i * 19);
     }
   }
 
@@ -1003,7 +1054,7 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '600 12px "Inter", sans-serif';
-    ctx.fillText(debugText, panelX + 12, panelY + 21);
+    ctx.fillText(fitCanvasText(debugText, panelW - 24), panelX + 12, panelY + 21);
   }
 
   function drawStateOverlay(floor, accent) {
@@ -1054,11 +1105,18 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
 
-    ctx.font = '700 30px "Sora", "Inter", sans-serif';
-    ctx.fillText(title, WIDTH * 0.5, panelY + 44);
+    const titleFont = fitHeadingFontSize(title, panelW - 90, 30, 24, 2);
+    ctx.font = `700 ${titleFont}px "Sora", "Inter", sans-serif`;
+    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + 44, panelW - 90, Math.round(titleFont * 1.15), {
+      maxLines: 2
+    });
 
     ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(body, WIDTH * 0.5, panelY + 96, panelW - 80, 30);
+    const bodyStartY = titleBottom + 10;
+    const bodyLineHeight = 30;
+    const bodyBottomLimit = footer ? panelY + panelH - 48 : panelY + panelH - 26;
+    const bodyMaxLines = Math.max(1, Math.floor((bodyBottomLimit - bodyStartY) / bodyLineHeight));
+    drawWrappedText(body, WIDTH * 0.5, bodyStartY, panelW - 80, bodyLineHeight, { maxLines: Math.min(3, bodyMaxLines) });
 
     if (footer) {
       ctx.font = '700 16px "Inter", sans-serif';
@@ -1095,14 +1153,17 @@
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    ctx.font = '700 36px "Sora", "Inter", sans-serif';
-    ctx.fillText(title, WIDTH * 0.5, panelY + 44);
+    const titleFont = fitHeadingFontSize(title, panelW - 100, 36, 28, 2);
+    ctx.font = `700 ${titleFont}px "Sora", "Inter", sans-serif`;
+    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + 44, panelW - 100, Math.round(titleFont * 1.14), {
+      maxLines: 2
+    });
 
     ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(body, WIDTH * 0.5, panelY + 94, panelW - 70, 30);
+    const bodyBottom = drawWrappedText(body, WIDTH * 0.5, titleBottom + 10, panelW - 70, 30, { maxLines: 2 });
     ctx.textAlign = "left";
 
-    const pillY = panelY + 142;
+    const pillY = Math.max(panelY + 142, bodyBottom + 10);
     const pillW = 212;
     const pillH = 40;
 
@@ -1116,61 +1177,64 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 17px "Inter", sans-serif';
-    ctx.fillText(`Floors cleared: ${floorsCleared}`, panelX + 68, pillY + 11);
-    ctx.fillText(`Upgrades taken: ${totalTaken}`, panelX + 305, pillY + 11);
+    ctx.fillText(fitCanvasText(`Floors cleared: ${floorsCleared}`, pillW - 26), panelX + 68, pillY + 11);
+    ctx.fillText(fitCanvasText(`Upgrades taken: ${totalTaken}`, pillW - 26), panelX + 305, pillY + 11);
 
     const listX = panelX + 48;
-    const listY = panelY + 208;
+    const listY = pillY + 66;
     const listW = panelW - 96;
-    const listH = panelH - 292;
+    const listBottom = panelY + panelH - 52;
+    const listH = Math.max(80, listBottom - listY);
 
     ctx.fillStyle = TOKENS.fog;
     fillRoundRect(listX, listY, listW, listH, 14);
     ctx.strokeStyle = TOKENS.ink;
     strokeRoundRect(listX, listY, listW, listH, 14);
 
-    const sectionGap = 24;
-    const sectionW = Math.floor((listW - 32 - sectionGap) / 2);
-    const runSectionX = listX + 16;
-    const glossarySectionX = runSectionX + sectionW + sectionGap;
-    const contentTop = listY + 12;
-    const rowsTop = listY + 50;
-    const rowH = 24;
-    const maxRows = Math.max(1, Math.floor((listH - 56) / rowH));
-    const namesOnlyGlossary = sectionW < 290;
-    const glossaryRows = getThreatGlossaryRows(6, namesOnlyGlossary).slice(0, 4);
+    withClipRect(listX + 2, listY + 2, listW - 4, listH - 4, () => {
+      const sectionGap = 24;
+      const sectionW = Math.floor((listW - 32 - sectionGap) / 2);
+      const runSectionX = listX + 16;
+      const glossarySectionX = runSectionX + sectionW + sectionGap;
+      const contentTop = listY + 12;
+      const rowsTop = listY + 50;
+      const rowH = 24;
+      const maxRows = Math.max(1, Math.floor((listH - 56) / rowH));
+      const namesOnlyGlossary = sectionW < 290;
+      const glossaryRows = getThreatGlossaryRows(6, namesOnlyGlossary).slice(0, 4);
 
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 20px "Sora", "Inter", sans-serif';
-    ctx.fillText("Run build", runSectionX, contentTop);
-    ctx.fillText("Threat glossary", glossarySectionX, contentTop);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 20px "Sora", "Inter", sans-serif';
+      ctx.fillText(fitCanvasText("Run build", sectionW), runSectionX, contentTop);
+      ctx.fillText(fitCanvasText("Threat glossary", sectionW), glossarySectionX, contentTop);
 
-    ctx.font = '600 15px "Inter", sans-serif';
-    if (buildEntries.length === 0) {
-      ctx.fillText("No upgrades collected.", runSectionX, rowsTop);
-    } else {
-      const visibleBuildRows = Math.min(buildEntries.length, maxRows);
-      for (let i = 0; i < visibleBuildRows; i += 1) {
-        const entry = buildEntries[i];
-        const label = `${i + 1}. ${entry.def.name} x${entry.stack}`;
-        ctx.fillText(fitCanvasText(label, sectionW), runSectionX, rowsTop + i * rowH);
+      ctx.font = '600 15px "Inter", sans-serif';
+      if (buildEntries.length === 0) {
+        ctx.fillText("No upgrades collected.", runSectionX, rowsTop);
+      } else {
+        const visibleBuildRows = Math.min(buildEntries.length, maxRows);
+        for (let i = 0; i < visibleBuildRows; i += 1) {
+          const entry = buildEntries[i];
+          const label = `${i + 1}. ${entry.def.name} x${entry.stack}`;
+          ctx.fillText(fitCanvasText(label, sectionW), runSectionX, rowsTop + i * rowH);
+        }
+
+        if (buildEntries.length > visibleBuildRows) {
+          const remaining = buildEntries.length - visibleBuildRows;
+          const overflowY = rowsTop + (visibleBuildRows - 1) * rowH;
+          ctx.fillText(`+${remaining} more`, runSectionX, overflowY);
+        }
       }
 
-      if (buildEntries.length > visibleBuildRows) {
-        const remaining = buildEntries.length - visibleBuildRows;
-        const overflowY = rowsTop + (visibleBuildRows - 1) * rowH;
-        ctx.fillText(`+${remaining} more`, runSectionX, overflowY);
+      if (glossaryRows.length === 0) {
+        ctx.fillText("Threat glossary unavailable.", glossarySectionX, rowsTop);
+      } else {
+        const visibleGlossaryRows = Math.min(glossaryRows.length, maxRows);
+        for (let i = 0; i < visibleGlossaryRows; i += 1) {
+          ctx.fillText(fitCanvasText(glossaryRows[i], sectionW), glossarySectionX, rowsTop + i * rowH);
+        }
       }
-    }
-
-    if (glossaryRows.length === 0) {
-      ctx.fillText("Threat glossary unavailable.", glossarySectionX, rowsTop);
-    } else {
-      const visibleGlossaryRows = Math.min(glossaryRows.length, maxRows);
-      for (let i = 0; i < visibleGlossaryRows; i += 1) {
-        ctx.fillText(fitCanvasText(glossaryRows[i], sectionW), glossarySectionX, rowsTop + i * rowH);
-      }
-    }
+    });
 
     ctx.textAlign = "center";
     ctx.font = '700 16px "Inter", sans-serif';
@@ -1248,28 +1312,89 @@
     ctx.restore();
   }
 
-  function drawWrappedText(text, centerX, startY, maxWidth, lineHeight) {
-    const normalized = typeof text === "string" ? text : "";
+  function drawWrappedText(text, textX, startY, maxWidth, lineHeight, options = {}) {
+    const maxLines = Number.isFinite(options.maxLines) ? Math.max(1, Math.floor(options.maxLines)) : Infinity;
+    const lines = getWrappedLines(text, maxWidth, maxLines);
+    const count = Math.max(lines.length, 1);
+
+    for (let i = 0; i < lines.length; i += 1) {
+      ctx.fillText(lines[i], textX, startY + i * lineHeight);
+    }
+
+    return startY + count * lineHeight;
+  }
+
+  function getWrappedLines(text, maxWidth, maxLines = Infinity) {
+    const normalized = typeof text === "string" ? text.trim().replace(/\s+/g, " ") : "";
+    if (!normalized) {
+      return [];
+    }
+
     const words = normalized.split(" ");
+    const lines = [];
     let line = "";
-    let y = startY;
 
     for (let i = 0; i < words.length; i += 1) {
-      const test = line ? `${line} ${words[i]}` : words[i];
-      if (ctx.measureText(test).width > maxWidth && line) {
-        ctx.fillText(line, centerX, y);
-        line = words[i];
-        y += lineHeight;
+      const word = words[i];
+      const testLine = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(testLine).width > maxWidth) {
+        lines.push(fitCanvasText(line, maxWidth));
+        line = word;
       } else {
-        line = test;
+        line = testLine;
       }
     }
 
     if (line) {
-      ctx.fillText(line, centerX, y);
+      lines.push(fitCanvasText(line, maxWidth));
     }
 
-    return y + lineHeight;
+    if (lines.length <= maxLines) {
+      return lines;
+    }
+
+    const clipped = lines.slice(0, maxLines);
+    const lastIndex = clipped.length - 1;
+    const withEllipsis = clipped[lastIndex].endsWith("...") ? clipped[lastIndex] : `${clipped[lastIndex]}...`;
+    clipped[lastIndex] = fitCanvasText(withEllipsis, maxWidth);
+    return clipped;
+  }
+
+  function fitHeadingFontSize(text, maxWidth, startPx, minPx, maxLines) {
+    for (let size = startPx; size >= minPx; size -= 1) {
+      ctx.font = `700 ${size}px "Sora", "Inter", sans-serif`;
+      const lines = getWrappedLines(text, maxWidth, Infinity);
+      if (lines.length <= maxLines) {
+        return size;
+      }
+    }
+    return minPx;
+  }
+
+  function fitFontSizeForLine(text, maxWidth, startPx, minPx, fontPattern) {
+    const pattern = typeof fontPattern === "string" && fontPattern.includes("${size}") ? fontPattern : '600 ${size}px "Inter", sans-serif';
+    const value = typeof text === "string" ? text : "";
+    let chosen = minPx;
+    for (let size = startPx; size >= minPx; size -= 1) {
+      ctx.font = pattern.replace("${size}", String(size));
+      if (ctx.measureText(value).width <= maxWidth) {
+        chosen = size;
+        break;
+      }
+    }
+    return chosen;
+  }
+
+  function withClipRect(x, y, w, h, drawFn) {
+    if (typeof drawFn !== "function" || w <= 0 || h <= 0) {
+      return;
+    }
+
+    ctx.save();
+    roundRectPath(x, y, w, h, 12);
+    ctx.clip();
+    drawFn();
+    ctx.restore();
   }
 
   function fitCanvasText(text, maxWidth) {
