@@ -423,6 +423,9 @@
       }
     });
 
+    // Title copy is drawn in a clipped context. Re-apply prompt anchors after clip restore.
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
     const prompt = "Press Enter or Space to start";
     ctx.font = '700 18px "Inter", sans-serif';
     const promptWidth = ctx.measureText(prompt).width;
