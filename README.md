@@ -35,3 +35,11 @@ Option 2 (recommended):
 - Narrative content is data-only in `narrative.js` (titles, subtitles, lore, upgrade labels).
 - Core mechanics are unchanged by the narrative layer.
 - Floor concepts: weights and bias, data and labels, activations, loss to gradients, capacity and overfitting, optimization loop, generalization, inference reality, emergence and control.
+
+## Mental model
+
+- Input: keyboard and mouse update intent and menu selection.
+- Update loop: game state, spawns, collisions, upgrades, and timers update every frame.
+- Render loop: canvas draws world, HUD, overlays, and share/death UI from current state.
+- Floors progress in order. Upgrades stack for the full run.
+- `narrative.js` only changes copy and lore labels.
