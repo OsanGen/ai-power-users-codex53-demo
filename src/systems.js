@@ -154,11 +154,10 @@
     const lower = event.key.toLowerCase();
     if (game.state === GameState.TITLE) {
       if (event.key === " " || event.key === "Enter") {
-        if (AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete()) {
-          startRun();
-        } else {
+        if (!(AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete())) {
           game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
         }
+        startRun();
       } else if (lower === "r") {
         clearCheckpointFloor();
         startRun(1);

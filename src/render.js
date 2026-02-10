@@ -385,64 +385,23 @@
     const neuralGlass = window.NeuralGlass;
     if (neuralGlass && typeof neuralGlass.draw === "function") {
       neuralGlass.draw(ctx, cardRect);
-    } else {
-      const panelX = cardRect.x;
-      const panelY = cardRect.y;
-      const panelW = cardRect.w;
-      const panelH = cardRect.h;
-      ctx.fillStyle = TOKENS.white;
-      fillRoundRect(panelX, panelY, panelW, panelH, 20);
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 3;
-      strokeRoundRect(panelX, panelY, panelW, panelH, 20);
-      ctx.fillStyle = rgba(accent, 0.24);
-      fillRoundRect(panelX + 20, panelY + 20, panelW - 40, 10, 999);
-      ctx.fillStyle = TOKENS.ink;
-      ctx.font = '700 30px "Sora", "Inter", sans-serif';
-      ctx.fillText("Teach card unavailable.", panelX + 30, panelY + 56);
+      return;
     }
 
-    const lesson = game.teachCard.lesson || {};
-    const floorNumber = floor && Number.isFinite(floor.id) ? floor.id : game.teachCard.floorIndex || game.currentFloorIndex + 1;
-    const totalFloors = FLOORS.length || 9;
-    const header = `Teach Card ${floorNumber}/${totalFloors}`;
-    const lessonTitle = typeof lesson.title === "string" && lesson.title.trim() ? lesson.title.trim() : "";
-    const titleLine = lessonTitle ? `${header}: ${lessonTitle}` : header;
-    const neuralGlassState =
-      neuralGlass && typeof neuralGlass.getState === "function" ? neuralGlass.getState() : null;
-    const challengeComplete = !!(neuralGlassState && neuralGlassState.challengeComplete);
-
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(cardRect.x + 16, cardRect.y + 12, cardRect.w - 32, 34, 14);
+    const panelX = cardRect.x;
+    const panelY = cardRect.y;
+    const panelW = cardRect.w;
+    const panelH = cardRect.h;
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 20);
     ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(cardRect.x + 16, cardRect.y + 12, cardRect.w - 32, 34, 14);
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 20);
+    ctx.fillStyle = rgba(accent, 0.24);
+    fillRoundRect(panelX + 20, panelY + 20, panelW - 40, 10, 999);
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 16px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(titleLine, cardRect.w - 220), cardRect.x + 28, cardRect.y + 20);
-
-    const badgeW = 132;
-    const badgeH = 24;
-    const badgeX = cardRect.x + cardRect.w - badgeW - 20;
-    const badgeY = cardRect.y + 16;
-    ctx.fillStyle = challengeComplete ? rgba(accent, 0.35) : rgba(TOKENS.white, 0.96);
-    fillRoundRect(badgeX, badgeY, badgeW, badgeH, 12);
-    ctx.strokeStyle = challengeComplete ? accent : TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(badgeX, badgeY, badgeW, badgeH, 12);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 13px "Inter", sans-serif';
-    ctx.fillText(challengeComplete ? "Challenge ✓" : "Challenge", badgeX + 14, badgeY + 5);
-
-    const hint = getNarrativeUiText("teachCardHint", "Enter: continue");
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(cardRect.x + 16, cardRect.y + cardRect.h - 38, cardRect.w - 32, 26, 12);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(cardRect.x + 16, cardRect.y + cardRect.h - 38, cardRect.w - 32, 26, 12);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 14px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(hint, cardRect.w - 58), cardRect.x + 28, cardRect.y + cardRect.h - 33);
+    ctx.font = '700 30px "Sora", "Inter", sans-serif';
+    ctx.fillText("Teach card unavailable.", panelX + 30, panelY + 56);
   }
 
   function computeUpgradeCardRects(panelX, panelY, panelW, panelH, optionCount) {
@@ -611,6 +570,7 @@
     const panelY = 164 + verticalOffset;
     const panelW = WIDTH - 304;
     const panelH = HEIGHT - 268;
+    const footerReserved = 132;
 
     ctx.save();
     ctx.globalAlpha = clamp(panelAlpha, 0, 1);
@@ -658,7 +618,7 @@
       );
 
       ctx.font = '500 20px "Inter", sans-serif';
-      const blurbMaxY = panelY + panelH - 124;
+      const blurbMaxY = panelY + panelH - footerReserved;
       let blurbY = taglineBottom + 18 + (1 - panelAppear) * 4;
       for (let i = 0; i < titleCard.blurbLines.length; i += 1) {
         if (blurbY > blurbMaxY) {
@@ -671,26 +631,35 @@
 
     // Title copy is drawn in a clipped context. Re-apply prompt anchors after clip restore.
     ctx.textAlign = "center";
-    ctx.textBaseline = "top";
+    ctx.textBaseline = "middle";
     const prompt = titleCard.footerHint || "Enter: start";
     ctx.font = '700 18px "Inter", sans-serif';
     const promptWidth = ctx.measureText(prompt).width;
+    const promptH = 38;
+    const footerGap = 8;
+    const detailsLineHeight = 18;
+    const footerBottomPadding = 22;
+    const footerBlockH = promptH + footerGap + detailsLineHeight * 2;
+    const footerTop = panelY + panelH - footerBottomPadding - footerBlockH;
+    const promptY = Math.max(panelY + panelH - footerBlockH - footerBottomPadding, footerTop);
+
     ctx.fillStyle = rgba(accent, 0.2 + clamp(promptAlpha, 0, 1) * 0.18);
-    fillRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, panelY + panelH - 68, promptWidth + 40, 38, 999);
+    fillRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, promptY, promptWidth + 40, promptH, 999);
     ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, panelY + panelH - 68, promptWidth + 40, 38, 999);
+    strokeRoundRect(WIDTH * 0.5 - promptWidth * 0.5 - 20, promptY, promptWidth + 40, promptH, 999);
 
     ctx.save();
     ctx.globalAlpha = animatePrompt ? clamp(promptAlpha, 0.65, 1) : 1;
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(prompt, WIDTH * 0.5, panelY + panelH - 58);
+    ctx.fillText(prompt, WIDTH * 0.5, promptY + promptH * 0.5 + 1);
     ctx.restore();
 
+    ctx.textBaseline = "top";
     const checkpointFloor = typeof systems.getCheckpointFloor === "function" ? systems.getCheckpointFloor() : 1;
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '600 14px "Inter", sans-serif';
-    ctx.fillText(`Start floor: ${checkpointFloor}`, WIDTH * 0.5, panelY + panelH - 28);
-    ctx.fillText("R: reset to Floor 1", WIDTH * 0.5, panelY + panelH - 12);
+    ctx.fillText(`Start floor: ${checkpointFloor}`, WIDTH * 0.5, promptY + promptH + footerGap);
+    ctx.fillText("R: reset to Floor 1", WIDTH * 0.5, promptY + promptH + footerGap + detailsLineHeight);
 
     ctx.textAlign = "left";
     ctx.restore();
