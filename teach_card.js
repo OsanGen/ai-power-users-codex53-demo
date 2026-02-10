@@ -471,11 +471,11 @@
     ctx.stroke();
   }
 
-  function drawRiskPill(ctx, x, y, riskPct, bucket, accent) {
+  function drawRiskPill(ctx, x, y, riskPct, bucket, accent, width) {
     ctx.save();
     const token = state.tokens;
     const label = `${riskPct}% ${bucket}`;
-    const w = 126;
+    const w = clamp(Math.round(width || 126), 108, 160);
     const h = 34;
     fillRoundRect(ctx, x, y, w, h, 17, accent);
     strokeRoundRect(ctx, x, y, w, h, 17, token.INK, 2);
@@ -616,8 +616,10 @@
       const inputX = leftBox.x + netPadX;
       const hiddenX = leftBox.x + leftBox.w * 0.5;
       const outputX = leftBox.x + leftBox.w - netPadX;
-      const netTop = leftBox.y + 68;
-      const netBottom = leftBox.y + leftBox.h - 30;
+      const netTopPad = Math.max(74, Math.round(nodeRadius * 4.1));
+      const netBottomPad = Math.max(28, Math.round(nodeRadius * 2.1));
+      const netTop = leftBox.y + netTopPad;
+      const netBottom = leftBox.y + leftBox.h - netBottomPad;
 
       const inputNodes = [];
       for (let i = 0; i < INPUT_DEFS.length; i += 1) {
@@ -782,20 +784,28 @@
     fillRoundRect(ctx, bottomRow.x, bottomRow.y, bottomRow.w, bottomRow.h, 12, token.FOG);
     strokeRoundRect(ctx, bottomRow.x, bottomRow.y, bottomRow.w, bottomRow.h, 12, token.INK, 2);
 
-    const riskPillW = 126;
+    let riskPillW = 126;
     const leftPad = 14;
     const gapMid = 8;
     const topLineY = bottomRow.y + 19;
     const infoLineY = bottomRow.y + 42;
     const availableW = bottomRow.w - leftPad * 2;
+    const minLeftZone = 170;
+    const minRightZone = 170;
     let leftZoneW = Math.floor(availableW * 0.44);
+    leftZoneW = clamp(leftZoneW, minLeftZone, Math.max(minLeftZone, availableW - minRightZone - riskPillW - gapMid * 2));
     let rightZoneW = availableW - leftZoneW - riskPillW - gapMid * 2;
 
-    if (rightZoneW < 170) {
-      const deficit = 170 - rightZoneW;
-      leftZoneW = Math.max(170, leftZoneW - deficit);
+    if (rightZoneW < minRightZone) {
+      const missing = minRightZone - rightZoneW;
+      riskPillW = clamp(riskPillW - missing, 108, 160);
       rightZoneW = availableW - leftZoneW - riskPillW - gapMid * 2;
     }
+    if (rightZoneW < minRightZone) {
+      leftZoneW = clamp(availableW - minRightZone - riskPillW - gapMid * 2, minLeftZone, availableW);
+      rightZoneW = availableW - leftZoneW - riskPillW - gapMid * 2;
+    }
+    rightZoneW = Math.max(120, rightZoneW);
 
     const leftZoneX = bottomRow.x + leftPad;
     const riskX = leftZoneX + leftZoneW + gapMid;
@@ -806,16 +816,20 @@
     ctx.textBaseline = "middle";
     ctx.font = "700 15px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
     const dominantText = `Dominant concept: ${HIDDEN_LABELS[state.derived.dominantKey]}`;
-    ctx.fillText(truncateText(ctx, dominantText, leftZoneW), leftZoneX, topLineY);
+    withClipRect(ctx, leftZoneX, bottomRow.y + 6, leftZoneW, 28, () => {
+      ctx.fillText(truncateText(ctx, dominantText, leftZoneW), leftZoneX, topLineY);
+    });
 
-    drawRiskPill(ctx, riskX, bottomRow.y + 3, state.derived.riskPct, state.derived.bucket, accent);
+    drawRiskPill(ctx, riskX, bottomRow.y + 3, state.derived.riskPct, state.derived.bucket, accent, riskPillW);
 
     const challengeText = (lesson && lesson.microChallenge) || "No challenge.";
     const challengeMarker = state.challengeComplete ? "[ok]" : "[ ]";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
     ctx.fillStyle = state.challengeComplete ? accent : token.INK;
-    ctx.fillText(truncateText(ctx, `${challengeMarker} ${challengeText}`, rightZoneW), rightZoneX, topLineY);
+    withClipRect(ctx, rightZoneX, bottomRow.y + 6, rightZoneW, 28, () => {
+      ctx.fillText(truncateText(ctx, `${challengeMarker} ${challengeText}`, rightZoneW), rightZoneX, topLineY);
+    });
 
     ctx.fillStyle = token.INK;
     ctx.font = "600 13px system-ui, -apple-system, Segoe UI, Roboto, sans-serif";

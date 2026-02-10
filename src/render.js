@@ -332,41 +332,42 @@
     const pickTitle = getNarrativeUiText("upgradePickTitle", "Pick an upgrade");
     const pickSubtitle = getNarrativeUiText("upgradePickSubtitle", "Stack small power. Keep control.");
     const floorLesson = floorCopy && floorCopy.title ? floorCopy.title : `Floor ${floor.id}`;
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.textBaseline = "top";
-    const floorTitleFontSize = fitFontSizeForLine(
-      pickTitle,
-      panelW - 68,
-      38,
-      30,
-      '700 ${size}px "Sora", "Inter", sans-serif'
-    );
-    ctx.font = `700 ${floorTitleFontSize}px "Sora", "Inter", sans-serif`;
-    ctx.fillText(fitCanvasText(pickTitle, panelW - 68), panelX + 34, panelY + 50);
-
-    ctx.font = '500 20px "Inter", sans-serif';
-    drawWrappedText(pickSubtitle, panelX + 34, panelY + 104, panelW - 68, 30, { maxLines: 2 });
-
-    ctx.font = '600 17px "Inter", sans-serif';
-    ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(fitCanvasText(`Floor ${floor.id}: ${floorLesson}`, panelW - 68), panelX + 34, panelY + 174);
-
     const cardRects = computeUpgradeCardRects(panelX, panelY, panelW, panelH, game.upgradeOptions.length);
     game.upgradeCardRects = cardRects;
     normalizeUpgradeSelection();
 
-    for (let i = 0; i < game.upgradeOptions.length; i += 1) {
-      const option = game.upgradeOptions[i];
-      const rect = cardRects[i];
-      const selected = i === game.upgradeSelectedIndex;
-      drawUpgradeCard(option, rect, selected, accent);
-    }
+    withClipRect(panelX + 8, panelY + 8, panelW - 16, panelH - 16, () => {
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textBaseline = "top";
+      const floorTitleFontSize = fitFontSizeForLine(
+        pickTitle,
+        panelW - 68,
+        38,
+        30,
+        '700 ${size}px "Sora", "Inter", sans-serif'
+      );
+      ctx.font = `700 ${floorTitleFontSize}px "Sora", "Inter", sans-serif`;
+      ctx.fillText(fitCanvasText(pickTitle, panelW - 68), panelX + 34, panelY + 50);
 
-    const footerText = "1-3 pick • Enter confirm • Esc disabled";
-    ctx.font = '600 17px "Inter", sans-serif';
-    ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(fitCanvasText(footerText, panelW - 68), panelX + 34, panelY + panelH - 56);
+      ctx.font = '500 20px "Inter", sans-serif';
+      drawWrappedText(pickSubtitle, panelX + 34, panelY + 104, panelW - 68, 30, { maxLines: 2 });
+
+      ctx.font = '600 17px "Inter", sans-serif';
+      ctx.fillStyle = TOKENS.ink;
+      ctx.fillText(fitCanvasText(`Floor ${floor.id}: ${floorLesson}`, panelW - 68), panelX + 34, panelY + 174);
+
+      for (let i = 0; i < game.upgradeOptions.length; i += 1) {
+        const option = game.upgradeOptions[i];
+        const rect = cardRects[i];
+        const selected = i === game.upgradeSelectedIndex;
+        drawUpgradeCard(option, rect, selected, accent);
+      }
+
+      const footerText = "1-3 pick • Enter confirm • Esc disabled";
+      ctx.font = '600 17px "Inter", sans-serif';
+      ctx.fillStyle = TOKENS.ink;
+      ctx.fillText(fitCanvasText(footerText, panelW - 68), panelX + 34, panelY + panelH - 56);
+    });
 
     if (game.upgradeNoticeTimer > 0) {
       ctx.fillStyle = rgba(accent, 0.18);
@@ -453,6 +454,7 @@
     strokeRoundRect(rect.x, rect.y, rect.w, rect.h, 16);
 
     ctx.fillStyle = TOKENS.ink;
+    ctx.textBaseline = "top";
     ctx.font = '700 24px "Sora", "Inter", sans-serif';
     const badgeReserve = selected ? 94 : 0;
     const titleWidth = Math.max(96, rect.w - 32 - badgeReserve);
@@ -478,6 +480,7 @@
       fillRoundRect(badgeX, badgeY, badgeW, badgeH, 999);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 12px "Inter", sans-serif';
+      ctx.textBaseline = "top";
       ctx.fillText("SELECTED", badgeX + 7, badgeY + 2);
     }
 
@@ -643,9 +646,18 @@
     const promptWidth = ctx.measureText(prompt).width;
     const promptH = 38;
     const footerGap = 8;
-    const detailsLineHeight = 18;
     const footerBottomPadding = 22;
-    const footerBlockH = promptH + footerGap + detailsLineHeight * 2;
+    const checkpointFloor = typeof systems.getCheckpointFloor === "function" ? systems.getCheckpointFloor() : 1;
+    const footerHint = `Start floor: ${checkpointFloor} • R: reset to Floor 1`;
+    const footerHintSize = fitFontSizeForLine(
+      footerHint,
+      panelW - 120,
+      14,
+      12,
+      '600 ${size}px "Inter", sans-serif'
+    );
+    const detailsLineHeight = Math.round(footerHintSize * 1.25);
+    const footerBlockH = promptH + footerGap + detailsLineHeight;
     const footerTop = panelY + panelH - footerBottomPadding - footerBlockH;
     const promptY = Math.max(panelY + panelH - footerBlockH - footerBottomPadding, footerTop);
 
@@ -661,11 +673,10 @@
     ctx.restore();
 
     ctx.textBaseline = "top";
-    const checkpointFloor = typeof systems.getCheckpointFloor === "function" ? systems.getCheckpointFloor() : 1;
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '600 14px "Inter", sans-serif';
-    ctx.fillText(`Start floor: ${checkpointFloor}`, WIDTH * 0.5, promptY + promptH + footerGap);
-    ctx.fillText("R: reset to Floor 1", WIDTH * 0.5, promptY + promptH + footerGap + detailsLineHeight);
+    ctx.font = `600 ${footerHintSize}px "Inter", sans-serif`;
+    const footerHintY = promptY + promptH + footerGap;
+    ctx.fillText(fitCanvasText(footerHint, panelW - 120), WIDTH * 0.5, footerHintY);
 
     ctx.textAlign = "left";
     ctx.restore();
