@@ -41,6 +41,7 @@
     GameState: {
       TITLE: "TITLE",
       UPGRADE_SELECT: "UPGRADE_SELECT",
+      BOMB_BRIEFING: "BOMB_BRIEFING",
       FLOOR_INTRO: "FLOOR_INTRO",
       PLAYING: "PLAYING",
       DEATH_ANIM: "DEATH_ANIM",
@@ -94,6 +95,8 @@
       floorFallbackInvulnBonus: 0,
       bombUsedThisFloor: false,
       bombFlashTimer: 0,
+      bombBriefingSeenThisRun: false,
+      bombBriefingEnterCount: 0,
       showDebugStats: false,
       deathAnim: null,
       gameOverEntryHandled: false,

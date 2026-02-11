@@ -352,6 +352,21 @@
     return pickNarrativeText(ui && ui[key], fallback);
   }
 
+  function getBombBriefingCopy() {
+    return {
+      abilityName: "Escalation Pulse",
+      title: "Unlocked: Escalation Pulse",
+      subtitle: "Strong signals can reset noisy systems.",
+      bullets: [
+        "Each upgrade represents one neural-net part.",
+        "Use it once each floor during gameplay.",
+        "Space clears enemies and enemy bullets."
+      ],
+      steps: ["What it is", "When to use it", "How it maps to nets"],
+      cta: (step, total) => `Press Enter to accept (${step}/${total})`
+    };
+  }
+
   function getWhatYouLearnedBullets() {
     const generic = ["Inputs are numbers.", "Weights set importance.", "Concepts drive the score."];
     const upgradeState = AIPU.upgrades && AIPU.upgrades.upgradeState ? AIPU.upgrades.upgradeState : null;
@@ -626,6 +641,7 @@
     getNarrativeFloorCopy,
     getNarrativeOutcomeCopy,
     getNarrativeUiText,
+    getBombBriefingCopy,
     getWhatYouLearnedBullets,
     getThreatGlossaryRows
   };

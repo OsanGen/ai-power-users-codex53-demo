@@ -15,7 +15,8 @@
     getNarrativeOutcomeCopy,
     getNarrativeUiText,
     getWhatYouLearnedBullets,
-    getThreatGlossaryRows
+    getThreatGlossaryRows,
+    getBombBriefingCopy
   } =
     AIPU.content;
   const upgrades = AIPU.upgrades;
@@ -218,6 +219,12 @@
     if (game.state === GameState.UPGRADE_SELECT) {
       drawBackdrop(accent);
       drawUpgradeSelect(floor, accent);
+      return;
+    }
+
+    if (game.state === GameState.BOMB_BRIEFING) {
+      drawBackdrop(accent);
+      drawBombBriefing(floor, accent);
       return;
     }
 
@@ -472,6 +479,169 @@
       ctx.font = '700 15px "Inter", sans-serif';
       ctx.fillText("Choose one to continue.", panelX + panelW - 258, panelY + panelH - 66);
     }
+  }
+
+  function drawBombBriefing(floor, accent) {
+    const copy =
+      typeof getBombBriefingCopy === "function"
+        ? getBombBriefingCopy()
+        : {
+            abilityName: "Escalation Pulse",
+            title: "Unlocked: Escalation Pulse",
+            subtitle: "Strong signals can reset noisy systems.",
+            bullets: [
+              "Each upgrade maps to a neural-net part.",
+              "Press Space in play to clear danger.",
+              "You can use this once per floor."
+            ],
+            steps: ["What it is", "When to use it", "How it maps to nets"],
+            cta: (step, total) => `Press Enter to accept (${step}/${total})`
+          };
+    const enterGoal = 3;
+    const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
+    const nextStep = clamp(accepted + 1, 1, enterGoal);
+    const ctaText =
+      accepted >= enterGoal
+        ? "Accepted. Loading floor..."
+        : typeof copy.cta === "function"
+          ? copy.cta(nextStep, enterGoal)
+          : `Press Enter to accept (${nextStep}/${enterGoal})`;
+
+    const panelW = 1044;
+    const panelH = 550;
+    const panelX = (WIDTH - panelW) * 0.5;
+    const panelY = (HEIGHT - panelH) * 0.5;
+
+    ctx.fillStyle = rgba(accent, 0.26);
+    fillRoundRect(panelX + 12, panelY + 16, panelW, panelH, 26);
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.28);
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX + 12, panelY + 16, panelW, panelH, 26);
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 26);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 26);
+
+    ctx.fillStyle = rgba(accent, 0.24);
+    fillRoundRect(panelX + 28, panelY + 24, panelW - 56, 11, 999);
+
+    const pulse = 0.5 + Math.sin(game.globalTime * 5.2) * 0.5;
+    const pulseAlpha = 0.14 + pulse * 0.12;
+    ctx.fillStyle = rgba(accent, pulseAlpha);
+    fillRoundRect(panelX + panelW - 272, panelY + 68, 208, 46, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX + panelW - 272, panelY + 68, 208, 46, 999);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 20px "Sora", "Inter", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(copy.abilityName || "Escalation Pulse", panelX + panelW - 168, panelY + 92);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    const bodyTop = panelY + 126;
+    const bodyH = panelH - 228;
+    const bodyX = panelX + 34;
+    const bodyW = panelW - 68;
+    const sideW = 318;
+    const gap = 20;
+    const infoW = bodyW - sideW - gap;
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(bodyX, bodyTop, infoW, bodyH, 18);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(bodyX, bodyTop, infoW, bodyH, 18);
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(bodyX + infoW + gap, bodyTop, sideW, bodyH, 18);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(bodyX + infoW + gap, bodyTop, sideW, bodyH, 18);
+
+    withClipRect(panelX + 10, panelY + 10, panelW - 20, panelH - 20, () => {
+      ctx.fillStyle = TOKENS.ink;
+      const title = copy.title || "Unlocked: Escalation Pulse";
+      const subtitle = copy.subtitle || "Strong signals can reset noisy systems.";
+      const bullets = Array.isArray(copy.bullets)
+        ? copy.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3)
+        : [];
+      const steps = Array.isArray(copy.steps)
+        ? copy.steps.filter((line) => typeof line === "string" && line.trim()).slice(0, enterGoal)
+        : [];
+      const lessonTag = `Floor ${floor.id} power lesson`;
+
+      ctx.font = '700 17px "Inter", sans-serif';
+      ctx.fillText(fitCanvasText(lessonTag, infoW - 32), bodyX + 18, bodyTop + 16);
+
+      const headingSize = fitHeadingFontSize(title, infoW - 36, 56, 40, 2);
+      ctx.font = `700 ${headingSize}px "Sora", "Inter", sans-serif`;
+      const headingBottom = drawWrappedText(title, bodyX + 18, bodyTop + 44, infoW - 36, Math.round(headingSize * 1.08), {
+        maxLines: 2
+      });
+
+      ctx.font = '600 24px "Inter", sans-serif';
+      let lineY = drawWrappedText(subtitle, bodyX + 18, headingBottom + 10, infoW - 36, 31, { maxLines: 2 }) + 10;
+
+      ctx.font = '600 19px "Inter", sans-serif';
+      for (let i = 0; i < bullets.length; i += 1) {
+        lineY = drawWrappedText(`• ${bullets[i]}`, bodyX + 18, lineY, infoW - 36, 27, { maxLines: 1 });
+      }
+
+      let stepY = bodyTop + 24;
+      for (let i = 0; i < enterGoal; i += 1) {
+        const isDone = i < accepted;
+        const label = steps[i] || `Step ${i + 1}`;
+        ctx.fillStyle = isDone ? rgba(accent, 0.32) : rgba(TOKENS.white, 0.9);
+        fillRoundRect(bodyX + infoW + gap + 16, stepY, sideW - 32, 70, 14);
+        ctx.strokeStyle = TOKENS.ink;
+        ctx.lineWidth = isDone ? 3 : 2;
+        strokeRoundRect(bodyX + infoW + gap + 16, stepY, sideW - 32, 70, 14);
+
+        ctx.fillStyle = TOKENS.ink;
+        ctx.font = '700 14px "Inter", sans-serif';
+        ctx.fillText(`Enter ${i + 1}`, bodyX + infoW + gap + 34, stepY + 13);
+        ctx.font = '600 18px "Inter", sans-serif';
+        ctx.fillText(fitCanvasText(label, sideW - 118), bodyX + infoW + gap + 34, stepY + 35);
+
+        ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.45);
+        ctx.font = '700 28px "Inter", sans-serif';
+        ctx.fillText(isDone ? "✓" : "•", bodyX + infoW + gap + sideW - 56, stepY + 24);
+        stepY += 86;
+      }
+    });
+
+    const ctaW = 440;
+    const ctaH = 62;
+    const ctaX = panelX + (panelW - ctaW) * 0.5;
+    const ctaY = panelY + panelH - 88;
+    const ctaPulse = 1 + Math.sin(game.globalTime * 6) * 0.01;
+
+    ctx.save();
+    ctx.translate(ctaX + ctaW * 0.5, ctaY + ctaH * 0.5);
+    ctx.scale(ctaPulse, ctaPulse);
+    ctx.translate(-(ctaX + ctaW * 0.5), -(ctaY + ctaH * 0.5));
+
+    ctx.fillStyle = rgba(accent, 0.24);
+    fillRoundRect(ctaX - 8, ctaY - 6, ctaW + 16, ctaH + 12, 999);
+    ctx.fillStyle = accent;
+    fillRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 26px "Sora", "Inter", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(fitCanvasText(ctaText, ctaW - 40), ctaX + ctaW * 0.5, ctaY + ctaH * 0.5 + 1);
+    ctx.restore();
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
   }
 
   function computeUpgradeCardRects(areaX, areaY, areaW, optionCount, options = {}) {
@@ -1387,12 +1557,17 @@
     ctx.font = '700 16px "Inter", sans-serif';
     ctx.fillText(timerText, timerBoxX + timerW + 14, timerBoxY + timerH * 0.5 + 1);
 
-    const bombBoxW = 184;
+    const bombAbilityName =
+      typeof getBombBriefingCopy === "function" && getBombBriefingCopy().abilityName
+        ? getBombBriefingCopy().abilityName
+        : "Escalation Pulse";
+    const bombText = !game.bombUsedThisFloor ? `${bombAbilityName}: Ready` : `${bombAbilityName}: Used`;
+    ctx.font = '700 12px "Inter", sans-serif';
+    const bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 184, 286);
     const bombBoxH = 30;
     const bombBoxX = timerBoxX - bombBoxW - 18;
     const bombBoxY = timerBoxY;
     const bombReady = !game.bombUsedThisFloor;
-    const bombText = bombReady ? "Bomb (Space): Ready" : "Bomb: Used";
 
     ctx.fillStyle = TOKENS.fog;
     fillRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
@@ -1476,6 +1651,7 @@
       game.state === GameState.PLAYING ||
       game.state === GameState.TITLE ||
       game.state === GameState.UPGRADE_SELECT ||
+      game.state === GameState.BOMB_BRIEFING ||
       game.state === GameState.DEATH_ANIM
     ) {
       return;

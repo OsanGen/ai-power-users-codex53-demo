@@ -271,6 +271,14 @@
         clearCheckpointFloor();
         startRun(1);
       }
+    } else if (game.state === GameState.BOMB_BRIEFING) {
+      if (event.key === "Enter" && !event.repeat) {
+        game.bombBriefingEnterCount = clamp(game.bombBriefingEnterCount + 1, 0, 3);
+        if (game.bombBriefingEnterCount >= 3) {
+          game.bombBriefingSeenThisRun = true;
+          beginCurrentFloor();
+        }
+      }
     } else if (game.state === GameState.UPGRADE_SELECT) {
       if (event.key === "1") {
         confirmUpgradeSelection(0);
@@ -534,6 +542,8 @@
     game.floorFallbackInvulnBonus = 0;
     game.bombUsedThisFloor = false;
     game.bombFlashTimer = 0;
+    game.bombBriefingSeenThisRun = false;
+    game.bombBriefingEnterCount = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -550,6 +560,8 @@
   function startRun(forcedStartFloor = null) {
     game.kills = 0;
     game.gameOverEntryHandled = false;
+    game.bombBriefingSeenThisRun = false;
+    game.bombBriefingEnterCount = 0;
     upgrades.resetUpgradeRun();
     const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
     startFloor(checkpointFloor - 1);
@@ -580,6 +592,7 @@
     game.floorFallbackInvulnBonus = 0;
     game.bombUsedThisFloor = false;
     game.bombFlashTimer = 0;
+    game.bombBriefingEnterCount = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -697,6 +710,10 @@
     }
 
     if (game.state === GameState.UPGRADE_SELECT) {
+      return;
+    }
+
+    if (game.state === GameState.BOMB_BRIEFING) {
       return;
     }
 
@@ -1364,6 +1381,11 @@
     game.upgradeSelectedIndex = (game.upgradeSelectedIndex + delta + total) % total;
   }
 
+  function shouldOpenBombBriefing() {
+    const floor = currentFloor();
+    return !!(floor && floor.id === 1 && !game.bombBriefingSeenThisRun);
+  }
+
   function confirmUpgradeSelection(index) {
     if (game.state !== GameState.UPGRADE_SELECT) {
       return;
@@ -1395,6 +1417,11 @@
     game.upgradeConfirmCooldown = 0.18;
     game.upgradeNoticeTimer = 0;
     game.floorLessonUpgradeId = option.fallbackBaseId || option.id;
+    if (shouldOpenBombBriefing()) {
+      game.state = GameState.BOMB_BRIEFING;
+      game.bombBriefingEnterCount = 0;
+      return;
+    }
     beginCurrentFloor();
   }
 
