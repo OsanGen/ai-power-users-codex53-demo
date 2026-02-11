@@ -506,7 +506,9 @@
   }
 
   function drawBombBriefing(floor, accent) {
-    const copy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy() : BOMB_BRIEFING_FALLBACK;
+    const briefingMode = game.bombBriefingMode === "upgrade" ? "upgrade" : "intro";
+    const copy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy(briefingMode) : BOMB_BRIEFING_FALLBACK;
+    const isUpgradeMode = briefingMode === "upgrade";
     const enterGoal = Math.max(1, BOMB_BRIEFING_ACCEPT_COUNT || 3);
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
@@ -602,22 +604,27 @@
     const leftInnerH = leftRect.h - 32;
     const keyCalloutH = 64;
     const actionStripH = 40;
+    const chargeRowH = isUpgradeMode ? 34 : 0;
     const bulletLineH = 20;
     const blockGap = 10;
     const maxBulletCount = Math.min(2, bullets.length);
     const bulletAreaH = maxBulletCount > 0 ? maxBulletCount * bulletLineH + 6 : 0;
-    const reservedBottom = keyCalloutH + actionStripH + bulletAreaH + blockGap * 3;
+    const chargeRowBudget = chargeRowH > 0 ? chargeRowH + blockGap : 0;
+    const reservedBottom = keyCalloutH + actionStripH + chargeRowBudget + bulletAreaH + blockGap * 3;
     const topTextH = Math.max(108, leftInnerH - reservedBottom);
 
     withClipRect(leftInnerX, leftInnerY, leftInnerW, leftInnerH, () => {
       const topCopyRect = { x: leftInnerX, y: leftInnerY, w: leftInnerW, h: topTextH };
       const keyRect = { x: leftInnerX, y: topCopyRect.y + topCopyRect.h + blockGap, w: Math.min(338, leftInnerW), h: keyCalloutH };
       const actionRect = { x: leftInnerX, y: keyRect.y + keyRect.h + blockGap, w: leftInnerW, h: actionStripH };
+      const chargeRect = chargeRowH
+        ? { x: leftInnerX, y: actionRect.y + actionRect.h + blockGap, w: leftInnerW, h: chargeRowH }
+        : null;
       const bulletsRect = {
         x: leftInnerX,
-        y: actionRect.y + actionRect.h + blockGap,
+        y: chargeRect ? chargeRect.y + chargeRect.h + blockGap : actionRect.y + actionRect.h + blockGap,
         w: leftInnerW,
-        h: Math.max(0, leftInnerY + leftInnerH - (actionRect.y + actionRect.h + blockGap))
+        h: Math.max(0, leftInnerY + leftInnerH - (chargeRect ? chargeRect.y + chargeRect.h + blockGap : actionRect.y + actionRect.h + blockGap))
       };
 
       withClipRect(topCopyRect.x, topCopyRect.y, topCopyRect.w, topCopyRect.h, () => {
@@ -691,6 +698,24 @@
       const actionTextY = actionRect.y + Math.round((actionRect.h - actionLineH) * 0.5);
       ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", actionRect.w - 24), actionRect.x + 12, actionTextY);
 
+      if (chargeRect) {
+        const chipGap = 12;
+        const chipW = Math.floor((chargeRect.w - chipGap) / 2);
+        for (let i = 0; i < 2; i += 1) {
+          const chipX = chargeRect.x + i * (chipW + chipGap);
+          ctx.fillStyle = rgba(accent, 0.24);
+          fillRoundRect(chipX, chargeRect.y, chipW, chargeRect.h, 999);
+          ctx.strokeStyle = TOKENS.ink;
+          ctx.lineWidth = 2;
+          strokeRoundRect(chipX, chargeRect.y, chipW, chargeRect.h, 999);
+          ctx.fillStyle = TOKENS.ink;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.font = '700 14px "Inter", sans-serif';
+          ctx.fillText(`SPACE #${i + 1}`, chipX + chipW * 0.5, chargeRect.y + chargeRect.h * 0.5 + 1);
+        }
+      }
+
       withClipRect(bulletsRect.x, bulletsRect.y, bulletsRect.w, bulletsRect.h, () => {
         ctx.fillStyle = TOKENS.ink;
         ctx.font = '600 16px "Inter", sans-serif';
@@ -709,8 +734,27 @@
 
     withClipRect(rightInnerX, rightInnerY, rightInnerW, rightInnerH, () => {
       const stepGap = 12;
-      const stepCardH = Math.max(78, Math.floor((rightInnerH - stepGap * (enterGoal - 1)) / enterGoal));
+      const upgradeBadgeH = isUpgradeMode ? 52 : 0;
+      const upgradeBadgeGap = isUpgradeMode ? 10 : 0;
       let stepY = rightInnerY;
+      let stepAreaH = rightInnerH;
+
+      if (isUpgradeMode) {
+        ctx.fillStyle = rgba(accent, 0.24);
+        fillRoundRect(rightInnerX, rightInnerY, rightInnerW, upgradeBadgeH, 14);
+        ctx.strokeStyle = TOKENS.ink;
+        ctx.lineWidth = 2;
+        strokeRoundRect(rightInnerX, rightInnerY, rightInnerW, upgradeBadgeH, 14);
+        ctx.fillStyle = TOKENS.ink;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = '700 28px "Sora", "Inter", sans-serif';
+        ctx.fillText("2 CHARGES", rightInnerX + rightInnerW * 0.5, rightInnerY + upgradeBadgeH * 0.5 + 1);
+        stepY += upgradeBadgeH + upgradeBadgeGap;
+        stepAreaH -= upgradeBadgeH + upgradeBadgeGap;
+      }
+
+      const stepCardH = Math.max(78, Math.floor((stepAreaH - stepGap * (enterGoal - 1)) / enterGoal));
 
       for (let i = 0; i < enterGoal; i += 1) {
         const isDone = i < accepted;
@@ -1697,13 +1741,18 @@
 
     const bombCopy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy() : BOMB_BRIEFING_FALLBACK;
     const bombAbilityName = bombCopy && bombCopy.abilityName ? bombCopy.abilityName : BOMB_BRIEFING_FALLBACK.abilityName;
-    const bombText = !game.bombUsedThisFloor ? `Space: ${bombAbilityName} Ready` : `Space: ${bombAbilityName} Used`;
+    const totalCharges = Math.max(1, Number.isFinite(game.bombChargesPerFloor) ? game.bombChargesPerFloor : 1);
+    const remainingCharges = clamp(
+      Number.isFinite(game.bombChargesRemaining) ? game.bombChargesRemaining : totalCharges,
+      0,
+      totalCharges
+    );
+    const bombText = `Space: ${bombAbilityName} ${remainingCharges}/${totalCharges}`;
     ctx.font = '700 12px "Inter", sans-serif';
     let bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 140, 286);
     const bombBoxH = 30;
     let bombBoxX = timerBoxX - bombBoxW - 18;
     const bombBoxY = timerBoxY;
-    const bombReady = !game.bombUsedThisFloor;
 
     const floorLabel = `Floor ${floor.id} / 9`;
     ctx.font = '700 20px "Sora", "Inter", sans-serif';
@@ -1759,12 +1808,25 @@
     ctx.lineWidth = 2;
     strokeRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
 
-    ctx.fillStyle = rgba(accent, bombReady ? 0.34 : 0.18);
-    fillRoundRect(bombBoxX + 10, bombBoxY + 7, 7, bombBoxH - 14, 999);
+    const meterSegmentGap = 3;
+    const meterSegmentW = 8;
+    const meterX = bombBoxX + 10;
+    const meterY = bombBoxY + 7;
+    const meterH = bombBoxH - 14;
+    for (let i = 0; i < totalCharges; i += 1) {
+      const segmentX = meterX + i * (meterSegmentW + meterSegmentGap);
+      const isActive = i < remainingCharges;
+      ctx.fillStyle = rgba(accent, isActive ? 0.34 : 0.12);
+      fillRoundRect(segmentX, meterY, meterSegmentW, meterH, 999);
+      ctx.strokeStyle = rgba(TOKENS.ink, 0.45);
+      ctx.lineWidth = 1;
+      strokeRoundRect(segmentX, meterY, meterSegmentW, meterH, 999);
+    }
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 12px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(bombText, bombBoxW - 34), bombBoxX + 24, bombBoxY + 18);
+    const meterW = totalCharges * meterSegmentW + Math.max(0, totalCharges - 1) * meterSegmentGap;
+    ctx.fillText(fitCanvasText(bombText, bombBoxW - (meterW + 28)), bombBoxX + 16 + meterW, bombBoxY + 18);
 
     drawUpgradeHudPanel(accent);
     drawDebugStatsLine(accent);

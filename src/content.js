@@ -127,16 +127,30 @@
     default: "Learning loop support"
   };
   const BOMB_BRIEFING_COPY = Object.freeze({
-    abilityName: "Escalation Pulse",
-    title: "Press Space: Escalation Pulse",
-    subtitle: "In gameplay, Space clears enemies and enemy bullets.",
-    bullets: Object.freeze([
-      "Space works only during gameplay.",
-      "Pulse clears all enemies and enemy bullets.",
-      "You can use it once per floor."
-    ]),
-    steps: Object.freeze(["Key: Space", "Effect: Clear screen", "Limit: Once per floor"]),
-    cta: (step, total) => `Press Enter to accept (${step}/${total})`
+    intro: Object.freeze({
+      abilityName: "Escalation Pulse",
+      title: "Press Space: Escalation Pulse",
+      subtitle: "In gameplay, Space clears enemies and enemy bullets.",
+      bullets: Object.freeze([
+        "Space works only during gameplay.",
+        "Pulse clears all enemies and enemy bullets.",
+        "You can use it once per floor."
+      ]),
+      steps: Object.freeze(["Key: Space", "Effect: Clear screen", "Limit: Once per floor"]),
+      cta: (step, total) => `Press Enter to accept (${step}/${total})`
+    }),
+    upgrade: Object.freeze({
+      abilityName: "Escalation Pulse",
+      title: "Escalation Pulse: Now 2 Charges",
+      subtitle: "From this floor on, press Space twice per floor.",
+      bullets: Object.freeze([
+        "Space works only during gameplay.",
+        "Each press clears enemies and enemy bullets.",
+        "Both charges reset every new floor."
+      ]),
+      steps: Object.freeze(["Key: Space", "Effect: Clear screen", "Limit: Twice per floor"]),
+      cta: (step, total) => `Press Enter to accept (${step}/${total})`
+    })
   });
 
   function pickNarrativeText(value, fallback) {
@@ -364,8 +378,9 @@
     return pickNarrativeText(ui && ui[key], fallback);
   }
 
-  function getBombBriefingCopy() {
-    return BOMB_BRIEFING_COPY;
+  function getBombBriefingCopy(mode = "intro") {
+    const key = mode === "upgrade" ? "upgrade" : "intro";
+    return BOMB_BRIEFING_COPY[key] || BOMB_BRIEFING_COPY.intro;
   }
 
   function getWhatYouLearnedBullets() {

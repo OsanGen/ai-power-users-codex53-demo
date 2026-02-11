@@ -12,7 +12,16 @@
     lessonTextSampleBtn,
     lessonTextCloseBtn
   } = AIPU.dom;
-  const { TOKENS, GameState, WORLD, BASE_MAX_HP, BOMB_BRIEFING_ACCEPT_COUNT } = AIPU.constants;
+  const {
+    TOKENS,
+    GameState,
+    WORLD,
+    BASE_MAX_HP,
+    BOMB_BRIEFING_ACCEPT_COUNT,
+    BOMB_CHARGES_BASE,
+    BOMB_CHARGES_UPGRADED,
+    BOMB_CHARGES_UPGRADE_FLOOR
+  } = AIPU.constants;
   const { game, player } = AIPU.state;
   const { keys } = AIPU.input;
   const { FLOORS, ENEMY_DEFS } = AIPU.content;
@@ -307,7 +316,12 @@
       if (isEnterKey(event) && !event.repeat) {
         game.bombBriefingEnterCount = clamp(game.bombBriefingEnterCount + 1, 0, BOMB_BRIEFING_ACCEPT_COUNT);
         if (game.bombBriefingEnterCount >= BOMB_BRIEFING_ACCEPT_COUNT) {
-          game.bombBriefingSeenThisRun = true;
+          if (game.bombBriefingMode === "upgrade") {
+            game.bombBriefingSeenUpgradeThisRun = true;
+          } else {
+            game.bombBriefingSeenIntroThisRun = true;
+          }
+          game.bombBriefingMode = "";
           beginCurrentFloor();
         }
       }
@@ -572,9 +586,12 @@
     game.upgradeCardRects = [];
     game.floorLessonUpgradeId = "";
     game.floorFallbackInvulnBonus = 0;
-    game.bombUsedThisFloor = false;
+    game.bombChargesPerFloor = BOMB_CHARGES_BASE;
+    game.bombChargesRemaining = BOMB_CHARGES_BASE;
     game.bombFlashTimer = 0;
-    game.bombBriefingSeenThisRun = false;
+    game.bombBriefingSeenIntroThisRun = false;
+    game.bombBriefingSeenUpgradeThisRun = false;
+    game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
@@ -592,7 +609,9 @@
   function startRun(forcedStartFloor = null) {
     game.kills = 0;
     game.gameOverEntryHandled = false;
-    game.bombBriefingSeenThisRun = false;
+    game.bombBriefingSeenIntroThisRun = false;
+    game.bombBriefingSeenUpgradeThisRun = false;
+    game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
     upgrades.resetUpgradeRun();
     const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
@@ -622,7 +641,8 @@
     game.upgradeCardRects = [];
     game.floorLessonUpgradeId = "";
     game.floorFallbackInvulnBonus = 0;
-    game.bombUsedThisFloor = false;
+    game.bombChargesPerFloor = BOMB_CHARGES_BASE;
+    game.bombChargesRemaining = BOMB_CHARGES_BASE;
     game.bombFlashTimer = 0;
     game.bombBriefingEnterCount = 0;
     game.gameOverEntryHandled = false;
@@ -665,7 +685,8 @@
     player.shieldBreakFlash = 0;
     player.invuln = 0;
     player.fireCooldown = 0;
-    game.bombUsedThisFloor = false;
+    game.bombChargesPerFloor = floor.id >= BOMB_CHARGES_UPGRADE_FLOOR ? BOMB_CHARGES_UPGRADED : BOMB_CHARGES_BASE;
+    game.bombChargesRemaining = game.bombChargesPerFloor;
     game.bombFlashTimer = 0;
     game.upgradeConfirmCooldown = 0;
     resetPlayerPosition();
@@ -825,7 +846,7 @@
   }
 
   function triggerBomb() {
-    if (game.state !== GameState.PLAYING || game.bombUsedThisFloor) {
+    if (game.state !== GameState.PLAYING || game.bombChargesRemaining <= 0) {
       return;
     }
 
@@ -834,7 +855,7 @@
       game.kills += removedEnemies;
     }
 
-    game.bombUsedThisFloor = true;
+    game.bombChargesRemaining = Math.max(0, game.bombChargesRemaining - 1);
     game.bombFlashTimer = BOMB_FLASH_DURATION;
 
     const flashAccent = currentAccent();
@@ -1432,7 +1453,16 @@
 
   function shouldOpenBombBriefing() {
     const floor = currentFloor();
-    return !!(floor && floor.id === 1 && !game.bombBriefingSeenThisRun);
+    if (!floor) {
+      return "";
+    }
+    if (floor.id === 1 && !game.bombBriefingSeenIntroThisRun) {
+      return "intro";
+    }
+    if (floor.id === BOMB_CHARGES_UPGRADE_FLOOR && !game.bombBriefingSeenUpgradeThisRun) {
+      return "upgrade";
+    }
+    return "";
   }
 
   function confirmUpgradeSelection(index) {
@@ -1468,8 +1498,10 @@
     game.upgradeConfirmCooldown = 0.18;
     game.upgradeNoticeTimer = 0;
     game.floorLessonUpgradeId = option.fallbackBaseId || option.id;
-    if (shouldOpenBombBriefing()) {
+    const bombBriefingMode = shouldOpenBombBriefing();
+    if (bombBriefingMode) {
       game.state = GameState.BOMB_BRIEFING;
+      game.bombBriefingMode = bombBriefingMode;
       game.bombBriefingEnterCount = 0;
       return;
     }
