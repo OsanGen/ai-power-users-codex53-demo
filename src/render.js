@@ -536,18 +536,19 @@
     ctx.fillStyle = rgba(accent, 0.24);
     fillRoundRect(panelX + 24, panelY + 22, panelW - 48, 10, 999);
 
-    const panelPad = 30;
-    const zoneGap = 16;
-    const headerH = 74;
-    const ctaH = 100;
-    const bodyGap = 20;
-    const rightW = 350;
+    const panelPad = 28;
+    const zoneGap = 14;
+    const headerH = 72;
+    const ctaH = 92;
+    const bodyGap = 18;
+    const rightW = 360;
     const contentX = panelX + panelPad;
     const contentW = panelW - panelPad * 2;
-    const headerY = panelY + 42;
+    const headerY = panelY + 40;
     const ctaY = panelY + panelH - panelPad - ctaH;
     const bodyY = headerY + headerH + zoneGap;
-    const bodyH = Math.max(220, ctaY - zoneGap - bodyY);
+    const bodyBottom = ctaY - zoneGap;
+    const bodyH = Math.max(220, bodyBottom - bodyY);
 
     const leftRect = { x: contentX, y: bodyY, w: contentW - rightW - bodyGap, h: bodyH };
     const rightRect = { x: leftRect.x + leftRect.w + bodyGap, y: bodyY, w: rightW, h: bodyH };
@@ -572,9 +573,9 @@
     const badgeFont = fitFontSizeForLine(badgeText, 280, 48, 18, '700 ${size}px "Sora", "Inter", sans-serif');
     ctx.font = `700 ${badgeFont}px "Sora", "Inter", sans-serif`;
     const badgeW = clamp(Math.ceil(ctx.measureText(badgeText).width) + 54, 204, 296);
-    const badgeH = 66;
+    const badgeH = 62;
     const badgeX = contentX + contentW - badgeW;
-    const badgeY = headerY + 2;
+    const badgeY = headerY + 4;
     ctx.fillStyle = rgba(accent, 0.2);
     fillRoundRect(badgeX + 8, badgeY + 6, badgeW, badgeH, 999);
     ctx.fillStyle = accent;
@@ -598,48 +599,15 @@
     const leftInnerX = leftRect.x + 18;
     const leftInnerY = leftRect.y + 16;
     const leftInnerW = leftRect.w - 36;
-    const leftInnerH = leftRect.h - 30;
-
-    let keyCalloutH = 74;
-    let actionStripH = 40;
-    let visibleBulletCount = Math.min(3, bullets.length);
-    const bulletLineH = 21;
+    const leftInnerH = leftRect.h - 32;
+    const keyCalloutH = 64;
+    const actionStripH = 40;
+    const bulletLineH = 20;
     const blockGap = 10;
-    let minTopCopyH = 146;
-    let topTextH = 0;
-    let bulletAreaH = 0;
-
-    for (let i = 0; i < 10; i += 1) {
-      bulletAreaH = visibleBulletCount > 0 ? visibleBulletCount * bulletLineH + 8 : 0;
-      const bulletReserve = bulletAreaH > 0 ? bulletAreaH + blockGap : 0;
-      const reservedBottom = keyCalloutH + actionStripH + bulletReserve + blockGap * 2;
-      topTextH = leftInnerH - reservedBottom;
-      if (topTextH >= minTopCopyH) {
-        break;
-      }
-      if (visibleBulletCount > 2) {
-        visibleBulletCount -= 1;
-        continue;
-      }
-      if (visibleBulletCount > 1 && topTextH < minTopCopyH - 10) {
-        visibleBulletCount -= 1;
-        continue;
-      }
-      if (keyCalloutH > 66) {
-        keyCalloutH -= 4;
-        continue;
-      }
-      if (actionStripH > 34) {
-        actionStripH -= 2;
-        continue;
-      }
-      if (visibleBulletCount > 0 && topTextH < minTopCopyH - 8) {
-        visibleBulletCount -= 1;
-        continue;
-      }
-      minTopCopyH = Math.max(112, minTopCopyH - 10);
-    }
-    topTextH = Math.max(112, topTextH);
+    const maxBulletCount = Math.min(2, bullets.length);
+    const bulletAreaH = maxBulletCount > 0 ? maxBulletCount * bulletLineH + 6 : 0;
+    const reservedBottom = keyCalloutH + actionStripH + bulletAreaH + blockGap * 3;
+    const topTextH = Math.max(108, leftInnerH - reservedBottom);
 
     withClipRect(leftInnerX, leftInnerY, leftInnerW, leftInnerH, () => {
       const topCopyRect = { x: leftInnerX, y: leftInnerY, w: leftInnerW, h: topTextH };
@@ -654,8 +622,8 @@
 
       withClipRect(topCopyRect.x, topCopyRect.y, topCopyRect.w, topCopyRect.h, () => {
         let textY = leftInnerY;
-        const headingMaxH = Math.max(66, topCopyRect.h - 44);
-        const headingSize = fitHeadingFontSizeForBox(title, leftInnerW, headingMaxH, 72, 36, 2, 1.04);
+        const headingMaxH = Math.max(64, topCopyRect.h - 34);
+        const headingSize = fitHeadingFontSizeForBox(title, leftInnerW, headingMaxH, 58, 30, 2, 1.04);
         ctx.fillStyle = TOKENS.ink;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
@@ -668,13 +636,13 @@
         textY += headingLines.length * headingLineH;
         textY += 6;
         const subtitleMaxH = Math.max(20, topCopyRect.y + topCopyRect.h - textY);
-        let subtitleSize = 18;
-        let subtitleLineH = 24;
-        let subtitleLines = getWrappedLines(subtitle, leftInnerW, 2);
+        let subtitleSize = topCopyRect.h >= 130 ? 17 : 15;
+        let subtitleLineH = Math.round(subtitleSize * 1.24);
+        let subtitleLines = getWrappedLines(subtitle, leftInnerW, topCopyRect.h >= 130 ? 2 : 1);
         while (subtitleSize > 14) {
           ctx.font = `600 ${subtitleSize}px "Inter", sans-serif`;
           subtitleLineH = Math.round(subtitleSize * 1.24);
-          subtitleLines = getWrappedLines(subtitle, leftInnerW, 2);
+          subtitleLines = getWrappedLines(subtitle, leftInnerW, topCopyRect.h >= 130 ? 2 : 1);
           if (subtitleLines.length * subtitleLineH <= subtitleMaxH) {
             break;
           }
@@ -727,7 +695,7 @@
         ctx.fillStyle = TOKENS.ink;
         ctx.font = '600 16px "Inter", sans-serif';
         let lineY = bulletsRect.y;
-        const maxBullets = Math.min(visibleBulletCount, Math.max(0, Math.floor(bulletsRect.h / bulletLineH)));
+        const maxBullets = Math.min(maxBulletCount, Math.max(0, Math.floor(bulletsRect.h / bulletLineH)));
         for (let i = 0; i < maxBullets; i += 1) {
           lineY = drawWrappedText(`• ${bullets[i]}`, leftInnerX, lineY, leftInnerW, bulletLineH, { maxLines: 1 });
         }
@@ -801,12 +769,12 @@
     strokeRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
 
     const ctaInnerW = ctaW - 44;
-    const ctaLine1Size = fitHeadingFontSizeForBox(ctaLine1, ctaInnerW, 42, 42, 22, 1, 1.08);
+    const ctaLine1Size = fitHeadingFontSizeForBox(ctaLine1, ctaInnerW, 38, 40, 22, 1, 1.08);
     const ctaLine2Size = fitHeadingFontSizeForBox(
       ctaLine2,
       ctaInnerW,
-      30,
-      24,
+      26,
+      22,
       15,
       1,
       1.2,
@@ -817,10 +785,10 @@
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.font = `700 ${ctaLine1Size}px "Sora", "Inter", sans-serif`;
-    const ctaLine1Y = ctaY + 12;
+    const ctaLine1Y = ctaY + 11;
     ctx.fillText(fitCanvasText(ctaLine1, ctaInnerW), ctaX + ctaW * 0.5, ctaLine1Y);
     ctx.font = `700 ${ctaLine2Size}px "Inter", sans-serif`;
-    const ctaLine2Y = ctaY + ctaH - Math.round(ctaLine2Size * 1.28);
+    const ctaLine2Y = ctaY + ctaH - Math.round(ctaLine2Size * 1.2) - 5;
     ctx.fillText(fitCanvasText(ctaLine2, ctaInnerW), ctaX + ctaW * 0.5, ctaLine2Y);
 
     ctx.textAlign = "left";
@@ -1731,7 +1699,7 @@
     const bombAbilityName = bombCopy && bombCopy.abilityName ? bombCopy.abilityName : BOMB_BRIEFING_FALLBACK.abilityName;
     const bombText = !game.bombUsedThisFloor ? `Space: ${bombAbilityName} Ready` : `Space: ${bombAbilityName} Used`;
     ctx.font = '700 12px "Inter", sans-serif';
-    let bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 184, 286);
+    let bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 140, 286);
     const bombBoxH = 30;
     let bombBoxX = timerBoxX - bombBoxW - 18;
     const bombBoxY = timerBoxY;
@@ -1740,25 +1708,41 @@
     const floorLabel = `Floor ${floor.id} / 9`;
     ctx.font = '700 20px "Sora", "Inter", sans-serif';
     const floorLabelWidth = ctx.measureText(floorLabel).width;
-    const floorBoxW = floorLabelWidth + 28;
-    const desiredFloorBoxX = WIDTH * 0.5 - floorBoxW * 0.5;
+    let floorBoxW = clamp(floorLabelWidth + 28, 104, 200);
 
     const hpAreaRight = 120 + player.maxHearts * 34 + 12;
     const shieldAreaRight = player.shieldCharges > 0 ? 252 + 118 + 12 : 0;
-    const leftHudBoundary = Math.max(300, hpAreaRight, shieldAreaRight);
-    const floorGap = 14;
+    const leftHudBoundary = Math.max(300, hpAreaRight, shieldAreaRight) + 10;
+    const rightHudBoundary = timerBoxX - 12;
+    const floorGap = 10;
+    const minFloorW = 92;
+    const minBombW = 118;
+    const middleW = Math.max(0, rightHudBoundary - leftHudBoundary);
 
-    let maxFloorRight = bombBoxX - floorGap;
-    if (maxFloorRight < leftHudBoundary + floorBoxW) {
-      const availableBombW = timerBoxX - 18 - (leftHudBoundary + floorBoxW + floorGap);
-      if (availableBombW >= 184) {
-        bombBoxW = Math.min(bombBoxW, availableBombW);
-        bombBoxX = timerBoxX - bombBoxW - 18;
-        maxFloorRight = bombBoxX - floorGap;
+    if (middleW > 0) {
+      let requiredW = floorBoxW + floorGap + bombBoxW;
+      if (requiredW > middleW) {
+        let overflow = requiredW - middleW;
+        const bombReducible = Math.max(0, bombBoxW - minBombW);
+        const bombReduce = Math.min(bombReducible, overflow);
+        bombBoxW -= bombReduce;
+        overflow -= bombReduce;
+        const floorReducible = Math.max(0, floorBoxW - minFloorW);
+        const floorReduce = Math.min(floorReducible, overflow);
+        floorBoxW -= floorReduce;
+        overflow -= floorReduce;
+        if (overflow > 0) {
+          bombBoxW = Math.max(minBombW, middleW - floorGap - floorBoxW);
+          if (bombBoxW < minBombW) {
+            floorBoxW = Math.max(minFloorW, middleW - floorGap - minBombW);
+            bombBoxW = Math.max(minBombW, middleW - floorGap - floorBoxW);
+          }
+        }
       }
     }
 
-    const floorBoxX = clamp(desiredFloorBoxX, leftHudBoundary, Math.max(leftHudBoundary, maxFloorRight - floorBoxW));
+    const floorBoxX = leftHudBoundary;
+    bombBoxX = floorBoxX + floorBoxW + floorGap;
     const floorTextX = floorBoxX + 14;
 
     ctx.fillStyle = rgba(accent, 0.28);
@@ -1767,7 +1751,7 @@
     strokeRoundRect(floorBoxX, 34, floorBoxW, 36, 999);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(floorLabel, floorTextX, 52);
+    ctx.fillText(fitCanvasText(floorLabel, floorBoxW - 24), floorTextX, 52);
 
     ctx.fillStyle = TOKENS.fog;
     fillRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);

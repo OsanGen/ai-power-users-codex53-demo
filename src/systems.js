@@ -1003,37 +1003,47 @@
   }
 
   function updateBullets(dt) {
-    for (const bullet of bullets) {
+    let write = 0;
+    for (let i = 0; i < bullets.length; i += 1) {
+      const bullet = bullets[i];
       bullet.x += bullet.vx * dt;
       bullet.y += bullet.vy * dt;
       bullet.life -= dt;
+      const alive =
+        bullet.life > 0 &&
+        bullet.x > WORLD.x - 30 &&
+        bullet.x < WORLD.x + WORLD.w + 30 &&
+        bullet.y > WORLD.y - 30 &&
+        bullet.y < WORLD.y + WORLD.h + 30;
+      if (!alive) {
+        continue;
+      }
+      bullets[write] = bullet;
+      write += 1;
     }
-
-    bullets = bullets.filter(
-      (b) =>
-        b.life > 0 &&
-        b.x > WORLD.x - 30 &&
-        b.x < WORLD.x + WORLD.w + 30 &&
-        b.y > WORLD.y - 30 &&
-        b.y < WORLD.y + WORLD.h + 30
-    );
+    bullets.length = write;
   }
 
   function updateEnemyBullets(dt) {
-    for (const bullet of enemyBullets) {
+    let write = 0;
+    for (let i = 0; i < enemyBullets.length; i += 1) {
+      const bullet = enemyBullets[i];
       bullet.x += bullet.vx * dt;
       bullet.y += bullet.vy * dt;
       bullet.life -= dt;
+      const alive =
+        bullet.life > 0 &&
+        bullet.x > WORLD.x - 40 &&
+        bullet.x < WORLD.x + WORLD.w + 40 &&
+        bullet.y > WORLD.y - 40 &&
+        bullet.y < WORLD.y + WORLD.h + 40;
+      if (!alive) {
+        continue;
+      }
+      enemyBullets[write] = bullet;
+      write += 1;
     }
-
-    enemyBullets = enemyBullets.filter(
-      (b) =>
-        b.life > 0 &&
-        b.x > WORLD.x - 40 &&
-        b.x < WORLD.x + WORLD.w + 40 &&
-        b.y > WORLD.y - 40 &&
-        b.y < WORLD.y + WORLD.h + 40
-    );
+    enemyBullets.length = write;
   }
 
   function updateEnemies(dt, canAttack) {
@@ -1370,14 +1380,21 @@
   }
 
   function updateParticles(dt) {
-    for (const particle of particles) {
+    let write = 0;
+    for (let i = 0; i < particles.length; i += 1) {
+      const particle = particles[i];
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
       particle.life -= dt;
       particle.vx *= 0.9;
       particle.vy *= 0.9;
+      if (particle.life <= 0) {
+        continue;
+      }
+      particles[write] = particle;
+      write += 1;
     }
-    particles = particles.filter((p) => p.life > 0);
+    particles.length = write;
   }
 
   function isMoveUp() {
@@ -1440,10 +1457,12 @@
       return;
     }
 
-    if (result.type === "fallback") {
-      console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (${result.effectText})`);
-    } else {
-      console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (stack ${result.newStack}/${result.maxStacks})`);
+    if (game.showDebugStats) {
+      if (result.type === "fallback") {
+        console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (${result.effectText})`);
+      } else {
+        console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (stack ${result.newStack}/${result.maxStacks})`);
+      }
     }
 
     game.upgradeConfirmCooldown = 0.18;
