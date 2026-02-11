@@ -1705,19 +1705,6 @@
       ctx.fillText(`Shield ${player.shieldCharges}`, shieldX + 14, shieldY + 18);
     }
 
-    const floorLabel = `Floor ${floor.id} / 9`;
-    ctx.font = '700 20px "Sora", "Inter", sans-serif';
-    const floorLabelWidth = ctx.measureText(floorLabel).width;
-    const centerX = WIDTH * 0.5 - floorLabelWidth * 0.5;
-
-    ctx.fillStyle = rgba(accent, 0.28);
-    fillRoundRect(centerX - 14, 34, floorLabelWidth + 28, 36, 999);
-    ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(centerX - 14, 34, floorLabelWidth + 28, 36, 999);
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(floorLabel, centerX, 52);
-
     const timerText = `${Math.ceil(game.floorTimer)}s`;
     const timerBoxX = WIDTH - 370;
     const timerBoxY = 33;
@@ -1744,11 +1731,43 @@
     const bombAbilityName = bombCopy && bombCopy.abilityName ? bombCopy.abilityName : BOMB_BRIEFING_FALLBACK.abilityName;
     const bombText = !game.bombUsedThisFloor ? `Space: ${bombAbilityName} Ready` : `Space: ${bombAbilityName} Used`;
     ctx.font = '700 12px "Inter", sans-serif';
-    const bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 184, 286);
+    let bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 184, 286);
     const bombBoxH = 30;
-    const bombBoxX = timerBoxX - bombBoxW - 18;
+    let bombBoxX = timerBoxX - bombBoxW - 18;
     const bombBoxY = timerBoxY;
     const bombReady = !game.bombUsedThisFloor;
+
+    const floorLabel = `Floor ${floor.id} / 9`;
+    ctx.font = '700 20px "Sora", "Inter", sans-serif';
+    const floorLabelWidth = ctx.measureText(floorLabel).width;
+    const floorBoxW = floorLabelWidth + 28;
+    const desiredFloorBoxX = WIDTH * 0.5 - floorBoxW * 0.5;
+
+    const hpAreaRight = 120 + player.maxHearts * 34 + 12;
+    const shieldAreaRight = player.shieldCharges > 0 ? 252 + 118 + 12 : 0;
+    const leftHudBoundary = Math.max(300, hpAreaRight, shieldAreaRight);
+    const floorGap = 14;
+
+    let maxFloorRight = bombBoxX - floorGap;
+    if (maxFloorRight < leftHudBoundary + floorBoxW) {
+      const availableBombW = timerBoxX - 18 - (leftHudBoundary + floorBoxW + floorGap);
+      if (availableBombW >= 184) {
+        bombBoxW = Math.min(bombBoxW, availableBombW);
+        bombBoxX = timerBoxX - bombBoxW - 18;
+        maxFloorRight = bombBoxX - floorGap;
+      }
+    }
+
+    const floorBoxX = clamp(desiredFloorBoxX, leftHudBoundary, Math.max(leftHudBoundary, maxFloorRight - floorBoxW));
+    const floorTextX = floorBoxX + 14;
+
+    ctx.fillStyle = rgba(accent, 0.28);
+    fillRoundRect(floorBoxX, 34, floorBoxW, 36, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    strokeRoundRect(floorBoxX, 34, floorBoxW, 36, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillText(floorLabel, floorTextX, 52);
 
     ctx.fillStyle = TOKENS.fog;
     fillRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
