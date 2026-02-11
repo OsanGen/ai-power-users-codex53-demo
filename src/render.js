@@ -1531,30 +1531,24 @@
   }
 
   function drawBullets(accent) {
-    ctx.fillStyle = accent;
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
 
     for (const bullet of bullets) {
+      ctx.fillStyle = bullet.color || accent;
       ctx.beginPath();
       ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
 
-    ctx.fillStyle = TOKENS.white;
     ctx.strokeStyle = TOKENS.ink;
     for (const bullet of enemyBullets) {
+      ctx.fillStyle = bullet.color || TOKENS.white;
       ctx.beginPath();
       ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.arc(bullet.x, bullet.y, 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = TOKENS.white;
     }
   }
 
@@ -1847,15 +1841,70 @@
     const meterW = totalCharges * meterSegmentW + Math.max(0, totalCharges - 1) * meterSegmentGap;
     ctx.fillText(fitCanvasText(bombText, bombBoxW - (meterW + 28)), bombBoxX + 16 + meterW, bombBoxY + 18);
 
+    drawBurstStatusHud(accent);
     drawRearShotHint(accent);
     drawUpgradeHudPanel(accent);
     drawDebugStatsLine(accent);
+  }
+
+  function drawBurstStatusHud(accent) {
+    if (game.state !== GameState.PLAYING || !systems || typeof systems.getDirectionalBurstStatus !== "function") {
+      return;
+    }
+
+    const burst = systems.getDirectionalBurstStatus();
+    if (!burst) {
+      return;
+    }
+
+    const panelX = 70;
+    const panelY = 134;
+    const panelW = 292;
+    const panelH = 58;
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 6, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.font = '700 14px "Sora", "Inter", sans-serif';
+    ctx.fillText(`Burst: ${burst.label}`, panelX + 12, panelY + 18);
+
+    const detail =
+      burst.mode === "omni" ? "All directions active" : `Next ${burst.nextLabel} in ${burst.secondsToNext.toFixed(1)}s`;
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillText(detail, panelX + 12, panelY + 35);
+
+    const meterX = panelX + 158;
+    const meterY = panelY + 34;
+    const meterW = panelW - 170;
+    const meterH = 12;
+    ctx.fillStyle = rgba(TOKENS.ink, 0.11);
+    fillRoundRect(meterX, meterY, meterW, meterH, 999);
+    ctx.fillStyle = rgba(accent, 0.8);
+    fillRoundRect(meterX + 1, meterY + 1, Math.max(0, (meterW - 2) * burst.progressToNext), meterH - 2, 999);
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.5);
+    ctx.lineWidth = 1;
+    strokeRoundRect(meterX, meterY, meterW, meterH, 999);
   }
 
   function drawRearShotHint(accent) {
     if (game.state !== GameState.PLAYING || game.rearShotHintTimer <= 0) {
       return;
     }
+
+    const hintMode = game.rearShotHintMode === "omni" ? "omni" : "dual";
+    const heading = hintMode === "omni" ? "Omni burst unlocked" : "Dual burst unlocked";
+    const body =
+      hintMode === "omni"
+        ? "10s hold: shots fire in all 4 directions."
+        : "2s hold: shots fire forward and backward.";
 
     const hintDuration = Math.max(0.001, AIPU.constants.REAR_SHOT_NOTICE_DURATION || 4.2);
     const visibility = clamp(game.rearShotHintTimer / hintDuration, 0, 1);
@@ -1879,9 +1928,9 @@
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
     ctx.font = '700 15px "Sora", "Inter", sans-serif';
-    ctx.fillText("Rear side shot active", panelX + 14, panelY + 17);
+    ctx.fillText(heading, panelX + 14, panelY + 17);
     ctx.font = '600 13px "Inter", sans-serif';
-    ctx.fillText("Hold one direction 2s: one rear shot (left or right).", panelX + 14, panelY + 37);
+    ctx.fillText(body, panelX + 14, panelY + 37);
     ctx.restore();
   }
 

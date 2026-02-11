@@ -18,8 +18,8 @@
     WORLD,
     BASE_MAX_HP,
     REAR_SHOT_TRIGGER_SECONDS,
+    ALL_DIRECTION_SHOT_TRIGGER_SECONDS,
     REAR_SHOT_NOTICE_DURATION,
-    REAR_SHOT_SIDE_OFFSET,
     BOMB_BRIEFING_ACCEPT_COUNT,
     BOMB_CHARGES_BASE,
     BOMB_CHARGES_UPGRADED,
@@ -36,7 +36,6 @@
     clamp,
     lerp,
     approach,
-    randomFrom,
     rand,
     unitVector,
     circleHit,
@@ -61,6 +60,8 @@
   const LESSON_TEXT_MAX_CHARS = 4000;
   const LESSON_TEXT_SAMPLE =
     "A churn model takes product activity and support history as inputs. Weights scale each input, then hidden concepts like loyalty or frustration activate. The output is one churn-risk score. Small input changes can flip the dominant concept and change that prediction.";
+  const COGSEC_BULLET_COLORS = [TOKENS.yellow, TOKENS.blue, TOKENS.mint, TOKENS.pink];
+  let bulletColorCycleIndex = 0;
 
   function isShareModalOpen() {
     return !!shareUI && shareUI.isOpen();
@@ -603,8 +604,11 @@
     game.bombBriefingEnterCount = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
-    game.rearShotHintShown = false;
+    game.rearShotHintMode = "";
+    game.rearShotDualHintSeen = false;
+    game.rearShotOmniHintSeen = false;
     game.rearShotHintTimer = 0;
+    bulletColorCycleIndex = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -628,8 +632,11 @@
     game.bombBriefingEnterCount = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
-    game.rearShotHintShown = false;
+    game.rearShotHintMode = "";
+    game.rearShotDualHintSeen = false;
+    game.rearShotOmniHintSeen = false;
     game.rearShotHintTimer = 0;
+    bulletColorCycleIndex = 0;
     upgrades.resetUpgradeRun();
     const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
     startFloor(checkpointFloor - 1);
@@ -664,6 +671,7 @@
     game.bombBriefingEnterCount = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
+    game.rearShotHintMode = "";
     game.rearShotHintTimer = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
@@ -716,6 +724,7 @@
     game.upgradeConfirmCooldown = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
+    game.rearShotHintMode = "";
     game.rearShotHintTimer = 0;
     resetPlayerPosition();
 
@@ -939,23 +948,17 @@
     const bulletSpeed = upgrades.getBulletSpeed();
     const bulletRadius = upgrades.getBulletRadius();
     const bulletPierce = upgrades.getBulletPierce();
-    bullets.push({
-      x: player.x + dir.x * (player.radius + 9),
-      y: player.y + dir.y * (player.radius + 9),
-      vx: dir.x * bulletSpeed,
-      vy: dir.y * bulletSpeed,
-      radius: bulletRadius,
-      pierce: bulletPierce,
-      life: 0.95,
-      hitEnemyIds: new Set()
-    });
+    const burstMode =
+      game.state === GameState.PLAYING ? resolveDirectionalBurstMode(game.rearShotHoldTime) : "normal";
+    const volleyDirections = getPlayerVolleyDirections(dir, burstMode);
+    const volleyColors = takeCogsecVolleyColors(volleyDirections.length);
 
-    if (game.state === GameState.PLAYING && game.rearShotHoldTime >= REAR_SHOT_TRIGGER_SECONDS) {
-      spawnRearSideShot(dir, bulletSpeed, bulletRadius, bulletPierce);
-      if (!game.rearShotHintShown) {
-        game.rearShotHintShown = true;
-        game.rearShotHintTimer = REAR_SHOT_NOTICE_DURATION;
-      }
+    for (let i = 0; i < volleyDirections.length; i += 1) {
+      spawnPlayerBullet(volleyDirections[i], bulletSpeed, bulletRadius, bulletPierce, volleyColors[i]);
+    }
+
+    if (game.state === GameState.PLAYING) {
+      maybeShowDirectionalBurstHint(burstMode);
     }
 
     player.fireCooldown = upgrades.getFireCooldown();
@@ -978,21 +981,123 @@
     game.rearShotHoldTime = dt;
   }
 
-  function spawnRearSideShot(dir, bulletSpeed, bulletRadius, bulletPierce) {
-    const backDir = { x: -dir.x, y: -dir.y };
-    const sideVector = { x: -backDir.y, y: backDir.x };
-    const sideChoice = Math.random() < 0.5 ? -1 : 1;
-    const spawnDistance = player.radius + 9;
-    const sideOffset = REAR_SHOT_SIDE_OFFSET * sideChoice;
+  function resolveDirectionalBurstMode(holdSeconds = game.rearShotHoldTime) {
+    const hold = Math.max(0, Number(holdSeconds) || 0);
+    if (hold >= ALL_DIRECTION_SHOT_TRIGGER_SECONDS) {
+      return "omni";
+    }
+    if (hold >= REAR_SHOT_TRIGGER_SECONDS) {
+      return "dual";
+    }
+    return "normal";
+  }
 
+  function getDirectionalBurstStatus() {
+    const holdSeconds = Math.max(0, Number(game.rearShotHoldTime) || 0);
+    const dualThreshold = Math.max(0.001, REAR_SHOT_TRIGGER_SECONDS);
+    const omniThreshold = Math.max(dualThreshold, ALL_DIRECTION_SHOT_TRIGGER_SECONDS);
+    const mode = resolveDirectionalBurstMode(holdSeconds);
+    const label = mode === "omni" ? "Omni" : mode === "dual" ? "Dual" : "Normal";
+
+    if (mode === "normal") {
+      return {
+        mode,
+        label,
+        holdSeconds,
+        dualThreshold,
+        omniThreshold,
+        nextLabel: "Dual",
+        secondsToNext: Math.max(0, dualThreshold - holdSeconds),
+        progressToNext: clamp(holdSeconds / dualThreshold, 0, 1)
+      };
+    }
+
+    if (mode === "dual") {
+      const span = Math.max(0.001, omniThreshold - dualThreshold);
+      return {
+        mode,
+        label,
+        holdSeconds,
+        dualThreshold,
+        omniThreshold,
+        nextLabel: "Omni",
+        secondsToNext: Math.max(0, omniThreshold - holdSeconds),
+        progressToNext: clamp((holdSeconds - dualThreshold) / span, 0, 1)
+      };
+    }
+
+    return {
+      mode,
+      label,
+      holdSeconds,
+      dualThreshold,
+      omniThreshold,
+      nextLabel: "",
+      secondsToNext: 0,
+      progressToNext: 1
+    };
+  }
+
+  function getPlayerVolleyDirections(primaryDir, burstMode) {
+    if (burstMode === "normal") {
+      return [primaryDir];
+    }
+
+    if (burstMode === "dual") {
+      return [primaryDir, { x: -primaryDir.x, y: -primaryDir.y }];
+    }
+
+    return [
+      primaryDir,
+      { x: -primaryDir.x, y: -primaryDir.y },
+      { x: -primaryDir.y, y: primaryDir.x },
+      { x: primaryDir.y, y: -primaryDir.x }
+    ];
+  }
+
+  function nextCogsecBulletColor() {
+    if (COGSEC_BULLET_COLORS.length === 0) {
+      return TOKENS.yellow;
+    }
+    const color = COGSEC_BULLET_COLORS[bulletColorCycleIndex % COGSEC_BULLET_COLORS.length];
+    bulletColorCycleIndex = (bulletColorCycleIndex + 1) % COGSEC_BULLET_COLORS.length;
+    return color || TOKENS.yellow;
+  }
+
+  function takeCogsecVolleyColors(count) {
+    const colors = [];
+    for (let i = 0; i < count; i += 1) {
+      colors.push(nextCogsecBulletColor());
+    }
+    return colors;
+  }
+
+  function maybeShowDirectionalBurstHint(burstMode) {
+    if (burstMode === "omni" && !game.rearShotOmniHintSeen) {
+      game.rearShotOmniHintSeen = true;
+      game.rearShotHintMode = "omni";
+      game.rearShotHintTimer = REAR_SHOT_NOTICE_DURATION;
+      return;
+    }
+
+    if (burstMode === "dual" && !game.rearShotDualHintSeen) {
+      game.rearShotDualHintSeen = true;
+      game.rearShotHintMode = "dual";
+      game.rearShotHintTimer = REAR_SHOT_NOTICE_DURATION;
+    }
+  }
+
+  function spawnPlayerBullet(dir, bulletSpeed, bulletRadius, bulletPierce, colorOverride = "") {
+    const spawnDistance = player.radius + 9;
     bullets.push({
-      x: player.x + backDir.x * spawnDistance + sideVector.x * sideOffset,
-      y: player.y + backDir.y * spawnDistance + sideVector.y * sideOffset,
-      vx: backDir.x * bulletSpeed,
-      vy: backDir.y * bulletSpeed,
+      x: player.x + dir.x * spawnDistance,
+      y: player.y + dir.y * spawnDistance,
+      vx: dir.x * bulletSpeed,
+      vy: dir.y * bulletSpeed,
       radius: bulletRadius,
       pierce: bulletPierce,
       life: 0.95,
+      color: colorOverride || nextCogsecBulletColor(),
       hitEnemyIds: new Set()
     });
   }
@@ -1280,7 +1385,8 @@
       vy: dirY * adjustedSpeed,
       damage,
       radius: 6,
-      life: 2.3
+      life: 2.3,
+      color: nextCogsecBulletColor()
     });
   }
 
@@ -1599,6 +1705,8 @@
   AIPU.systems = {
     currentFloor,
     getCollections,
+    resolveDirectionalBurstMode,
+    getDirectionalBurstStatus,
     resetCollections,
     getUpgradeCardIndexAt,
     startDeathAnim,
