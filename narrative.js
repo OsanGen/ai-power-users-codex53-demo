@@ -1,124 +1,124 @@
 window.AI_POWER_USER_NARRATIVE = {
   version: "neural_glass_v1",
   titleScreen: {
-    title: "Neural Glass: Neural Nets",
-    subtitle: "Drag inputs. Watch concepts. Predict churn.",
+    title: "Neural Glass: Learn Neural Nets",
+    subtitle: "Use data. See steps. Predict risk.",
     bullets: [
-      "Neural nets learn signal vs noise.",
-      "They learn weights from data.",
-      "They output one prediction."
+      "A net reads input numbers.",
+      "Weights choose what matters most.",
+      "It outputs one risk score."
     ],
-    footerHint: "Enter: start • Esc: none"
+    footerHint: "Enter: start • T: add text"
   },
 
   // Teach card per floor (1..9). Each card is a micro-lesson + micro-challenge.
   teachCards: [
     {
       floor: 1,
-      title: "Neural net = smart filter",
-      oneLiner: "It turns messy data into one prediction.",
+      title: "Step 1: What nets do",
+      oneLiner: "A net turns many facts into one guess.",
       bullets: [
-        "Inputs are raw data.",
-        "Hidden layer learns concepts.",
-        "Output is churn risk."
+        "Inputs are the facts.",
+        "Hidden ideas are learned.",
+        "Output is one score."
       ],
-      microChallenge: "Press 1 then 2. Watch risk flip.",
+      microChallenge: "Press 1 then 2. See score change.",
       visualMode: "fundamentals"
     },
     {
       floor: 2,
-      title: "Inputs are raw data",
-      oneLiner: "The net starts with no meaning.",
+      title: "Step 2: Inputs",
+      oneLiner: "Inputs are the numbers you feed in.",
       bullets: [
-        "Logins: last 30 days.",
-        "Tickets: support pain.",
-        "Tenure and features matter."
+        "Logins show activity.",
+        "Tickets show friction.",
+        "Tenure and features add context."
       ],
-      microChallenge: "Move one slider. See concept change.",
+      microChallenge: "Move one slider. Watch output move.",
       visualMode: "inputs"
     },
     {
       floor: 3,
-      title: "Weights turn volume knobs",
-      oneLiner: "Weights say what matters most.",
+      title: "Step 3: Weights",
+      oneLiner: "Weights are volume knobs for each input.",
       bullets: [
-        "High weight: strong signal.",
-        "Low weight: mostly noise.",
-        "Weighted = input × weight."
+        "Big weight means stronger effect.",
+        "Small weight means weaker effect.",
+        "Input × weight = weighted signal."
       ],
-      microChallenge: "Make tickets dominate the flow.",
+      microChallenge: "Raise tickets. See stronger impact.",
       visualMode: "weights"
     },
     {
       floor: 4,
-      title: "Hidden layer learns concepts",
-      oneLiner: "Concepts compress raw signals.",
+      title: "Step 4: Concepts",
+      oneLiner: "Hidden concepts combine weighted signals.",
       bullets: [
-        "LOYAL, FRUSTRATED, ENGAGED.",
-        "Activation is 0–100%.",
-        "Top activation is dominant."
+        "Concepts can be LOYAL or FRUSTRATED.",
+        "Each concept has an activation level.",
+        "Highest activation is dominant."
       ],
-      microChallenge: "Make ENGAGED dominant.",
+      microChallenge: "Try to make ENGAGED dominant.",
       visualMode: "hidden"
     },
     {
       floor: 5,
-      title: "Output = churn risk",
-      oneLiner: "Dominant concept drives the prediction.",
+      title: "Step 5: Output score",
+      oneLiner: "Dominant concepts push the final risk score.",
       bullets: [
-        "0% stay. 100% leave.",
-        "Dominant concept pushes risk.",
-        "Small changes swing output."
+        "Low score means likely stay.",
+        "High score means likely leave.",
+        "Small input changes can flip risk."
       ],
-      microChallenge: "Get risk above 70%.",
+      microChallenge: "Push risk above 70%.",
       visualMode: "output"
     },
     {
       floor: 6,
-      title: "Golden thread",
-      oneLiner: "Say the full loop in one breath.",
+      title: "Step 6: Full loop",
+      oneLiner: "Say the full path from input to output.",
       bullets: [
-        "Raw data → weighted signals.",
-        "Weighted signals → concepts.",
-        "Concepts → prediction."
+        "Inputs become weighted signals.",
+        "Signals activate concepts.",
+        "Concepts produce one score."
       ],
-      microChallenge: "Match one input to one concept.",
+      microChallenge: "Say the loop out loud once.",
       visualMode: "golden_thread"
     },
     {
       floor: 7,
-      title: "Learner, not thinker",
-      oneLiner: "No rules are hard-coded.",
+      title: "Step 7: Learn from data",
+      oneLiner: "The model learns from examples, not hard rules.",
       bullets: [
-        "Weights come from data.",
-        "Different data learns different weights.",
+        "Data sets the weights.",
+        "New data can change behavior.",
         "Bad data teaches bad patterns."
       ],
-      microChallenge: "Ask: what changed between 1 and 2?",
+      microChallenge: "Compare happy and at-risk presets.",
       visualMode: "learners_not_thinkers"
     },
     {
       floor: 8,
-      title: "Interpret the prediction",
-      oneLiner: "Explain the why, not just the %.",
+      title: "Step 8: Explain results",
+      oneLiner: "Explain why the score changed.",
       bullets: [
-        "Check dominant concept.",
-        "Check strongest signals.",
-        "Explain in one sentence."
+        "Check strongest inputs first.",
+        "Check dominant concept next.",
+        "State one clear reason."
       ],
-      microChallenge: "Explain At-Risk in one line.",
+      microChallenge: "Explain one result in one sentence.",
       visualMode: "interpretability"
     },
     {
       floor: 9,
-      title: "Apply it anywhere",
-      oneLiner: "Same loop. New domain.",
+      title: "Step 9: Transfer the loop",
+      oneLiner: "Use the same loop in new problems.",
       bullets: [
-        "Fraud, loans, recommendations.",
-        "Inputs change the output.",
-        "You can explain the loop."
+        "Fraud, loans, and recommendations use it.",
+        "Inputs change by domain.",
+        "The loop stays the same."
       ],
-      microChallenge: "Name inputs and output for a domain.",
+      microChallenge: "Name inputs and one output for a new domain.",
       visualMode: "transfer"
     }
   ],
@@ -127,37 +127,37 @@ window.AI_POWER_USER_NARRATIVE = {
   ui: {
     teachCardHint: "Enter: upgrades • 1: happy • 2: at-risk",
     teachCardTitlePrefix: "Teach Card",
-    upgradePickTitle: "Pick an upgrade",
-    upgradePickSubtitle: "Stack small power. Keep control.",
+    upgradePickTitle: "Pick one learning boost",
+    upgradePickSubtitle: "Read. Choose. Learn one idea.",
     floorClearTitle: "Floor cleared",
-    floorClearSubtitle: "Raw data → weights → concepts → prediction.",
-    victoryTitle: "You can explain a neural net.",
-    victorySubtitle: "You learned the loop, not magic.",
-    gameOverTitle: "Run ended. Lesson stays.",
-    gameOverSubtitle: "Try again. Watch the dominant concept."
+    floorClearSubtitle: "Input -> weight -> concept -> output.",
+    victoryTitle: "You can explain neural nets.",
+    victorySubtitle: "You know the loop and the why.",
+    gameOverTitle: "Run ended. Keep the lesson.",
+    gameOverSubtitle: "Try again. Track the loop."
   },
 
   // Rename upgrades only (do not touch effects).
   upgradeRename: {
-    comfy_soles:   { name: "Faster iteration", desc: "Move faster. Run more tests." },
-    quick_trigger: { name: "Lower latency", desc: "Shorter delay. More output." },
-    wide_shots:    { name: "Wider coverage", desc: "Bigger hit window." },
-    fast_rounds:   { name: "Higher throughput", desc: "Faster shots. More tries." },
-    ghost_rounds:  { name: "Residual pass", desc: "One shot hits again." },
-    heart_container:{ name: "Error budget", desc: "More max health. Heal +1." },
-    bubble_shield: { name: "Guardrails", desc: "Block a mistake." },
-    grace_frames:  { name: "Stability window", desc: "More time after a hit." },
-    magnet_hands:  { name: "Data magnet", desc: "Pull pickups in." },
-    slowmo_aura:   { name: "Time dilation", desc: "Slow incoming bullets." }
+    comfy_soles: { name: "Faster practice", desc: "Move faster. Test more." },
+    quick_trigger: { name: "Fast feedback", desc: "Shoot sooner. See results faster." },
+    wide_shots: { name: "Wider decision line", desc: "Bigger hit area." },
+    fast_rounds: { name: "More practice cycles", desc: "More shots each moment." },
+    ghost_rounds: { name: "Skip path", desc: "One shot can pass through." },
+    heart_container: { name: "Error room", desc: "More max health. Heal +1." },
+    bubble_shield: { name: "Safety rule", desc: "Block one hit." },
+    grace_frames: { name: "Reset window", desc: "More safe time after hit." },
+    magnet_hands: { name: "Data pull", desc: "Pull pickups from farther." },
+    slowmo_aura: { name: "Slow noise", desc: "Enemy bullets move slower." }
   },
 
   // Share copy helper (if share modal exists)
   share: {
     title: "Share what you learned",
-    oneLiner: "Post the floor you reached and the loop.",
+    oneLiner: "Share your floor and the model loop.",
     buildPost: {
       line1: "I reached Floor {floor} of 9 in Neural Glass.",
-      line2: "Neural nets: inputs → weights → concepts → prediction.",
+      line2: "Neural net loop: input -> weight -> concept -> output.",
       line3: "Dominant concept drives the output.",
       line4: "{url}"
     }

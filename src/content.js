@@ -9,7 +9,7 @@
   const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
   const LESSON_TEXT_MAX_CHARS = 4000;
   const LESSON_TEXT_FALLBACK =
-    "A churn model takes product activity and support history as inputs. Weights scale each input, then hidden concepts like loyalty or frustration activate. The output is one churn-risk score. Small input changes can flip the dominant concept and change that prediction.";
+    "A churn model starts with input numbers like logins and tickets. Weights scale each input. Hidden concepts combine those weighted signals. The model outputs one churn-risk score.";
   const LESSON_STOPWORDS = new Set([
     "a",
     "an",
@@ -46,69 +46,69 @@
   ]);
   const UPGRADE_TEACH_MAP = {
     comfy_soles: {
-      title: "Feature velocity",
-      oneLiner: "Faster iteration improves model feedback loops.",
-      bullets: ["Move input faster.", "Observe output shifts.", "Iteration reveals signal."]
+      title: "More input reps",
+      oneLiner: "More practice gives more useful examples.",
+      bullets: ["Collect more cases.", "Patterns appear faster.", "Practice improves guesses."]
     },
     quick_trigger: {
-      title: "Inference latency",
-      oneLiner: "Lower delay makes prediction feedback immediate.",
-      bullets: ["Short delay matters.", "Fast loops teach quicker.", "Latency hides patterns."]
+      title: "Fast feedback",
+      oneLiner: "Quick results help you adjust sooner.",
+      bullets: ["Short delay helps learning.", "Fix errors faster.", "Fast loops teach quicker."]
     },
     wide_shots: {
-      title: "Decision boundaries",
-      oneLiner: "Wider coverage catches nearby classifications.",
-      bullets: ["Boundary defines class.", "Near misses become hits.", "Coverage reduces gaps."]
+      title: "Decision line",
+      oneLiner: "Boundaries separate classes like yes or no.",
+      bullets: ["Boundary splits outcomes.", "Near cases can flip.", "Small shifts matter."]
     },
     fast_rounds: {
-      title: "Training throughput",
-      oneLiner: "More passes expose more useful variation.",
-      bullets: ["More attempts per second.", "Higher sample exposure.", "Throughput needs control."]
+      title: "Training rounds",
+      oneLiner: "More rounds means more chances to learn.",
+      bullets: ["More tries per second.", "See patterns sooner.", "Keep control while scaling."]
     },
     ghost_rounds: {
-      title: "Residual paths",
-      oneLiner: "Signals can pass through multiple layers.",
-      bullets: ["Information keeps flowing.", "Depth stays trainable.", "Skip paths stabilize."]
+      title: "Hidden path",
+      oneLiner: "Extra paths help signal keep moving.",
+      bullets: ["Signal is less lost.", "Deep stacks stay trainable.", "More paths, same goal."]
     },
     heart_container: {
       title: "Error budget",
-      oneLiner: "Capacity for mistakes improves learning resilience.",
-      bullets: ["Budget absorbs noise.", "Recovery keeps progress.", "Limits still matter."]
+      oneLiner: "Some mistakes are okay while learning.",
+      bullets: ["Absorb a bad step.", "Recover and continue.", "Limits still matter."]
     },
     bubble_shield: {
-      title: "Guardrail layer",
-      oneLiner: "Constraints prevent single failures from cascading.",
-      bullets: ["Block one bad hit.", "Keep system stable.", "Safety before speed."]
+      title: "Guardrail",
+      oneLiner: "Guardrails block one bad mistake.",
+      bullets: ["Safety prevents collapse.", "One hit is absorbed.", "Stable systems learn better."]
     },
     grace_frames: {
-      title: "Stability windows",
-      oneLiner: "Short buffers reduce unstable oscillations.",
-      bullets: ["Pause after impact.", "Stabilize next step.", "Avoid feedback spikes."]
+      title: "Stability time",
+      oneLiner: "A short pause reduces noisy swings.",
+      bullets: ["Pause after impact.", "Reset before next step.", "Less noise, clearer signal."]
     },
     magnet_hands: {
-      title: "Signal retrieval",
-      oneLiner: "Good sampling pulls useful data closer.",
-      bullets: ["Collect useful examples.", "Reduce wasted motion.", "Data quality first."]
+      title: "Useful data",
+      oneLiner: "Better sampling pulls useful examples closer.",
+      bullets: ["Collect helpful cases.", "Spend less time on noise.", "Better data, better output."]
     },
     slowmo_aura: {
-      title: "Time-scale control",
-      oneLiner: "Slower incoming noise improves reaction quality.",
-      bullets: ["Lower noise velocity.", "More decision time.", "Control over chaos."]
+      title: "Noise control",
+      oneLiner: "Slower noise gives cleaner decisions.",
+      bullets: ["Reduce fast noise.", "Gain reaction time.", "Cleaner signal wins."]
     },
     fallback_heal: {
-      title: "Patch noisy labels",
-      oneLiner: "Small corrections preserve the training run.",
-      bullets: ["Fix one immediate error.", "Restore learning capacity.", "Continue with caution."]
+      title: "Quick fix",
+      oneLiner: "Small fixes keep learning on track.",
+      bullets: ["Repair one mistake.", "Keep run stable.", "Then continue learning."]
     },
     fallback_gold: {
-      title: "Pause before update",
-      oneLiner: "Extra buffer avoids unstable parameter jumps.",
-      bullets: ["Add brief protection.", "Reduce update shocks.", "Favor stable steps."]
+      title: "Pause step",
+      oneLiner: "A short pause prevents bad jumps.",
+      bullets: ["Add brief safety.", "Avoid unstable updates.", "Choose control first."]
     },
     default: {
-      title: "Model loop check",
-      oneLiner: "Inputs become signals, then one prediction.",
-      bullets: ["Read the example.", "Track dominant signals.", "Explain the output."]
+      title: "Model loop",
+      oneLiner: "Inputs become signals, then one score.",
+      bullets: ["Read the example.", "Find strong signals.", "Explain the score."]
     }
   };
 
@@ -223,7 +223,7 @@
     const teach = UPGRADE_TEACH_MAP[key] || UPGRADE_TEACH_MAP.default;
     const snippet = getLessonSnippet(floorId);
     const keywords = extractKeywords(snippet, 6);
-    const keywordLine = keywords.length > 0 ? `Top words: ${keywords.join(", ")}` : "Top words: none";
+    const keywordLine = keywords.length > 0 ? `Key words: ${keywords.join(", ")}` : "Key words: none";
 
     return {
       title: teach.title,
@@ -271,7 +271,7 @@
     const floorId = floor && Number.isFinite(floor.id) ? floor.id : 1;
     const entry = cards.find((card) => card && Number(card.floor) === floorId) || null;
     const floorFallbackTitle = `Floor ${floorId}`;
-    const floorFallbackSubtitle = "Raw data -> weights -> concepts -> prediction.";
+    const floorFallbackSubtitle = "Input -> weight -> concept -> output.";
     const lessonUpgradeId =
       AIPU.state &&
       AIPU.state.game &&
@@ -315,7 +315,7 @@
   }
 
   function getWhatYouLearnedBullets() {
-    const generic = ["Inputs are raw data.", "Weights prioritize signals.", "Dominant concept drives output."];
+    const generic = ["Inputs are numbers.", "Weights set importance.", "Concepts drive the score."];
     const upgradeState = AIPU.upgrades && AIPU.upgrades.upgradeState ? AIPU.upgrades.upgradeState : null;
     const history = upgradeState && Array.isArray(upgradeState.history) ? upgradeState.history : [];
     if (history.length === 0) {
