@@ -112,19 +112,19 @@
     }
   };
   const UPGRADE_HELP_BULLETS = {
-    comfy_soles: "This upgrade helps you test more cases.",
-    quick_trigger: "This upgrade gives faster feedback.",
-    wide_shots: "This upgrade makes hit decisions easier.",
-    fast_rounds: "This upgrade increases practice rounds.",
-    ghost_rounds: "This upgrade keeps signal moving.",
-    heart_container: "This upgrade gives room for mistakes.",
-    bubble_shield: "This upgrade adds a safety layer.",
-    grace_frames: "This upgrade gives reset time.",
-    magnet_hands: "This upgrade pulls in useful data.",
-    slowmo_aura: "This upgrade slows noisy pressure.",
-    fallback_heal: "This effect helps recover and continue.",
-    fallback_gold: "This effect gives a safer pause.",
-    default: "This choice supports the learning loop."
+    comfy_soles: "Practice cycles",
+    quick_trigger: "Feedback speed",
+    wide_shots: "Decision boundary width",
+    fast_rounds: "Training throughput",
+    ghost_rounds: "Signal skip path",
+    heart_container: "Error budget",
+    bubble_shield: "Safety guardrail",
+    grace_frames: "Stability window",
+    magnet_hands: "Useful data sampling",
+    slowmo_aura: "Noise rate control",
+    fallback_heal: "Recovery step",
+    fallback_gold: "Pause step",
+    default: "Learning loop support"
   };
 
   function pickNarrativeText(value, fallback) {
@@ -239,7 +239,8 @@
     const safeFloor = Math.max(1, Number.parseInt(String(floorId), 10) || 1);
     const floorCard = cards.find((card) => card && Number(card.floor) === safeFloor) || null;
     const fallbackTeach = UPGRADE_TEACH_MAP.default;
-    const helperBullet = UPGRADE_HELP_BULLETS[key] || UPGRADE_HELP_BULLETS.default;
+    const helperLabel = UPGRADE_HELP_BULLETS[key] || UPGRADE_HELP_BULLETS.default;
+    const helperBullet = `Upgrade map: ${helperLabel}.`;
 
     const title = pickNarrativeText(
       floorCard && floorCard.title,

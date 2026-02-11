@@ -437,7 +437,8 @@
 
         ctx.fillStyle = TOKENS.ink;
         ctx.font = '700 14px "Inter", sans-serif';
-        ctx.fillText("Teach Card", innerX, y);
+        const teachPanelLabel = getNarrativeUiText("teachCardTitlePrefix", "Teach Card");
+        ctx.fillText(fitCanvasText(teachPanelLabel, innerW), innerX, y);
         y += 24;
 
         const teachTitleSize = fitHeadingFontSize(teachCard.title, innerW, 30, 24, 2);

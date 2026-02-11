@@ -126,9 +126,9 @@ window.AI_POWER_USER_NARRATIVE = {
   // Small UI lines used elsewhere (upgrade screen, etc.)
   ui: {
     teachCardHint: "Enter: upgrades • 1: happy • 2: at-risk",
-    teachCardTitlePrefix: "Teach Card",
+    teachCardTitlePrefix: "Neural-net component",
     upgradePickTitle: "Pick one learning boost",
-    upgradePickSubtitle: "Read. Choose. Learn one idea.",
+    upgradePickSubtitle: "Each upgrade maps to one net part.",
     floorClearTitle: "Floor cleared",
     floorClearSubtitle: "Input -> weight -> concept -> output.",
     victoryTitle: "You can explain neural nets.",
