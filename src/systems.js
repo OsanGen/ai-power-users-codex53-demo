@@ -2,7 +2,16 @@
   "use strict";
 
   const AIPU = window.AIPU;
-  const { canvas, overlayRestartBtn } = AIPU.dom;
+  const {
+    canvas,
+    gameFrame,
+    overlayRestartBtn,
+    textModalEl,
+    lessonTextInputEl,
+    lessonTextSaveBtn,
+    lessonTextSampleBtn,
+    lessonTextCloseBtn
+  } = AIPU.dom;
   const { TOKENS, GameState, WORLD, BASE_MAX_HP } = AIPU.constants;
   const { game, player } = AIPU.state;
   const { keys } = AIPU.input;
@@ -32,10 +41,23 @@
   let simAccumulator = 0;
   const SIM_STEP = 1 / 60;
   const MAX_ACCUMULATED_TIME = 0.25;
+  const BOMB_FLASH_DURATION = 0.22;
   const CHECKPOINT_FLOOR_KEY = "checkpoint_floor_v1";
+  const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
+  const LESSON_TEXT_MAX_CHARS = 4000;
+  const LESSON_TEXT_SAMPLE =
+    "A churn model takes product activity and support history as inputs. Weights scale each input, then hidden concepts like loyalty or frustration activate. The output is one churn-risk score. Small input changes can flip the dominant concept and change that prediction.";
 
   function isShareModalOpen() {
     return !!shareUI && shareUI.isOpen();
+  }
+
+  function isTextModalOpen() {
+    return !!textModalEl && !textModalEl.classList.contains("hidden");
+  }
+
+  function isAnyModalOpen() {
+    return isShareModalOpen() || isTextModalOpen();
   }
 
   function clearInputState() {
@@ -85,7 +107,133 @@
     }
   }
 
+  function normalizeLessonText(value) {
+    const normalized = String(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return normalized.slice(0, LESSON_TEXT_MAX_CHARS);
+  }
+
+  function readStoredLessonText() {
+    try {
+      const raw = localStorage.getItem(LESSON_TEXT_KEY);
+      return normalizeLessonText(raw);
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function writeStoredLessonText(value) {
+    const normalized = normalizeLessonText(value);
+    try {
+      localStorage.setItem(LESSON_TEXT_KEY, normalized);
+    } catch (error) {
+      void error;
+    }
+    return normalized;
+  }
+
+  function setLessonTextValue(value, options = {}) {
+    const normalized = normalizeLessonText(value);
+    if (options.commit !== false) {
+      game.lessonSourceText = normalized;
+    }
+    if (lessonTextInputEl) {
+      lessonTextInputEl.value = normalized;
+    }
+    return normalized;
+  }
+
+  function openTextModal() {
+    if (!textModalEl) {
+      return;
+    }
+    const floor = currentFloor();
+    textModalEl.style.setProperty("--share-accent", accentColor((floor && floor.accent) || "yellow"));
+    clearInputState();
+    setLessonTextValue(game.lessonSourceText || "", { commit: false });
+    textModalEl.classList.remove("hidden");
+    textModalEl.setAttribute("aria-hidden", "false");
+    if (lessonTextInputEl && typeof lessonTextInputEl.focus === "function") {
+      lessonTextInputEl.focus();
+      lessonTextInputEl.setSelectionRange(lessonTextInputEl.value.length, lessonTextInputEl.value.length);
+    }
+  }
+
+  function closeTextModal(options = {}) {
+    if (!textModalEl) {
+      return;
+    }
+    const save = !!options.save;
+    if (save) {
+      const value = lessonTextInputEl ? lessonTextInputEl.value : "";
+      const normalized = writeStoredLessonText(value);
+      setLessonTextValue(normalized);
+    }
+    textModalEl.classList.add("hidden");
+    textModalEl.setAttribute("aria-hidden", "true");
+    clearInputState();
+    const focusTarget = gameFrame || canvas;
+    if (focusTarget && typeof focusTarget.focus === "function") {
+      focusTarget.focus();
+    }
+  }
+
+  function initializeLessonTextModal() {
+    const stored = readStoredLessonText();
+    setLessonTextValue(stored);
+
+    if (lessonTextSaveBtn) {
+      lessonTextSaveBtn.addEventListener("click", () => {
+        closeTextModal({ save: true });
+      });
+    }
+
+    if (lessonTextSampleBtn) {
+      lessonTextSampleBtn.addEventListener("click", () => {
+        setLessonTextValue(LESSON_TEXT_SAMPLE, { commit: false });
+        if (lessonTextInputEl && typeof lessonTextInputEl.focus === "function") {
+          lessonTextInputEl.focus();
+          lessonTextInputEl.setSelectionRange(0, 0);
+        }
+      });
+    }
+
+    if (lessonTextCloseBtn) {
+      lessonTextCloseBtn.addEventListener("click", () => {
+        closeTextModal({ save: false });
+      });
+    }
+
+    if (textModalEl) {
+      textModalEl.addEventListener("keydown", (event) => {
+        if (!isTextModalOpen()) {
+          return;
+        }
+        if (event.key === "Escape") {
+          event.preventDefault();
+          event.stopPropagation();
+          closeTextModal({ save: false });
+        }
+      });
+    }
+  }
+
+  initializeLessonTextModal();
+
   window.addEventListener("keydown", (event) => {
+    if (isTextModalOpen()) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeTextModal({ save: false });
+      }
+      return;
+    }
+
+    if (isShareModalOpen()) {
+      return;
+    }
+
     keys[event.key] = true;
 
     if (event.key.startsWith("Arrow")) {
@@ -94,10 +242,6 @@
 
     if (event.key === "`" || event.key === "~") {
       game.showDebugStats = !game.showDebugStats;
-      return;
-    }
-
-    if (isShareModalOpen()) {
       return;
     }
 
@@ -123,6 +267,8 @@
           game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
         }
         startRun();
+      } else if (lower === "t") {
+        openTextModal();
       } else if (lower === "r") {
         clearCheckpointFloor();
         startRun(1);
@@ -143,6 +289,8 @@
       } else if (event.key === "Escape") {
         game.upgradeNoticeTimer = 1.2;
       }
+    } else if (game.state === GameState.PLAYING && event.key === " ") {
+      triggerBomb();
     } else if (game.state === GameState.FLOOR_INTRO && (event.key === " " || event.key === "Enter")) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
@@ -167,7 +315,7 @@
   canvas.style.touchAction = "none";
 
   canvas.addEventListener("mousemove", (event) => {
-    if (game.state !== GameState.UPGRADE_SELECT || isShareModalOpen()) {
+    if (game.state !== GameState.UPGRADE_SELECT || isAnyModalOpen()) {
       return;
     }
 
@@ -179,7 +327,7 @@
   });
 
   canvas.addEventListener("click", (event) => {
-    if (game.state !== GameState.UPGRADE_SELECT || isShareModalOpen()) {
+    if (game.state !== GameState.UPGRADE_SELECT || isAnyModalOpen()) {
       return;
     }
 
@@ -384,7 +532,10 @@
     game.upgradeConfirmCooldown = 0;
     game.upgradeNoticeTimer = 0;
     game.upgradeCardRects = [];
+    game.floorLessonUpgradeId = "";
     game.floorFallbackInvulnBonus = 0;
+    game.bombUsedThisFloor = false;
+    game.bombFlashTimer = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -427,7 +578,10 @@
     game.upgradeConfirmCooldown = 0;
     game.upgradeNoticeTimer = 0;
     game.upgradeCardRects = [];
+    game.floorLessonUpgradeId = "";
     game.floorFallbackInvulnBonus = 0;
+    game.bombUsedThisFloor = false;
+    game.bombFlashTimer = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -468,6 +622,8 @@
     player.shieldBreakFlash = 0;
     player.invuln = 0;
     player.fireCooldown = 0;
+    game.bombUsedThisFloor = false;
+    game.bombFlashTimer = 0;
     game.upgradeConfirmCooldown = 0;
     resetPlayerPosition();
 
@@ -523,6 +679,10 @@
 
     if (game.upgradeNoticeTimer > 0) {
       game.upgradeNoticeTimer = Math.max(0, game.upgradeNoticeTimer - dt);
+    }
+
+    if (game.bombFlashTimer > 0) {
+      game.bombFlashTimer = Math.max(0, game.bombFlashTimer - dt);
     }
 
     if (player.shieldBreakFlash > 0) {
@@ -615,6 +775,27 @@
     updateEnemies(dt, true);
     updatePickups(dt);
     handleCollisions();
+  }
+
+  function triggerBomb() {
+    if (game.state !== GameState.PLAYING || game.bombUsedThisFloor) {
+      return;
+    }
+
+    const removedEnemies = enemies.length;
+    if (removedEnemies > 0) {
+      game.kills += removedEnemies;
+    }
+
+    game.bombUsedThisFloor = true;
+    game.bombFlashTimer = BOMB_FLASH_DURATION;
+
+    const flashAccent = currentAccent();
+    emitBurst(WORLD.x + WORLD.w * 0.5, WORLD.y + WORLD.h * 0.5, flashAccent, 16, 180);
+    emitBurst(player.x, player.y, flashAccent, 10, 210);
+
+    enemies = [];
+    enemyBullets = [];
   }
 
   function updatePlayerMovement(dt) {
@@ -1100,7 +1281,7 @@
       player.shieldCharges -= 1;
       player.shieldBreakFlash = 0.22;
       player.invuln = invulnDuration;
-      emitBurst(player.x, player.y, accentColor("blue"), 10, 175);
+      emitBurst(player.x, player.y, currentAccent(), 10, 175);
       return;
     }
 
@@ -1215,6 +1396,7 @@
 
     game.upgradeConfirmCooldown = 0.18;
     game.upgradeNoticeTimer = 0;
+    game.floorLessonUpgradeId = option.fallbackBaseId || option.id;
     beginCurrentFloor();
   }
 
@@ -1239,6 +1421,7 @@
     beginCurrentFloor,
     update,
     updateGameplay,
+    triggerBomb,
     emitBurst
   };
 })();

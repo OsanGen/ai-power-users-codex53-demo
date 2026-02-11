@@ -22,6 +22,27 @@
       <section id="gameFrame" class="game-frame" tabindex="-1">
         <canvas id="game" width="1280" height="720" aria-label="AI Power Users game canvas"></canvas>
         <button id="overlayRestartBtn" type="button" class="overlay-restart hidden">Restart</button>
+        <div
+          id="textModal"
+          class="modal hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="textModalTitle"
+          aria-hidden="true"
+        >
+          <div class="modal-panel">
+            <div class="modal-accent" aria-hidden="true"></div>
+            <h2 id="textModalTitle">Source text</h2>
+            <p class="modal-note">This text will be used as the example input for neural-net lessons.</p>
+            <label class="sr-only" for="lessonTextInput">Lesson source text</label>
+            <textarea id="lessonTextInput" class="share-text" aria-label="Lesson source text"></textarea>
+            <div class="modal-actions">
+              <button id="lessonTextSaveBtn" type="button" class="btn btn-primary">Save</button>
+              <button id="lessonTextSampleBtn" type="button" class="btn">Use sample text</button>
+              <button id="lessonTextCloseBtn" type="button" class="btn">Close</button>
+            </div>
+          </div>
+        </div>
         <div id="shareModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shareTitle" aria-hidden="true">
           <div class="modal-panel">
             <div class="modal-accent" aria-hidden="true"></div>

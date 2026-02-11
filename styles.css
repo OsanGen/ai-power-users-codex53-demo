@@ -140,7 +140,7 @@ canvas {
 .modal-accent {
   height: 6px;
   border-radius: 999px;
-  background: var(--share-accent, var(--cog-pink));
+  background: var(--share-accent, var(--cog-yellow));
   margin-bottom: 0.72rem;
 }
 
@@ -220,7 +220,7 @@ canvas {
 }
 
 .btn.btn-primary {
-  background: var(--share-accent, var(--cog-pink));
+  background: var(--share-accent, var(--cog-yellow));
 }
 
 .modal-check {

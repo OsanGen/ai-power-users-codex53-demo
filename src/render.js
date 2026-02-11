@@ -244,6 +244,10 @@
     if (game.state === GameState.DEATH_ANIM) {
       drawDeathAnim();
     }
+
+    if (game.bombFlashTimer > 0) {
+      drawBombFlash(accent);
+    }
   }
 
   function drawDeathAnim() {
@@ -307,6 +311,31 @@
     }
   }
 
+  function drawBombFlash(accent) {
+    const flashDuration = 0.22;
+    const progress = clamp(game.bombFlashTimer / flashDuration, 0, 1);
+    if (progress <= 0) {
+      return;
+    }
+
+    const pulse = 1 - progress;
+    const ringRadius = 90 + pulse * 420;
+
+    ctx.save();
+    ctx.fillStyle = rgba(accent, 0.12 * progress);
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.52 * progress);
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(WIDTH * 0.5, HEIGHT * 0.5, ringRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = rgba(accent, 0.2 * progress);
+    fillRoundRect(WIDTH * 0.5 - 72, HEIGHT * 0.5 - 7, 144, 14, 999);
+    ctx.restore();
+  }
+
   function drawUpgradeSelect(floor, accent) {
     const panelX = 84;
     const panelY = 70;
@@ -326,7 +355,53 @@
     const pickTitle = getNarrativeUiText("upgradePickTitle", "Pick an upgrade");
     const pickSubtitle = getNarrativeUiText("upgradePickSubtitle", "Stack small power. Keep control.");
     const floorLesson = floorCopy && floorCopy.title ? floorCopy.title : `Floor ${floor.id}`;
-    const cardRects = computeUpgradeCardRects(panelX, panelY, panelW, panelH, game.upgradeOptions.length);
+    const selectedOption = game.upgradeOptions[game.upgradeSelectedIndex] || game.upgradeOptions[0] || null;
+    const teachCardRaw =
+      selectedOption && typeof AIPU.content.buildTeachCardForUpgrade === "function"
+        ? AIPU.content.buildTeachCardForUpgrade(selectedOption.id, floor.id)
+        : null;
+    const teachCard = {
+      title:
+        teachCardRaw && typeof teachCardRaw.title === "string" && teachCardRaw.title.trim()
+          ? teachCardRaw.title.trim()
+          : "Model loop check",
+      oneLiner:
+        teachCardRaw && typeof teachCardRaw.oneLiner === "string" && teachCardRaw.oneLiner.trim()
+          ? teachCardRaw.oneLiner.trim()
+          : "Inputs become signals, then one prediction.",
+      bullets:
+        teachCardRaw && Array.isArray(teachCardRaw.bullets)
+          ? teachCardRaw.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3)
+          : ["Read the example.", "Track dominant signals.", "Explain the output."],
+      exampleLabel:
+        teachCardRaw && typeof teachCardRaw.exampleLabel === "string" && teachCardRaw.exampleLabel.trim()
+          ? teachCardRaw.exampleLabel.trim()
+          : "From your text:",
+      exampleText:
+        teachCardRaw && typeof teachCardRaw.exampleText === "string" && teachCardRaw.exampleText.trim()
+          ? teachCardRaw.exampleText.trim()
+          : "No saved text yet.\nTop words: none"
+    };
+    const teachExampleLines = teachCard.exampleText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+    const teachSnippet = teachExampleLines[0] || "No saved text yet.";
+    const teachTokensLine = teachExampleLines.slice(1).join(" ").trim() || "Top words: none";
+
+    const contentTop = panelY + 198;
+    const contentBottom = panelY + panelH - 76;
+    const contentH = Math.max(220, contentBottom - contentTop);
+    const contentX = panelX + 34;
+    const contentW = panelW - 68;
+    const splitGap = 20;
+    const teachW = Math.floor(clamp(contentW * 0.33, 312, 368));
+    const cardsW = contentW - teachW - splitGap;
+    const cardsX = contentX;
+    const teachX = cardsX + cardsW + splitGap;
+    const teachY = contentTop;
+
+    const cardRects = computeUpgradeCardRects(cardsX, contentTop, cardsW, game.upgradeOptions.length, {
+      gap: 16,
+      cardH: 236
+    });
     game.upgradeCardRects = cardRects;
     normalizeUpgradeSelection();
 
@@ -357,6 +432,72 @@
         drawUpgradeCard(option, rect, selected, accent);
       }
 
+      ctx.fillStyle = TOKENS.fog;
+      fillRoundRect(teachX, teachY, teachW, contentH, 16);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(teachX, teachY, teachW, contentH, 16);
+
+      ctx.fillStyle = rgba(accent, 0.24);
+      fillRoundRect(teachX + 12, teachY + 10, teachW - 24, 7, 999);
+
+      withClipRect(teachX + 10, teachY + 10, teachW - 20, contentH - 20, () => {
+        const innerX = teachX + 16;
+        const innerW = teachW - 32;
+        let y = teachY + 24;
+
+        ctx.fillStyle = TOKENS.ink;
+        ctx.font = '700 14px "Inter", sans-serif';
+        ctx.fillText("Teach Card", innerX, y);
+        y += 24;
+
+        const teachTitleSize = fitHeadingFontSize(teachCard.title, innerW, 30, 24, 2);
+        ctx.font = `700 ${teachTitleSize}px "Sora", "Inter", sans-serif`;
+        y = drawWrappedText(teachCard.title, innerX, y, innerW, Math.round(teachTitleSize * 1.13), { maxLines: 2 });
+
+        y += 6;
+        ctx.font = '600 17px "Inter", sans-serif';
+        y = drawWrappedText(teachCard.oneLiner, innerX, y, innerW, 23, { maxLines: 2 });
+
+        y += 8;
+        ctx.font = '600 15px "Inter", sans-serif';
+        for (let i = 0; i < teachCard.bullets.length; i += 1) {
+          const bulletText = `• ${teachCard.bullets[i]}`;
+          y = drawWrappedText(bulletText, innerX, y, innerW, 20, { maxLines: 1 });
+        }
+
+        const exampleBoxY = Math.max(y + 8, teachY + contentH - 146);
+        const exampleBoxH = teachY + contentH - 16 - exampleBoxY;
+        if (exampleBoxH > 64) {
+          ctx.fillStyle = TOKENS.white;
+          fillRoundRect(innerX, exampleBoxY, innerW, exampleBoxH, 12);
+          ctx.strokeStyle = TOKENS.ink;
+          ctx.lineWidth = 2;
+          strokeRoundRect(innerX, exampleBoxY, innerW, exampleBoxH, 12);
+
+          ctx.fillStyle = TOKENS.ink;
+          ctx.font = '700 13px "Inter", sans-serif';
+          ctx.fillText(fitCanvasText(teachCard.exampleLabel, innerW - 20), innerX + 10, exampleBoxY + 8);
+
+          ctx.font = '500 13px "Inter", sans-serif';
+          const snippetTop = exampleBoxY + 28;
+          const snippetBottomCap = exampleBoxY + exampleBoxH - 34;
+          const snippetMaxLines = Math.max(1, Math.floor((snippetBottomCap - snippetTop) / 18));
+          drawWrappedText(teachSnippet, innerX + 10, snippetTop, innerW - 20, 18, {
+            maxLines: Math.min(4, snippetMaxLines)
+          });
+
+          ctx.fillStyle = rgba(accent, 0.2);
+          fillRoundRect(innerX + 10, exampleBoxY + exampleBoxH - 24, innerW - 20, 16, 999);
+          ctx.strokeStyle = TOKENS.ink;
+          ctx.lineWidth = 1.5;
+          strokeRoundRect(innerX + 10, exampleBoxY + exampleBoxH - 24, innerW - 20, 16, 999);
+          ctx.fillStyle = TOKENS.ink;
+          ctx.font = '700 11px "Inter", sans-serif';
+          ctx.fillText(fitCanvasText(teachTokensLine, innerW - 30), innerX + 16, exampleBoxY + exampleBoxH - 21);
+        }
+      });
+
       const footerText = "1-3 pick • Enter confirm • Esc disabled";
       ctx.font = '600 17px "Inter", sans-serif';
       ctx.fillStyle = TOKENS.ink;
@@ -374,31 +515,28 @@
     }
   }
 
-  function computeUpgradeCardRects(panelX, panelY, panelW, panelH, optionCount) {
+  function computeUpgradeCardRects(areaX, areaY, areaW, optionCount, options = {}) {
     if (optionCount <= 0) {
       return [];
     }
 
-    const innerX = panelX + 34;
-    const innerY = panelY + 210;
-    const innerW = panelW - 68;
-    const gap = 20;
+    const gap = Number.isFinite(options.gap) ? options.gap : 20;
+    const cardH = Number.isFinite(options.cardH) ? options.cardH : 230;
 
-    if (optionCount === 3 && innerW < 800) {
-      const cardW = Math.floor((innerW - gap) / 2);
-      const cardH = 148;
+    if (optionCount === 3 && areaW < 640) {
+      const cardW = Math.floor((areaW - gap) / 2);
+      const stackedH = Math.max(160, Math.min(cardH, 178));
       return [
-        { x: innerX, y: innerY, w: cardW, h: cardH },
-        { x: innerX + cardW + gap, y: innerY, w: cardW, h: cardH },
-        { x: innerX + Math.floor((innerW - cardW) * 0.5), y: innerY + cardH + gap, w: cardW, h: cardH }
+        { x: areaX, y: areaY, w: cardW, h: stackedH },
+        { x: areaX + cardW + gap, y: areaY, w: cardW, h: stackedH },
+        { x: areaX + Math.floor((areaW - cardW) * 0.5), y: areaY + stackedH + gap, w: cardW, h: stackedH }
       ];
     }
 
-    const cardW = Math.floor((innerW - gap * (optionCount - 1)) / optionCount);
-    const cardH = 230;
+    const cardW = Math.floor((areaW - gap * (optionCount - 1)) / optionCount);
     const rects = [];
     for (let i = 0; i < optionCount; i += 1) {
-      rects.push({ x: innerX + i * (cardW + gap), y: innerY, w: cardW, h: cardH });
+      rects.push({ x: areaX + i * (cardW + gap), y: areaY, w: cardW, h: cardH });
     }
     return rects;
   }
@@ -604,7 +742,10 @@
     // Title copy is drawn in a clipped context. Re-apply prompt anchors after clip restore.
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const prompt = titleCard.footerHint || "Enter: start";
+    let prompt = titleCard.footerHint || "Enter: start";
+    if (!/t:\s*set text/i.test(prompt)) {
+      prompt = "Enter: start • T: set text";
+    }
     ctx.font = '700 18px "Inter", sans-serif';
     const promptWidth = ctx.measureText(prompt).width;
     const promptH = 38;
@@ -1244,7 +1385,7 @@
     if (player.shieldCharges > 0) {
       const shieldX = 252;
       const shieldY = 36;
-      ctx.fillStyle = rgba(accentColor("blue"), 0.22);
+      ctx.fillStyle = rgba(accent, 0.22);
       fillRoundRect(shieldX, shieldY, 118, 30, 999);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
@@ -1289,6 +1430,26 @@
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 16px "Inter", sans-serif';
     ctx.fillText(timerText, timerBoxX + timerW + 14, timerBoxY + timerH * 0.5 + 1);
+
+    const bombBoxW = 184;
+    const bombBoxH = 30;
+    const bombBoxX = timerBoxX - bombBoxW - 18;
+    const bombBoxY = timerBoxY;
+    const bombReady = !game.bombUsedThisFloor;
+    const bombText = bombReady ? "Bomb (Space): Ready" : "Bomb: Used";
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
+
+    ctx.fillStyle = rgba(accent, bombReady ? 0.34 : 0.18);
+    fillRoundRect(bombBoxX + 10, bombBoxY + 7, 7, bombBoxH - 14, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.fillText(fitCanvasText(bombText, bombBoxW - 34), bombBoxX + 24, bombBoxY + 18);
 
     drawUpgradeHudPanel(accent);
     drawDebugStatsLine(accent);

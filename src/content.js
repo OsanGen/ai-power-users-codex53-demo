@@ -6,9 +6,246 @@
 
   const N = window.AI_POWER_USER_NARRATIVE || null;
   console.log("[narrative] loaded:", !!window.AI_POWER_USER_NARRATIVE);
+  const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
+  const LESSON_TEXT_MAX_CHARS = 4000;
+  const LESSON_TEXT_FALLBACK =
+    "A churn model takes product activity and support history as inputs. Weights scale each input, then hidden concepts like loyalty or frustration activate. The output is one churn-risk score. Small input changes can flip the dominant concept and change that prediction.";
+  const LESSON_STOPWORDS = new Set([
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "this",
+    "to",
+    "was",
+    "we",
+    "with",
+    "you",
+    "your",
+    "they",
+    "their",
+    "then",
+    "than",
+    "into",
+    "one",
+    "can"
+  ]);
+  const UPGRADE_TEACH_MAP = {
+    comfy_soles: {
+      title: "Feature velocity",
+      oneLiner: "Faster iteration improves model feedback loops.",
+      bullets: ["Move input faster.", "Observe output shifts.", "Iteration reveals signal."]
+    },
+    quick_trigger: {
+      title: "Inference latency",
+      oneLiner: "Lower delay makes prediction feedback immediate.",
+      bullets: ["Short delay matters.", "Fast loops teach quicker.", "Latency hides patterns."]
+    },
+    wide_shots: {
+      title: "Decision boundaries",
+      oneLiner: "Wider coverage catches nearby classifications.",
+      bullets: ["Boundary defines class.", "Near misses become hits.", "Coverage reduces gaps."]
+    },
+    fast_rounds: {
+      title: "Training throughput",
+      oneLiner: "More passes expose more useful variation.",
+      bullets: ["More attempts per second.", "Higher sample exposure.", "Throughput needs control."]
+    },
+    ghost_rounds: {
+      title: "Residual paths",
+      oneLiner: "Signals can pass through multiple layers.",
+      bullets: ["Information keeps flowing.", "Depth stays trainable.", "Skip paths stabilize."]
+    },
+    heart_container: {
+      title: "Error budget",
+      oneLiner: "Capacity for mistakes improves learning resilience.",
+      bullets: ["Budget absorbs noise.", "Recovery keeps progress.", "Limits still matter."]
+    },
+    bubble_shield: {
+      title: "Guardrail layer",
+      oneLiner: "Constraints prevent single failures from cascading.",
+      bullets: ["Block one bad hit.", "Keep system stable.", "Safety before speed."]
+    },
+    grace_frames: {
+      title: "Stability windows",
+      oneLiner: "Short buffers reduce unstable oscillations.",
+      bullets: ["Pause after impact.", "Stabilize next step.", "Avoid feedback spikes."]
+    },
+    magnet_hands: {
+      title: "Signal retrieval",
+      oneLiner: "Good sampling pulls useful data closer.",
+      bullets: ["Collect useful examples.", "Reduce wasted motion.", "Data quality first."]
+    },
+    slowmo_aura: {
+      title: "Time-scale control",
+      oneLiner: "Slower incoming noise improves reaction quality.",
+      bullets: ["Lower noise velocity.", "More decision time.", "Control over chaos."]
+    },
+    fallback_heal: {
+      title: "Patch noisy labels",
+      oneLiner: "Small corrections preserve the training run.",
+      bullets: ["Fix one immediate error.", "Restore learning capacity.", "Continue with caution."]
+    },
+    fallback_gold: {
+      title: "Pause before update",
+      oneLiner: "Extra buffer avoids unstable parameter jumps.",
+      bullets: ["Add brief protection.", "Reduce update shocks.", "Favor stable steps."]
+    },
+    default: {
+      title: "Model loop check",
+      oneLiner: "Inputs become signals, then one prediction.",
+      bullets: ["Read the example.", "Track dominant signals.", "Explain the output."]
+    }
+  };
 
   function pickNarrativeText(value, fallback) {
     return typeof value === "string" && value.trim() ? value.trim() : fallback;
+  }
+
+  function normalizeLessonSourceText(value) {
+    const normalized = String(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return normalized.slice(0, LESSON_TEXT_MAX_CHARS);
+  }
+
+  function getLessonSourceText() {
+    const game = AIPU.state && AIPU.state.game ? AIPU.state.game : null;
+    const stateText = game && typeof game.lessonSourceText === "string" ? game.lessonSourceText : "";
+    if (stateText.trim()) {
+      return normalizeLessonSourceText(stateText);
+    }
+
+    let stored = "";
+    try {
+      stored = localStorage.getItem(LESSON_TEXT_KEY) || "";
+    } catch (error) {
+      stored = "";
+    }
+    const normalizedStored = normalizeLessonSourceText(stored);
+    if (normalizedStored) {
+      if (game) {
+        game.lessonSourceText = normalizedStored;
+      }
+      return normalizedStored;
+    }
+
+    if (game) {
+      game.lessonSourceText = LESSON_TEXT_FALLBACK;
+    }
+    return LESSON_TEXT_FALLBACK;
+  }
+
+  function setLessonSourceText(text) {
+    const normalized = normalizeLessonSourceText(text);
+    const nextText = normalized || LESSON_TEXT_FALLBACK;
+    if (AIPU.state && AIPU.state.game) {
+      AIPU.state.game.lessonSourceText = nextText;
+    }
+    try {
+      localStorage.setItem(LESSON_TEXT_KEY, nextText);
+    } catch (error) {
+      void error;
+    }
+  }
+
+  function getLessonSnippet(floorId) {
+    const sourceText = getLessonSourceText();
+    const sentenceMatches = sourceText.match(/[^.!?]+[.!?]?/g);
+    const sentences = Array.isArray(sentenceMatches) ? sentenceMatches.map((sentence) => sentence.trim()).filter(Boolean) : [];
+
+    if (sentences.length > 0) {
+      const safeFloor = Math.max(1, Number.parseInt(String(floorId), 10) || 1);
+      const index = (safeFloor - 1) % sentences.length;
+      const selected = sentences[index] || sentences[0];
+      return selected.slice(0, 220).trim();
+    }
+
+    return sourceText.slice(0, 220).trim();
+  }
+
+  function extractKeywords(snippet, max = 6) {
+    const normalized = String(snippet || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ");
+    const words = normalized.split(/\s+/).filter(Boolean);
+    const counts = new Map();
+
+    for (const word of words) {
+      if (word.length < 2 || LESSON_STOPWORDS.has(word)) {
+        continue;
+      }
+      counts.set(word, (counts.get(word) || 0) + 1);
+    }
+
+    const ranked = Array.from(counts.entries())
+      .sort((a, b) => {
+        if (b[1] !== a[1]) {
+          return b[1] - a[1];
+        }
+        return a[0].localeCompare(b[0]);
+      })
+      .slice(0, Math.max(1, max))
+      .map((entry) => entry[0]);
+
+    return ranked;
+  }
+
+  function resolveTeachUpgradeKey(upgradeId) {
+    if (UPGRADE_TEACH_MAP[upgradeId]) {
+      return upgradeId;
+    }
+    if (typeof upgradeId === "string" && upgradeId.startsWith("fallback_heal")) {
+      return "fallback_heal";
+    }
+    if (typeof upgradeId === "string" && upgradeId.startsWith("fallback_gold")) {
+      return "fallback_gold";
+    }
+    return "default";
+  }
+
+  function buildTeachCardForUpgrade(upgradeId, floorId) {
+    const key = resolveTeachUpgradeKey(upgradeId);
+    const teach = UPGRADE_TEACH_MAP[key] || UPGRADE_TEACH_MAP.default;
+    const snippet = getLessonSnippet(floorId);
+    const keywords = extractKeywords(snippet, 6);
+    const keywordLine = keywords.length > 0 ? `Top words: ${keywords.join(", ")}` : "Top words: none";
+
+    return {
+      title: teach.title,
+      oneLiner: teach.oneLiner,
+      bullets: Array.isArray(teach.bullets) ? teach.bullets.slice(0, 3) : [],
+      exampleLabel: "From your text:",
+      exampleText: `${snippet}\n${keywordLine}`
+    };
+  }
+
+  function limitWords(text, maxWords = 12) {
+    const normalized = String(text || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!normalized) {
+      return "";
+    }
+    const words = normalized.split(" ");
+    if (words.length <= maxWords) {
+      return normalized;
+    }
+    return `${words.slice(0, maxWords).join(" ")}...`;
   }
 
   function getNarrativeTitleCard() {
@@ -35,6 +272,21 @@
     const entry = cards.find((card) => card && Number(card.floor) === floorId) || null;
     const floorFallbackTitle = `Floor ${floorId}`;
     const floorFallbackSubtitle = "Raw data -> weights -> concepts -> prediction.";
+    const lessonUpgradeId =
+      AIPU.state &&
+      AIPU.state.game &&
+      typeof AIPU.state.game.floorLessonUpgradeId === "string" &&
+      AIPU.state.game.floorLessonUpgradeId
+        ? AIPU.state.game.floorLessonUpgradeId
+        : "";
+
+    if (lessonUpgradeId) {
+      const teach = buildTeachCardForUpgrade(lessonUpgradeId, floorId);
+      return {
+        title: limitWords(pickNarrativeText(teach.title, floorFallbackTitle), 12),
+        subtitle: limitWords(pickNarrativeText(teach.oneLiner, floorFallbackSubtitle), 12)
+      };
+    }
 
     return {
       title: pickNarrativeText(entry && entry.title, floorFallbackTitle),
@@ -63,7 +315,38 @@
   }
 
   function getWhatYouLearnedBullets() {
-    return ["Inputs are raw data.", "Weights prioritize signals.", "Dominant concept drives output."];
+    const generic = ["Inputs are raw data.", "Weights prioritize signals.", "Dominant concept drives output."];
+    const upgradeState = AIPU.upgrades && AIPU.upgrades.upgradeState ? AIPU.upgrades.upgradeState : null;
+    const history = upgradeState && Array.isArray(upgradeState.history) ? upgradeState.history : [];
+    if (history.length === 0) {
+      return generic;
+    }
+
+    const seenConcepts = new Set();
+    const bullets = [];
+
+    for (const record of history) {
+      const conceptKey = resolveTeachUpgradeKey(record && record.id ? record.id : "");
+      if (seenConcepts.has(conceptKey)) {
+        continue;
+      }
+      seenConcepts.add(conceptKey);
+
+      const teach = UPGRADE_TEACH_MAP[conceptKey] || UPGRADE_TEACH_MAP.default;
+      const conceptTitle = limitWords(teach.title, 6);
+      bullets.push(`${conceptTitle} shape model outcomes.`);
+      if (bullets.length >= 3) {
+        break;
+      }
+    }
+
+    let genericIndex = 0;
+    while (bullets.length < 3 && genericIndex < generic.length) {
+      bullets.push(generic[genericIndex]);
+      genericIndex += 1;
+    }
+
+    return bullets.slice(0, 3);
   }
 
   function wave(
@@ -294,7 +577,13 @@
     FLOORS,
     TITLE_SEQUENCE,
     ENEMY_DEFS,
+    LESSON_TEXT_KEY,
     pickNarrativeText,
+    getLessonSourceText,
+    setLessonSourceText,
+    getLessonSnippet,
+    extractKeywords,
+    buildTeachCardForUpgrade,
     getNarrativeTitleCard,
     getNarrativeFloorCopy,
     getNarrativeOutcomeCopy,
