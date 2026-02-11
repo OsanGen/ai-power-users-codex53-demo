@@ -12,7 +12,7 @@
     lessonTextSampleBtn,
     lessonTextCloseBtn
   } = AIPU.dom;
-  const { TOKENS, GameState, WORLD, BASE_MAX_HP } = AIPU.constants;
+  const { TOKENS, GameState, WORLD, BASE_MAX_HP, BOMB_BRIEFING_ACCEPT_COUNT } = AIPU.constants;
   const { game, player } = AIPU.state;
   const { keys } = AIPU.input;
   const { FLOORS, ENEMY_DEFS } = AIPU.content;
@@ -273,8 +273,8 @@
       }
     } else if (game.state === GameState.BOMB_BRIEFING) {
       if (event.key === "Enter" && !event.repeat) {
-        game.bombBriefingEnterCount = clamp(game.bombBriefingEnterCount + 1, 0, 3);
-        if (game.bombBriefingEnterCount >= 3) {
+        game.bombBriefingEnterCount = clamp(game.bombBriefingEnterCount + 1, 0, BOMB_BRIEFING_ACCEPT_COUNT);
+        if (game.bombBriefingEnterCount >= BOMB_BRIEFING_ACCEPT_COUNT) {
           game.bombBriefingSeenThisRun = true;
           beginCurrentFloor();
         }

@@ -126,6 +126,18 @@
     fallback_gold: "Pause step",
     default: "Learning loop support"
   };
+  const BOMB_BRIEFING_COPY = Object.freeze({
+    abilityName: "Escalation Pulse",
+    title: "Press Space: Escalation Pulse",
+    subtitle: "In gameplay, Space clears enemies and enemy bullets.",
+    bullets: Object.freeze([
+      "Space works only during gameplay.",
+      "Pulse clears all enemies and enemy bullets.",
+      "You can use it once per floor."
+    ]),
+    steps: Object.freeze(["Key: Space", "Effect: full screen clear", "Limit: once each floor"]),
+    cta: (step, total) => `Press Enter to accept (${step}/${total})`
+  });
 
   function pickNarrativeText(value, fallback) {
     return typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -353,18 +365,7 @@
   }
 
   function getBombBriefingCopy() {
-    return {
-      abilityName: "Escalation Pulse",
-      title: "Press Space: Escalation Pulse",
-      subtitle: "In gameplay, Space clears enemies and enemy bullets.",
-      bullets: [
-        "Space works only during gameplay.",
-        "Pulse clears all enemies and enemy bullets.",
-        "You can use it once per floor."
-      ],
-      steps: ["Key: Space", "Effect: full screen clear", "Limit: once each floor"],
-      cta: (step, total) => `Press Enter to accept (${step}/${total})`
-    };
+    return BOMB_BRIEFING_COPY;
   }
 
   function getWhatYouLearnedBullets() {

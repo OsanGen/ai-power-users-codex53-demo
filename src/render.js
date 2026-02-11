@@ -4,7 +4,18 @@
   const AIPU = window.AIPU;
   const mainCtx = AIPU.ctx;
   let ctx = mainCtx;
-  const { TOKENS, GameState, WIDTH, HEIGHT, CORRIDOR, WALL_WIDTH, WORLD, RENDER_CACHE_ENABLED, DYNAMIC_FX_FPS } =
+  const {
+    TOKENS,
+    GameState,
+    WIDTH,
+    HEIGHT,
+    CORRIDOR,
+    WALL_WIDTH,
+    WORLD,
+    RENDER_CACHE_ENABLED,
+    DYNAMIC_FX_FPS,
+    BOMB_BRIEFING_ACCEPT_COUNT
+  } =
     AIPU.constants;
   const { game, player } = AIPU.state;
   const {
@@ -30,6 +41,19 @@
   let enemies = [];
   let pickups = [];
   let particles = [];
+
+  const BOMB_BRIEFING_FALLBACK = {
+    abilityName: "Escalation Pulse",
+    title: "Press Space: Escalation Pulse",
+    subtitle: "In gameplay, Space clears enemies and enemy bullets.",
+    bullets: [
+      "Space works only during gameplay.",
+      "Pulse clears all enemies and enemy bullets.",
+      "You can use it once per floor."
+    ],
+    steps: ["Key: Space", "Effect: full screen clear", "Limit: once each floor"],
+    cta: (step, total) => `Press Enter to accept (${step}/${total})`
+  };
 
   if (renderCacheState && !renderCacheState.stats) {
     renderCacheState.stats = { hits: 0, misses: 0, staticRebuilds: 0, dynamicRebuilds: 0 };
@@ -482,22 +506,8 @@
   }
 
   function drawBombBriefing(floor, accent) {
-    const copy =
-      typeof getBombBriefingCopy === "function"
-        ? getBombBriefingCopy()
-        : {
-            abilityName: "Escalation Pulse",
-            title: "Press Space: Escalation Pulse",
-            subtitle: "In gameplay, Space clears enemies and enemy bullets.",
-            bullets: [
-              "Space works only during gameplay.",
-              "Pulse clears all enemies and enemy bullets.",
-              "You can use it once per floor."
-            ],
-            steps: ["Key: Space", "Effect: full screen clear", "Limit: once each floor"],
-            cta: (step, total) => `Press Enter to accept (${step}/${total})`
-          };
-    const enterGoal = 3;
+    const copy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy() : BOMB_BRIEFING_FALLBACK;
+    const enterGoal = Math.max(1, BOMB_BRIEFING_ACCEPT_COUNT || 3);
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
     const baseCta =
@@ -1585,10 +1595,8 @@
     ctx.font = '700 16px "Inter", sans-serif';
     ctx.fillText(timerText, timerBoxX + timerW + 14, timerBoxY + timerH * 0.5 + 1);
 
-    const bombAbilityName =
-      typeof getBombBriefingCopy === "function" && getBombBriefingCopy().abilityName
-        ? getBombBriefingCopy().abilityName
-        : "Escalation Pulse";
+    const bombCopy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy() : BOMB_BRIEFING_FALLBACK;
+    const bombAbilityName = bombCopy && bombCopy.abilityName ? bombCopy.abilityName : BOMB_BRIEFING_FALLBACK.abilityName;
     const bombText = !game.bombUsedThisFloor ? `Space: ${bombAbilityName} Ready` : `Space: ${bombAbilityName} Used`;
     ctx.font = '700 12px "Inter", sans-serif';
     const bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 184, 286);
