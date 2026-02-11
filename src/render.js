@@ -44,6 +44,7 @@
 
   const BOMB_BRIEFING_FALLBACK = {
     abilityName: "Escalation Pulse",
+    chargeCount: 1,
     title: "Press Space: Escalation Pulse",
     subtitle: "In gameplay, Space clears enemies and enemy bullets.",
     bullets: [
@@ -506,9 +507,15 @@
   }
 
   function drawBombBriefing(floor, accent) {
-    const briefingMode = game.bombBriefingMode === "upgrade" ? "upgrade" : "intro";
+    const briefingMode =
+      game.bombBriefingMode === "upgrade_final"
+        ? "upgrade_final"
+        : game.bombBriefingMode === "upgrade"
+          ? "upgrade"
+          : "intro";
     const copy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy(briefingMode) : BOMB_BRIEFING_FALLBACK;
-    const isUpgradeMode = briefingMode === "upgrade";
+    const chargeCount = clamp(Number.parseInt(String(copy.chargeCount || 1), 10) || 1, 1, 3);
+    const showChargeDetails = chargeCount > 1;
     const enterGoal = Math.max(1, BOMB_BRIEFING_ACCEPT_COUNT || 3);
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
@@ -604,7 +611,7 @@
     const leftInnerH = leftRect.h - 32;
     const keyCalloutH = 64;
     const actionStripH = 40;
-    const chargeRowH = isUpgradeMode ? 34 : 0;
+    const chargeRowH = showChargeDetails ? 34 : 0;
     const bulletLineH = 20;
     const blockGap = 10;
     const maxBulletCount = Math.min(2, bullets.length);
@@ -700,8 +707,8 @@
 
       if (chargeRect) {
         const chipGap = 12;
-        const chipW = Math.floor((chargeRect.w - chipGap) / 2);
-        for (let i = 0; i < 2; i += 1) {
+        const chipW = Math.floor((chargeRect.w - chipGap * (chargeCount - 1)) / chargeCount);
+        for (let i = 0; i < chargeCount; i += 1) {
           const chipX = chargeRect.x + i * (chipW + chipGap);
           ctx.fillStyle = rgba(accent, 0.24);
           fillRoundRect(chipX, chargeRect.y, chipW, chargeRect.h, 999);
@@ -734,12 +741,12 @@
 
     withClipRect(rightInnerX, rightInnerY, rightInnerW, rightInnerH, () => {
       const stepGap = 12;
-      const upgradeBadgeH = isUpgradeMode ? 52 : 0;
-      const upgradeBadgeGap = isUpgradeMode ? 10 : 0;
+      const upgradeBadgeH = showChargeDetails ? 52 : 0;
+      const upgradeBadgeGap = showChargeDetails ? 10 : 0;
       let stepY = rightInnerY;
       let stepAreaH = rightInnerH;
 
-      if (isUpgradeMode) {
+      if (showChargeDetails) {
         ctx.fillStyle = rgba(accent, 0.24);
         fillRoundRect(rightInnerX, rightInnerY, rightInnerW, upgradeBadgeH, 14);
         ctx.strokeStyle = TOKENS.ink;
@@ -749,7 +756,7 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = '700 28px "Sora", "Inter", sans-serif';
-        ctx.fillText("2 CHARGES", rightInnerX + rightInnerW * 0.5, rightInnerY + upgradeBadgeH * 0.5 + 1);
+        ctx.fillText(`${chargeCount} CHARGES`, rightInnerX + rightInnerW * 0.5, rightInnerY + upgradeBadgeH * 0.5 + 1);
         stepY += upgradeBadgeH + upgradeBadgeGap;
         stepAreaH -= upgradeBadgeH + upgradeBadgeGap;
       }

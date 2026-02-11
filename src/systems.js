@@ -23,7 +23,9 @@
     BOMB_BRIEFING_ACCEPT_COUNT,
     BOMB_CHARGES_BASE,
     BOMB_CHARGES_UPGRADED,
-    BOMB_CHARGES_UPGRADE_FLOOR
+    BOMB_CHARGES_FINAL,
+    BOMB_CHARGES_UPGRADE_FLOOR,
+    BOMB_CHARGES_FINAL_FLOOR
   } = AIPU.constants;
   const { game, player } = AIPU.state;
   const { keys } = AIPU.input;
@@ -319,7 +321,9 @@
       if (isEnterKey(event) && !event.repeat) {
         game.bombBriefingEnterCount = clamp(game.bombBriefingEnterCount + 1, 0, BOMB_BRIEFING_ACCEPT_COUNT);
         if (game.bombBriefingEnterCount >= BOMB_BRIEFING_ACCEPT_COUNT) {
-          if (game.bombBriefingMode === "upgrade") {
+          if (game.bombBriefingMode === "upgrade_final") {
+            game.bombBriefingSeenFinalUpgradeThisRun = true;
+          } else if (game.bombBriefingMode === "upgrade") {
             game.bombBriefingSeenUpgradeThisRun = true;
           } else {
             game.bombBriefingSeenIntroThisRun = true;
@@ -594,6 +598,7 @@
     game.bombFlashTimer = 0;
     game.bombBriefingSeenIntroThisRun = false;
     game.bombBriefingSeenUpgradeThisRun = false;
+    game.bombBriefingSeenFinalUpgradeThisRun = false;
     game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
     game.rearShotDirectionKey = "";
@@ -618,6 +623,7 @@
     game.gameOverEntryHandled = false;
     game.bombBriefingSeenIntroThisRun = false;
     game.bombBriefingSeenUpgradeThisRun = false;
+    game.bombBriefingSeenFinalUpgradeThisRun = false;
     game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
     game.rearShotDirectionKey = "";
@@ -699,7 +705,12 @@
     player.shieldBreakFlash = 0;
     player.invuln = 0;
     player.fireCooldown = 0;
-    game.bombChargesPerFloor = floor.id >= BOMB_CHARGES_UPGRADE_FLOOR ? BOMB_CHARGES_UPGRADED : BOMB_CHARGES_BASE;
+    game.bombChargesPerFloor =
+      floor.id >= BOMB_CHARGES_FINAL_FLOOR
+        ? BOMB_CHARGES_FINAL
+        : floor.id >= BOMB_CHARGES_UPGRADE_FLOOR
+          ? BOMB_CHARGES_UPGRADED
+          : BOMB_CHARGES_BASE;
     game.bombChargesRemaining = game.bombChargesPerFloor;
     game.bombFlashTimer = 0;
     game.upgradeConfirmCooldown = 0;
@@ -1535,6 +1546,9 @@
     }
     if (floor.id === BOMB_CHARGES_UPGRADE_FLOOR && !game.bombBriefingSeenUpgradeThisRun) {
       return "upgrade";
+    }
+    if (floor.id === BOMB_CHARGES_FINAL_FLOOR && !game.bombBriefingSeenFinalUpgradeThisRun) {
+      return "upgrade_final";
     }
     return "";
   }

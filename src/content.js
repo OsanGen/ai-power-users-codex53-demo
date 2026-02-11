@@ -129,6 +129,7 @@
   const BOMB_BRIEFING_COPY = Object.freeze({
     intro: Object.freeze({
       abilityName: "Escalation Pulse",
+      chargeCount: 1,
       title: "Press Space: Escalation Pulse",
       subtitle: "In gameplay, Space clears enemies and enemy bullets.",
       bullets: Object.freeze([
@@ -141,6 +142,7 @@
     }),
     upgrade: Object.freeze({
       abilityName: "Escalation Pulse",
+      chargeCount: 2,
       title: "Escalation Pulse: Now 2 Charges",
       subtitle: "From this floor on, press Space twice per floor.",
       bullets: Object.freeze([
@@ -149,6 +151,19 @@
         "Both charges reset every new floor."
       ]),
       steps: Object.freeze(["Key: Space", "Effect: Clear screen", "Limit: Twice per floor"]),
+      cta: (step, total) => `Press Enter to accept (${step}/${total})`
+    }),
+    upgrade_final: Object.freeze({
+      abilityName: "Escalation Pulse",
+      chargeCount: 3,
+      title: "Escalation Pulse: Now 3 Charges",
+      subtitle: "From this floor on, press Space three times per floor.",
+      bullets: Object.freeze([
+        "Space works only during gameplay.",
+        "Each press clears enemies and enemy bullets.",
+        "All three charges reset every new floor."
+      ]),
+      steps: Object.freeze(["Key: Space", "Effect: Clear screen", "Limit: Three times per floor"]),
       cta: (step, total) => `Press Enter to accept (${step}/${total})`
     })
   });
@@ -379,7 +394,7 @@
   }
 
   function getBombBriefingCopy(mode = "intro") {
-    const key = mode === "upgrade" ? "upgrade" : "intro";
+    const key = mode === "upgrade_final" ? "upgrade_final" : mode === "upgrade" ? "upgrade" : "intro";
     return BOMB_BRIEFING_COPY[key] || BOMB_BRIEFING_COPY.intro;
   }
 

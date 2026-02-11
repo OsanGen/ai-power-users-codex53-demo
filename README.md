@@ -18,7 +18,7 @@ Option 2 (recommended):
 - Shoot: `Arrow Keys` (4 directions)
 - Start / Skip floor intro: `Enter` or `Space`
 - Upgrade select: `1-3` instant pick, `A/D` or `Left/Right` to move, `Enter`/`Space` to confirm, mouse hover/click supported
-- Bomb (PLAYING): `Space`, once per floor (Floors 1-4), twice per floor (Floors 5-9)
+- Bomb (PLAYING): `Space`, once per floor (Floors 1-4), twice per floor (Floors 5-6), three times per floor (Floors 7-9)
 - Rear side shot (PLAYING): hold one arrow direction for `2s` to add one rear shot
 - Debug stats toggle: ``~`` (off by default)
 - Restart after game over/victory: `R`

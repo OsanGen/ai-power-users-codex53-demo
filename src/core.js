@@ -68,7 +68,9 @@
     BOMB_BRIEFING_ACCEPT_COUNT: 3,
     BOMB_CHARGES_BASE: 1,
     BOMB_CHARGES_UPGRADED: 2,
+    BOMB_CHARGES_FINAL: 3,
     BOMB_CHARGES_UPGRADE_FLOOR: 5,
+    BOMB_CHARGES_FINAL_FLOOR: 7,
     RENDER_CACHE_ENABLED: true,
     DYNAMIC_FX_FPS: 20,
     CACHE_MAX_LAYERS: 1
@@ -105,6 +107,7 @@
       bombFlashTimer: 0,
       bombBriefingSeenIntroThisRun: false,
       bombBriefingSeenUpgradeThisRun: false,
+      bombBriefingSeenFinalUpgradeThisRun: false,
       bombBriefingMode: "intro",
       bombBriefingEnterCount: 0,
       rearShotDirectionKey: "",
