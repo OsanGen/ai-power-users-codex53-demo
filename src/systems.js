@@ -17,6 +17,9 @@
     GameState,
     WORLD,
     BASE_MAX_HP,
+    REAR_SHOT_TRIGGER_SECONDS,
+    REAR_SHOT_NOTICE_DURATION,
+    REAR_SHOT_SIDE_OFFSET,
     BOMB_BRIEFING_ACCEPT_COUNT,
     BOMB_CHARGES_BASE,
     BOMB_CHARGES_UPGRADED,
@@ -593,6 +596,10 @@
     game.bombBriefingSeenUpgradeThisRun = false;
     game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
+    game.rearShotDirectionKey = "";
+    game.rearShotHoldTime = 0;
+    game.rearShotHintShown = false;
+    game.rearShotHintTimer = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -613,6 +620,10 @@
     game.bombBriefingSeenUpgradeThisRun = false;
     game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
+    game.rearShotDirectionKey = "";
+    game.rearShotHoldTime = 0;
+    game.rearShotHintShown = false;
+    game.rearShotHintTimer = 0;
     upgrades.resetUpgradeRun();
     const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
     startFloor(checkpointFloor - 1);
@@ -645,6 +656,9 @@
     game.bombChargesRemaining = BOMB_CHARGES_BASE;
     game.bombFlashTimer = 0;
     game.bombBriefingEnterCount = 0;
+    game.rearShotDirectionKey = "";
+    game.rearShotHoldTime = 0;
+    game.rearShotHintTimer = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -689,6 +703,9 @@
     game.bombChargesRemaining = game.bombChargesPerFloor;
     game.bombFlashTimer = 0;
     game.upgradeConfirmCooldown = 0;
+    game.rearShotDirectionKey = "";
+    game.rearShotHoldTime = 0;
+    game.rearShotHintTimer = 0;
     resetPlayerPosition();
 
     spawnInitialHearts(floor);
@@ -747,6 +764,10 @@
 
     if (game.bombFlashTimer > 0) {
       game.bombFlashTimer = Math.max(0, game.bombFlashTimer - dt);
+    }
+
+    if (game.rearShotHintTimer > 0) {
+      game.rearShotHintTimer = Math.max(0, game.rearShotHintTimer - dt);
     }
 
     if (player.shieldBreakFlash > 0) {
@@ -890,8 +911,9 @@
     player.y = clamp(player.y, WORLD.y + player.radius, WORLD.y + WORLD.h - player.radius);
   }
 
-  function updatePlayerShooting() {
+  function updatePlayerShooting(dt) {
     const dir = getShootDirection();
+    updateRearShotTracking(dir, dt);
     if (!dir) {
       return;
     }
@@ -917,7 +939,51 @@
       hitEnemyIds: new Set()
     });
 
+    if (game.state === GameState.PLAYING && game.rearShotHoldTime >= REAR_SHOT_TRIGGER_SECONDS) {
+      spawnRearSideShot(dir, bulletSpeed, bulletRadius, bulletPierce);
+      if (!game.rearShotHintShown) {
+        game.rearShotHintShown = true;
+        game.rearShotHintTimer = REAR_SHOT_NOTICE_DURATION;
+      }
+    }
+
     player.fireCooldown = upgrades.getFireCooldown();
+  }
+
+  function updateRearShotTracking(dir, dt) {
+    if (game.state !== GameState.PLAYING || !dir) {
+      game.rearShotDirectionKey = "";
+      game.rearShotHoldTime = 0;
+      return;
+    }
+
+    const directionKey = `${dir.x},${dir.y}`;
+    if (game.rearShotDirectionKey === directionKey) {
+      game.rearShotHoldTime += dt;
+      return;
+    }
+
+    game.rearShotDirectionKey = directionKey;
+    game.rearShotHoldTime = dt;
+  }
+
+  function spawnRearSideShot(dir, bulletSpeed, bulletRadius, bulletPierce) {
+    const backDir = { x: -dir.x, y: -dir.y };
+    const sideVector = { x: -backDir.y, y: backDir.x };
+    const sideChoice = Math.random() < 0.5 ? -1 : 1;
+    const spawnDistance = player.radius + 9;
+    const sideOffset = REAR_SHOT_SIDE_OFFSET * sideChoice;
+
+    bullets.push({
+      x: player.x + backDir.x * spawnDistance + sideVector.x * sideOffset,
+      y: player.y + backDir.y * spawnDistance + sideVector.y * sideOffset,
+      vx: backDir.x * bulletSpeed,
+      vy: backDir.y * bulletSpeed,
+      radius: bulletRadius,
+      pierce: bulletPierce,
+      life: 0.95,
+      hitEnemyIds: new Set()
+    });
   }
 
   function getShootDirection() {

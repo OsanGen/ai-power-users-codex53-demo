@@ -1828,8 +1828,42 @@
     const meterW = totalCharges * meterSegmentW + Math.max(0, totalCharges - 1) * meterSegmentGap;
     ctx.fillText(fitCanvasText(bombText, bombBoxW - (meterW + 28)), bombBoxX + 16 + meterW, bombBoxY + 18);
 
+    drawRearShotHint(accent);
     drawUpgradeHudPanel(accent);
     drawDebugStatsLine(accent);
+  }
+
+  function drawRearShotHint(accent) {
+    if (game.state !== GameState.PLAYING || game.rearShotHintTimer <= 0) {
+      return;
+    }
+
+    const hintDuration = Math.max(0.001, AIPU.constants.REAR_SHOT_NOTICE_DURATION || 4.2);
+    const visibility = clamp(game.rearShotHintTimer / hintDuration, 0, 1);
+    const alpha = visibility > 0.15 ? 1 : visibility / 0.15;
+    const panelW = 566;
+    const panelH = 58;
+    const panelX = Math.floor((WIDTH - panelW) * 0.5);
+    const panelY = 98;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.fillStyle = rgba(accent, 0.26);
+    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 6, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.font = '700 15px "Sora", "Inter", sans-serif';
+    ctx.fillText("Rear side shot active", panelX + 14, panelY + 17);
+    ctx.font = '600 13px "Inter", sans-serif';
+    ctx.fillText("Hold one direction 2s: one rear shot (left or right).", panelX + 14, panelY + 37);
+    ctx.restore();
   }
 
   function drawUpgradeHudPanel(accent) {
