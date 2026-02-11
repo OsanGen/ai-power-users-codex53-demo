@@ -135,7 +135,7 @@
       "Pulse clears all enemies and enemy bullets.",
       "You can use it once per floor."
     ]),
-    steps: Object.freeze(["Key: Space", "Effect: full screen clear", "Limit: once each floor"]),
+    steps: Object.freeze(["Key: Space", "Effect: Clear screen", "Limit: Once per floor"]),
     cta: (step, total) => `Press Enter to accept (${step}/${total})`
   });
 

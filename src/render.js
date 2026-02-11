@@ -51,7 +51,7 @@
       "Pulse clears all enemies and enemy bullets.",
       "You can use it once per floor."
     ],
-    steps: ["Key: Space", "Effect: full screen clear", "Limit: once each floor"],
+    steps: ["Key: Space", "Effect: Clear screen", "Limit: Once per floor"],
     cta: (step, total) => `Press Enter to accept (${step}/${total})`
   };
 
@@ -510,20 +510,20 @@
     const enterGoal = Math.max(1, BOMB_BRIEFING_ACCEPT_COUNT || 3);
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
-    const baseCta =
-      typeof copy.cta === "function" ? copy.cta(nextStep, enterGoal) : `Press Enter to accept (${nextStep}/${enterGoal})`;
-    const ctaText = accepted >= enterGoal ? "Accepted. Loading floor..." : `${baseCta} • Then press Space in PLAYING`;
+    const baseCta = typeof copy.cta === "function" ? copy.cta(nextStep, enterGoal) : `Press Enter to accept (${nextStep}/${enterGoal})`;
+    const ctaLine1 = accepted >= enterGoal ? "Accepted. Loading floor..." : baseCta;
+    const ctaLine2 = accepted >= enterGoal ? "Use Space in PLAYING to clear screen." : "Then press Space in PLAYING";
 
-    const panelW = 1044;
-    const panelH = 550;
+    const panelW = 1060;
+    const panelH = 566;
     const panelX = (WIDTH - panelW) * 0.5;
     const panelY = (HEIGHT - panelH) * 0.5;
 
-    ctx.fillStyle = rgba(accent, 0.26);
-    fillRoundRect(panelX + 12, panelY + 16, panelW, panelH, 26);
-    ctx.strokeStyle = rgba(TOKENS.ink, 0.28);
+    ctx.fillStyle = rgba(accent, 0.2);
+    fillRoundRect(panelX + 10, panelY + 14, panelW, panelH, 26);
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.24);
     ctx.lineWidth = 2;
-    strokeRoundRect(panelX + 12, panelY + 16, panelW, panelH, 26);
+    strokeRoundRect(panelX + 10, panelY + 14, panelW, panelH, 26);
 
     ctx.fillStyle = TOKENS.white;
     fillRoundRect(panelX, panelY, panelW, panelH, 26);
@@ -532,151 +532,197 @@
     strokeRoundRect(panelX, panelY, panelW, panelH, 26);
 
     ctx.fillStyle = rgba(accent, 0.24);
-    fillRoundRect(panelX + 28, panelY + 24, panelW - 56, 11, 999);
+    fillRoundRect(panelX + 24, panelY + 22, panelW - 48, 10, 999);
 
-    const pulse = 0.5 + Math.sin(game.globalTime * 5.2) * 0.5;
-    const pulseAlpha = 0.14 + pulse * 0.12;
-    ctx.fillStyle = rgba(accent, pulseAlpha);
-    fillRoundRect(panelX + panelW - 296, panelY + 58, 232, 54, 999);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(panelX + panelW - 296, panelY + 58, 232, 54, 999);
+    const panelPad = 30;
+    const zoneGap = 18;
+    const headerH = 64;
+    const ctaH = 94;
+    const bodyGap = 20;
+    const rightW = 344;
+    const contentX = panelX + panelPad;
+    const contentW = panelW - panelPad * 2;
+    const headerY = panelY + 44;
+    const ctaY = panelY + panelH - panelPad - ctaH;
+    const bodyY = headerY + headerH + zoneGap;
+    const bodyH = Math.max(214, ctaY - zoneGap - bodyY);
+
+    const leftRect = { x: contentX, y: bodyY, w: contentW - rightW - bodyGap, h: bodyH };
+    const rightRect = { x: leftRect.x + leftRect.w + bodyGap, y: bodyY, w: rightW, h: bodyH };
+
+    const title = copy.title || "Press Space: Escalation Pulse";
+    const subtitle = copy.subtitle || "In gameplay, Space clears enemies and enemy bullets.";
+    const bullets = Array.isArray(copy.bullets)
+      ? copy.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3)
+      : [];
+    const steps = Array.isArray(copy.steps)
+      ? copy.steps.filter((line) => typeof line === "string" && line.trim()).slice(0, enterGoal)
+      : [];
+    const lessonTag = `Floor ${floor.id} power lesson`;
+    const badgeText = copy.abilityName || "Escalation Pulse";
+
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 22px "Sora", "Inter", sans-serif';
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(copy.abilityName || "Escalation Pulse", panelX + panelW - 180, panelY + 84);
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
+    ctx.font = '700 17px "Inter", sans-serif';
+    ctx.fillText(fitCanvasText(lessonTag, contentW - 290), contentX, headerY + 8);
 
-    const bodyTop = panelY + 126;
-    const bodyH = panelH - 228;
-    const bodyX = panelX + 34;
-    const bodyW = panelW - 68;
-    const sideW = 318;
-    const gap = 20;
-    const infoW = bodyW - sideW - gap;
+    const badgeFont = fitFontSizeForLine(badgeText, 268, 48, 18, '700 ${size}px "Sora", "Inter", sans-serif');
+    ctx.font = `700 ${badgeFont}px "Sora", "Inter", sans-serif`;
+    const badgeW = clamp(Math.ceil(ctx.measureText(badgeText).width) + 52, 196, 286);
+    const badgeH = 66;
+    const badgeX = contentX + contentW - badgeW;
+    const badgeY = headerY;
+    ctx.fillStyle = rgba(accent, 0.2);
+    fillRoundRect(badgeX + 8, badgeY + 6, badgeW, badgeH, 999);
+    ctx.fillStyle = accent;
+    fillRoundRect(badgeX, badgeY, badgeW, badgeH, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(badgeX, badgeY, badgeW, badgeH, 999);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(badgeText, badgeX + badgeW * 0.5, badgeY + badgeH * 0.5 + 1);
 
     ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(bodyX, bodyTop, infoW, bodyH, 18);
+    fillRoundRect(leftRect.x, leftRect.y, leftRect.w, leftRect.h, 18);
+    fillRoundRect(rightRect.x, rightRect.y, rightRect.w, rightRect.h, 18);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
-    strokeRoundRect(bodyX, bodyTop, infoW, bodyH, 18);
+    strokeRoundRect(leftRect.x, leftRect.y, leftRect.w, leftRect.h, 18);
+    strokeRoundRect(rightRect.x, rightRect.y, rightRect.w, rightRect.h, 18);
 
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(bodyX + infoW + gap, bodyTop, sideW, bodyH, 18);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(bodyX + infoW + gap, bodyTop, sideW, bodyH, 18);
+    const leftInnerX = leftRect.x + 18;
+    const leftInnerY = leftRect.y + 16;
+    const leftInnerW = leftRect.w - 36;
+    const leftInnerH = leftRect.h - 28;
 
-    withClipRect(panelX + 10, panelY + 10, panelW - 20, panelH - 20, () => {
-      ctx.fillStyle = TOKENS.ink;
-      const title = copy.title || "Unlocked: Escalation Pulse";
-      const subtitle = copy.subtitle || "Strong signals can reset noisy systems.";
-      const bullets = Array.isArray(copy.bullets)
-        ? copy.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3)
-        : [];
-      const steps = Array.isArray(copy.steps)
-        ? copy.steps.filter((line) => typeof line === "string" && line.trim()).slice(0, enterGoal)
-        : [];
-      const lessonTag = `Floor ${floor.id} power lesson`;
+    const keyCalloutH = 76;
+    const actionStripH = 40;
+    const bulletLineH = 21;
+    const visibleBulletCount = Math.min(3, bullets.length);
+    const bulletAreaH = Math.max(48, visibleBulletCount * bulletLineH + 6);
+    const blockGap = 10;
+    const reservedBottom = keyCalloutH + actionStripH + bulletAreaH + blockGap * 3;
+    const topTextH = Math.max(88, leftInnerH - reservedBottom);
 
-      ctx.font = '700 17px "Inter", sans-serif';
-      ctx.fillText(fitCanvasText(lessonTag, infoW - 32), bodyX + 18, bodyTop + 16);
-
-      const headingSize = fitHeadingFontSize(title, infoW - 36, 56, 40, 2);
-      ctx.font = `700 ${headingSize}px "Sora", "Inter", sans-serif`;
-      const headingBottom = drawWrappedText(title, bodyX + 18, bodyTop + 44, infoW - 36, Math.round(headingSize * 1.08), {
-        maxLines: 2
+    withClipRect(leftInnerX, leftInnerY, leftInnerW, leftInnerH, () => {
+      withClipRect(leftInnerX, leftInnerY, leftInnerW, topTextH, () => {
+        let textY = leftInnerY;
+        const headingSize = fitHeadingFontSize(title, leftInnerW, 74, 42, 2);
+        ctx.fillStyle = TOKENS.ink;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+        ctx.font = `700 ${headingSize}px "Sora", "Inter", sans-serif`;
+        textY = drawWrappedText(title, leftInnerX, textY, leftInnerW, Math.round(headingSize * 1.04), { maxLines: 2 });
+        textY += 6;
+        ctx.font = '600 18px "Inter", sans-serif';
+        drawWrappedText(subtitle, leftInnerX, textY, leftInnerW, 24, { maxLines: 2 });
       });
 
-      ctx.font = '600 20px "Inter", sans-serif';
-      const subtitleBottom = drawWrappedText(subtitle, bodyX + 18, headingBottom + 8, infoW - 36, 25, { maxLines: 2 });
-
-      const keyCalloutY = subtitleBottom + 10;
-      const keyCalloutW = Math.min(288, infoW - 40);
-      const keyCalloutX = bodyX + 18;
-      const actionStripY = keyCalloutY + 88;
-
-      ctx.fillStyle = rgba(accent, 0.28);
-      fillRoundRect(keyCalloutX + 10, keyCalloutY + 8, keyCalloutW, 72, 18);
+      const keyY = leftInnerY + topTextH + blockGap;
+      const keyW = Math.min(338, leftInnerW);
+      ctx.fillStyle = rgba(accent, 0.22);
+      fillRoundRect(leftInnerX + 9, keyY + 7, keyW, keyCalloutH, 18);
       ctx.fillStyle = accent;
-      fillRoundRect(keyCalloutX, keyCalloutY, keyCalloutW, 72, 18);
+      fillRoundRect(leftInnerX, keyY, keyW, keyCalloutH, 18);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 3;
-      strokeRoundRect(keyCalloutX, keyCalloutY, keyCalloutW, 72, 18);
+      strokeRoundRect(leftInnerX, keyY, keyW, keyCalloutH, 18);
 
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = '700 40px "Sora", "Inter", sans-serif';
-      ctx.fillText("SPACE", keyCalloutX + keyCalloutW * 0.5, keyCalloutY + 32);
+      ctx.font = '700 54px "Sora", "Inter", sans-serif';
+      ctx.fillText("SPACE", leftInnerX + keyW * 0.5, keyY + 31);
       ctx.font = '700 15px "Inter", sans-serif';
-      ctx.fillText("Use during PLAYING", keyCalloutX + keyCalloutW * 0.5, keyCalloutY + 56);
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
+      ctx.fillText("Use during PLAYING", leftInnerX + keyW * 0.5, keyY + 58);
 
+      const actionY = keyY + keyCalloutH + blockGap;
       ctx.fillStyle = TOKENS.white;
-      fillRoundRect(bodyX + 18, actionStripY, infoW - 36, 40, 12);
+      fillRoundRect(leftInnerX, actionY, leftInnerW, actionStripH, 12);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
-      strokeRoundRect(bodyX + 18, actionStripY, infoW - 36, 40, 12);
+      strokeRoundRect(leftInnerX, actionY, leftInnerW, actionStripH, 12);
       ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
       ctx.font = '700 20px "Inter", sans-serif';
-      ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", infoW - 62), bodyX + 30, actionStripY + 10);
+      ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", leftInnerW - 24), leftInnerX + 14, actionY + 9);
 
-      ctx.font = '600 16px "Inter", sans-serif';
-      let lineY = actionStripY + 52;
-      for (let i = 0; i < bullets.length; i += 1) {
-        lineY = drawWrappedText(`• ${bullets[i]}`, bodyX + 18, lineY, infoW - 36, 22, { maxLines: 1 });
-      }
+      const bulletY = actionY + actionStripH + blockGap;
+      withClipRect(leftInnerX, bulletY, leftInnerW, bulletAreaH, () => {
+        ctx.fillStyle = TOKENS.ink;
+        ctx.font = '600 16px "Inter", sans-serif';
+        let lineY = bulletY;
+        const maxBullets = Math.min(visibleBulletCount, Math.max(1, Math.floor(bulletAreaH / bulletLineH)));
+        for (let i = 0; i < maxBullets; i += 1) {
+          lineY = drawWrappedText(`• ${bullets[i]}`, leftInnerX, lineY, leftInnerW, bulletLineH, { maxLines: 1 });
+        }
+      });
+    });
 
-      let stepY = bodyTop + 24;
+    const rightInnerX = rightRect.x + 16;
+    const rightInnerY = rightRect.y + 16;
+    const rightInnerW = rightRect.w - 32;
+    const rightInnerH = rightRect.h - 32;
+
+    withClipRect(rightInnerX, rightInnerY, rightInnerW, rightInnerH, () => {
+      const stepGap = 12;
+      const stepCardH = Math.max(72, Math.floor((rightInnerH - stepGap * (enterGoal - 1)) / enterGoal));
+      let stepY = rightInnerY;
+
       for (let i = 0; i < enterGoal; i += 1) {
         const isDone = i < accepted;
         const label = steps[i] || `Step ${i + 1}`;
-        ctx.fillStyle = isDone ? rgba(accent, 0.32) : rgba(TOKENS.white, 0.9);
-        fillRoundRect(bodyX + infoW + gap + 16, stepY, sideW - 32, 70, 14);
+        const cardX = rightInnerX;
+        const cardY = stepY;
+        const cardW = rightInnerW;
+        const markerGutter = 32;
+
+        ctx.fillStyle = isDone ? rgba(accent, 0.28) : rgba(TOKENS.white, 0.9);
+        fillRoundRect(cardX, cardY, cardW, stepCardH, 14);
         ctx.strokeStyle = TOKENS.ink;
         ctx.lineWidth = isDone ? 3 : 2;
-        strokeRoundRect(bodyX + infoW + gap + 16, stepY, sideW - 32, 70, 14);
+        strokeRoundRect(cardX, cardY, cardW, stepCardH, 14);
 
         ctx.fillStyle = TOKENS.ink;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
         ctx.font = '700 17px "Inter", sans-serif';
-        ctx.fillText(fitCanvasText(`Enter ${i + 1}: ${label}`, sideW - 100), bodyX + infoW + gap + 34, stepY + 25);
+        drawWrappedText(`Enter ${i + 1}: ${label}`, cardX + 16, cardY + 16, cardW - markerGutter - 26, 22, { maxLines: 2 });
 
         ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.45);
-        ctx.font = '700 28px "Inter", sans-serif';
-        ctx.fillText(isDone ? "✓" : "•", bodyX + infoW + gap + sideW - 56, stepY + 21);
-        stepY += 86;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = '700 30px "Inter", sans-serif';
+        ctx.fillText(isDone ? "✓" : "•", cardX + cardW - 20, cardY + stepCardH * 0.5 + 1);
+
+        stepY += stepCardH + stepGap;
       }
     });
 
-    const ctaW = 660;
-    const ctaH = 62;
-    const ctaX = panelX + (panelW - ctaW) * 0.5;
-    const ctaY = panelY + panelH - 88;
-    const ctaPulse = 1 + Math.sin(game.globalTime * 6) * 0.01;
-
-    ctx.save();
-    ctx.translate(ctaX + ctaW * 0.5, ctaY + ctaH * 0.5);
-    ctx.scale(ctaPulse, ctaPulse);
-    ctx.translate(-(ctaX + ctaW * 0.5), -(ctaY + ctaH * 0.5));
-
+    const ctaW = contentW - 118;
+    const ctaX = contentX + (contentW - ctaW) * 0.5;
     ctx.fillStyle = rgba(accent, 0.24);
-    fillRoundRect(ctaX - 8, ctaY - 6, ctaW + 16, ctaH + 12, 999);
+    fillRoundRect(ctaX - 7, ctaY - 5, ctaW + 14, ctaH + 10, 999);
     ctx.fillStyle = accent;
     fillRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     strokeRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
 
+    const ctaLine1Size = fitFontSizeForLine(ctaLine1, ctaW - 44, 42, 22, '700 ${size}px "Sora", "Inter", sans-serif');
+    const ctaLine2Size = fitFontSizeForLine(ctaLine2, ctaW - 44, 24, 16, '700 ${size}px "Inter", sans-serif');
+
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 20px "Sora", "Inter", sans-serif';
     ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(fitCanvasText(ctaText, ctaW - 40), ctaX + ctaW * 0.5, ctaY + ctaH * 0.5 + 1);
-    ctx.restore();
+    ctx.textBaseline = "top";
+    ctx.font = `700 ${ctaLine1Size}px "Sora", "Inter", sans-serif`;
+    ctx.fillText(fitCanvasText(ctaLine1, ctaW - 44), ctaX + ctaW * 0.5, ctaY + 15);
+    ctx.font = `700 ${ctaLine2Size}px "Inter", sans-serif`;
+    ctx.fillText(fitCanvasText(ctaLine2, ctaW - 44), ctaX + ctaW * 0.5, ctaY + ctaH - 32);
 
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
