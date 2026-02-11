@@ -487,25 +487,22 @@
         ? getBombBriefingCopy()
         : {
             abilityName: "Escalation Pulse",
-            title: "Unlocked: Escalation Pulse",
-            subtitle: "Strong signals can reset noisy systems.",
+            title: "Press Space: Escalation Pulse",
+            subtitle: "In gameplay, Space clears enemies and enemy bullets.",
             bullets: [
-              "Each upgrade maps to a neural-net part.",
-              "Press Space in play to clear danger.",
-              "You can use this once per floor."
+              "Space works only during gameplay.",
+              "Pulse clears all enemies and enemy bullets.",
+              "You can use it once per floor."
             ],
-            steps: ["What it is", "When to use it", "How it maps to nets"],
+            steps: ["Key: Space", "Effect: full screen clear", "Limit: once each floor"],
             cta: (step, total) => `Press Enter to accept (${step}/${total})`
           };
     const enterGoal = 3;
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
-    const ctaText =
-      accepted >= enterGoal
-        ? "Accepted. Loading floor..."
-        : typeof copy.cta === "function"
-          ? copy.cta(nextStep, enterGoal)
-          : `Press Enter to accept (${nextStep}/${enterGoal})`;
+    const baseCta =
+      typeof copy.cta === "function" ? copy.cta(nextStep, enterGoal) : `Press Enter to accept (${nextStep}/${enterGoal})`;
+    const ctaText = accepted >= enterGoal ? "Accepted. Loading floor..." : `${baseCta} • Then press Space in PLAYING`;
 
     const panelW = 1044;
     const panelH = 550;
@@ -530,15 +527,15 @@
     const pulse = 0.5 + Math.sin(game.globalTime * 5.2) * 0.5;
     const pulseAlpha = 0.14 + pulse * 0.12;
     ctx.fillStyle = rgba(accent, pulseAlpha);
-    fillRoundRect(panelX + panelW - 272, panelY + 68, 208, 46, 999);
+    fillRoundRect(panelX + panelW - 296, panelY + 58, 232, 54, 999);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
-    strokeRoundRect(panelX + panelW - 272, panelY + 68, 208, 46, 999);
+    strokeRoundRect(panelX + panelW - 296, panelY + 58, 232, 54, 999);
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 20px "Sora", "Inter", sans-serif';
+    ctx.font = '700 22px "Sora", "Inter", sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(copy.abilityName || "Escalation Pulse", panelX + panelW - 168, panelY + 92);
+    ctx.fillText(copy.abilityName || "Escalation Pulse", panelX + panelW - 180, panelY + 84);
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
 
@@ -583,12 +580,45 @@
         maxLines: 2
       });
 
-      ctx.font = '600 24px "Inter", sans-serif';
-      let lineY = drawWrappedText(subtitle, bodyX + 18, headingBottom + 10, infoW - 36, 31, { maxLines: 2 }) + 10;
+      ctx.font = '600 20px "Inter", sans-serif';
+      const subtitleBottom = drawWrappedText(subtitle, bodyX + 18, headingBottom + 8, infoW - 36, 25, { maxLines: 2 });
 
-      ctx.font = '600 19px "Inter", sans-serif';
+      const keyCalloutY = subtitleBottom + 10;
+      const keyCalloutW = Math.min(288, infoW - 40);
+      const keyCalloutX = bodyX + 18;
+      const actionStripY = keyCalloutY + 88;
+
+      ctx.fillStyle = rgba(accent, 0.28);
+      fillRoundRect(keyCalloutX + 10, keyCalloutY + 8, keyCalloutW, 72, 18);
+      ctx.fillStyle = accent;
+      fillRoundRect(keyCalloutX, keyCalloutY, keyCalloutW, 72, 18);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 3;
+      strokeRoundRect(keyCalloutX, keyCalloutY, keyCalloutW, 72, 18);
+
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = '700 40px "Sora", "Inter", sans-serif';
+      ctx.fillText("SPACE", keyCalloutX + keyCalloutW * 0.5, keyCalloutY + 32);
+      ctx.font = '700 15px "Inter", sans-serif';
+      ctx.fillText("Use during PLAYING", keyCalloutX + keyCalloutW * 0.5, keyCalloutY + 56);
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      ctx.fillStyle = TOKENS.white;
+      fillRoundRect(bodyX + 18, actionStripY, infoW - 36, 40, 12);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(bodyX + 18, actionStripY, infoW - 36, 40, 12);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 20px "Inter", sans-serif';
+      ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", infoW - 62), bodyX + 30, actionStripY + 10);
+
+      ctx.font = '600 16px "Inter", sans-serif';
+      let lineY = actionStripY + 52;
       for (let i = 0; i < bullets.length; i += 1) {
-        lineY = drawWrappedText(`• ${bullets[i]}`, bodyX + 18, lineY, infoW - 36, 27, { maxLines: 1 });
+        lineY = drawWrappedText(`• ${bullets[i]}`, bodyX + 18, lineY, infoW - 36, 22, { maxLines: 1 });
       }
 
       let stepY = bodyTop + 24;
@@ -602,19 +632,17 @@
         strokeRoundRect(bodyX + infoW + gap + 16, stepY, sideW - 32, 70, 14);
 
         ctx.fillStyle = TOKENS.ink;
-        ctx.font = '700 14px "Inter", sans-serif';
-        ctx.fillText(`Enter ${i + 1}`, bodyX + infoW + gap + 34, stepY + 13);
-        ctx.font = '600 18px "Inter", sans-serif';
-        ctx.fillText(fitCanvasText(label, sideW - 118), bodyX + infoW + gap + 34, stepY + 35);
+        ctx.font = '700 17px "Inter", sans-serif';
+        ctx.fillText(fitCanvasText(`Enter ${i + 1}: ${label}`, sideW - 100), bodyX + infoW + gap + 34, stepY + 25);
 
         ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.45);
         ctx.font = '700 28px "Inter", sans-serif';
-        ctx.fillText(isDone ? "✓" : "•", bodyX + infoW + gap + sideW - 56, stepY + 24);
+        ctx.fillText(isDone ? "✓" : "•", bodyX + infoW + gap + sideW - 56, stepY + 21);
         stepY += 86;
       }
     });
 
-    const ctaW = 440;
+    const ctaW = 660;
     const ctaH = 62;
     const ctaX = panelX + (panelW - ctaW) * 0.5;
     const ctaY = panelY + panelH - 88;
@@ -634,7 +662,7 @@
     strokeRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 26px "Sora", "Inter", sans-serif';
+    ctx.font = '700 20px "Sora", "Inter", sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(fitCanvasText(ctaText, ctaW - 40), ctaX + ctaW * 0.5, ctaY + ctaH * 0.5 + 1);
@@ -1561,7 +1589,7 @@
       typeof getBombBriefingCopy === "function" && getBombBriefingCopy().abilityName
         ? getBombBriefingCopy().abilityName
         : "Escalation Pulse";
-    const bombText = !game.bombUsedThisFloor ? `${bombAbilityName}: Ready` : `${bombAbilityName}: Used`;
+    const bombText = !game.bombUsedThisFloor ? `Space: ${bombAbilityName} Ready` : `Space: ${bombAbilityName} Used`;
     ctx.font = '700 12px "Inter", sans-serif';
     const bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 184, 286);
     const bombBoxH = 30;
