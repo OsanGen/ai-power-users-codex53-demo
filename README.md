@@ -83,6 +83,7 @@ From `src/core.js`:
 ### Global / by state
 
 - `WASD`: movement in gameplay states
+- Movement input is normalized internally to `KeyW/KeyA/KeyS/KeyD` (keyboard `event.code`) to prevent case/Shift key-latch drift.
 - `Arrow keys`: shoot direction
 - `~` or `` ` ``: toggle debug stats line
 
@@ -236,6 +237,7 @@ At each floor start (`UPGRADE_SELECT`):
 Each floor has:
 - unique duration
 - accent color (`yellow`, `blue`, `mint`, `pink`)
+- unique arena visual color signature (lead + support CogSec colors)
 - heart type/icon style
 - enemy wave schedule with per-wave spawn-rate and speed scaling
 
@@ -339,6 +341,9 @@ Share copy generation:
 - Main draw loop in `src/main.js`
 - Render entry in `AIPU.render.draw()`
 - Environment + entities + HUD + overlays are layered in `src/render.js`
+- Arena visuals now resolve per-floor themes (unique signatures for Floors 1-9).
+- Floors `5-9` progressively increase trippy visual layering/motion in the arena only.
+- Mechanics/stats are unchanged (render-only update).
 
 ### Render cache
 

@@ -107,6 +107,27 @@
     return key.startsWith("Arrow") || code.startsWith("Arrow");
   }
 
+  function isMovementCode(code) {
+    return code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD";
+  }
+
+  function setInputKeyState(event, isDown) {
+    const key = typeof event.key === "string" ? event.key : "";
+    const code = typeof event.code === "string" ? event.code : "";
+
+    if (isMovementCode(code)) {
+      keys[code] = isDown;
+      const movementLetter = code.slice(-1);
+      keys[movementLetter] = isDown;
+      keys[movementLetter.toLowerCase()] = isDown;
+      return;
+    }
+
+    if (key) {
+      keys[key] = isDown;
+    }
+  }
+
   function normalizeCheckpointFloor(value) {
     const maxFloors = Math.max(1, FLOORS.length);
     const parsed = Number.parseInt(String(value), 10);
@@ -277,7 +298,7 @@
     const code = typeof event.code === "string" ? event.code : "";
     const lower = key.toLowerCase();
 
-    keys[key] = true;
+    setInputKeyState(event, true);
 
     if (isArrowKey(event)) {
       const arrow = key.startsWith("Arrow") ? key : code;
@@ -359,7 +380,7 @@
   });
 
   window.addEventListener("keyup", (event) => {
-    keys[event.key] = false;
+    setInputKeyState(event, false);
   });
 
   window.addEventListener("blur", () => {
@@ -1610,19 +1631,19 @@
   }
 
   function isMoveUp() {
-    return !!(keys.w || keys.W);
+    return !!keys.KeyW;
   }
 
   function isMoveLeft() {
-    return !!(keys.a || keys.A);
+    return !!keys.KeyA;
   }
 
   function isMoveDown() {
-    return !!(keys.s || keys.S);
+    return !!keys.KeyS;
   }
 
   function isMoveRight() {
-    return !!(keys.d || keys.D);
+    return !!keys.KeyD;
   }
 
   function normalizeUpgradeSelection() {

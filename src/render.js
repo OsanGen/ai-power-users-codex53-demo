@@ -56,6 +56,26 @@
     cta: (step, total) => `Press Enter to accept (${step}/${total})`
   };
 
+  const LEAD_TINT_ALPHA_MAX = 0.22;
+  const SUPPORT_TINT_ALPHA_MAX = 0.14;
+  const COG_COLORS = Object.freeze({
+    yellow: TOKENS.yellow,
+    blue: TOKENS.blue,
+    mint: TOKENS.mint,
+    pink: TOKENS.pink
+  });
+  const FLOOR_VISUAL_THEME = Object.freeze({
+    1: Object.freeze({ lead: "yellow", support: Object.freeze([]), trippyLevel: 0 }),
+    2: Object.freeze({ lead: "blue", support: Object.freeze([]), trippyLevel: 0 }),
+    3: Object.freeze({ lead: "mint", support: Object.freeze([]), trippyLevel: 0 }),
+    4: Object.freeze({ lead: "pink", support: Object.freeze([]), trippyLevel: 0 }),
+    5: Object.freeze({ lead: "yellow", support: Object.freeze(["blue"]), trippyLevel: 1 }),
+    6: Object.freeze({ lead: "blue", support: Object.freeze(["mint", "yellow"]), trippyLevel: 2 }),
+    7: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 3 }),
+    8: Object.freeze({ lead: "pink", support: Object.freeze(["yellow", "mint"]), trippyLevel: 4 }),
+    9: Object.freeze({ lead: "yellow", support: Object.freeze(["pink", "blue", "mint"]), trippyLevel: 5 })
+  });
+
   if (renderCacheState && !renderCacheState.stats) {
     renderCacheState.stats = { hits: 0, misses: 0, staticRebuilds: 0, dynamicRebuilds: 0 };
   }
@@ -134,15 +154,59 @@
     ctx.clearRect(0, 0, WIDTH, HEIGHT);
   }
 
-  function hasDynamicFloorVisuals(floor) {
-    const id = floor && floor.id;
-    return id === 1 || id === 2 || id === 3 || id === 4 || id === 8 || id === 9;
+  function colorByName(name, fallback = TOKENS.blue) {
+    return COG_COLORS[name] || fallback;
   }
 
-  function drawEnvironment(floor, accent) {
+  function resolveFloorVisualTheme(floor, accent) {
+    const id = floor && Number.isFinite(floor.id) ? floor.id : 1;
+    const base = FLOOR_VISUAL_THEME[id] || FLOOR_VISUAL_THEME[1];
+    const leadName = typeof base.lead === "string" ? base.lead : "blue";
+    const supportNames = Array.isArray(base.support) ? base.support.filter((name) => !!COG_COLORS[name]) : [];
+    const trippyLevel = clamp(Number(base.trippyLevel) || 0, 0, 5);
+    return {
+      leadName,
+      lead: colorByName(leadName, accent || TOKENS.blue),
+      supportNames,
+      support: supportNames.map((name) => colorByName(name)),
+      trippyLevel,
+      motionScale: 1 + trippyLevel * 0.16,
+      densityScale: 1 + trippyLevel * 0.14,
+      leadAlphaMax: LEAD_TINT_ALPHA_MAX,
+      supportAlphaMax: SUPPORT_TINT_ALPHA_MAX
+    };
+  }
+
+  function leadTint(visualTheme, alpha, fallbackColor = TOKENS.blue) {
+    const cap = visualTheme ? visualTheme.leadAlphaMax : LEAD_TINT_ALPHA_MAX;
+    const color = visualTheme && visualTheme.lead ? visualTheme.lead : fallbackColor;
+    return rgba(color, clamp(alpha, 0, cap));
+  }
+
+  function supportTint(visualTheme, index, alpha, fallbackColor = TOKENS.blue) {
+    if (!visualTheme || !visualTheme.support || visualTheme.support.length === 0) {
+      return rgba(fallbackColor, clamp(alpha, 0, SUPPORT_TINT_ALPHA_MAX));
+    }
+    const supportColor = visualTheme.support[Math.abs(index) % visualTheme.support.length];
+    return rgba(supportColor, clamp(alpha, 0, visualTheme.supportAlphaMax));
+  }
+
+  function supportColorAt(visualTheme, index, fallbackColor = TOKENS.blue) {
+    if (!visualTheme || !visualTheme.support || visualTheme.support.length === 0) {
+      return fallbackColor;
+    }
+    return visualTheme.support[Math.abs(index) % visualTheme.support.length];
+  }
+
+  function hasDynamicFloorVisuals(floor) {
+    const id = floor && floor.id;
+    return id === 1 || id === 2 || id === 3 || id === 4 || id === 5 || id === 6 || id === 7 || id === 8 || id === 9;
+  }
+
+  function drawEnvironment(floor, accent, visualTheme = null) {
     if (!RENDER_CACHE_ENABLED || !renderCacheState) {
-      drawBackdrop(accent);
-      drawCorridor(floor, accent);
+      drawBackdrop(accent, visualTheme);
+      drawCorridor(floor, accent, visualTheme);
       return;
     }
 
@@ -150,34 +214,34 @@
 
     if (!ensureRenderLayerCanvases()) {
       renderCacheState.stats.misses += 1;
-      drawBackdrop(accent);
-      drawCorridor(floor, accent);
+      drawBackdrop(accent, visualTheme);
+      drawCorridor(floor, accent, visualTheme);
       return;
     }
 
     if (renderCacheState.dirty) {
-      rebuildFloorStaticLayer(floor, accent);
+      rebuildFloorStaticLayer(floor, accent, visualTheme);
     }
     if (renderCacheState.staticCanvas) {
       ctx.drawImage(renderCacheState.staticCanvas, 0, 0);
     }
 
-    updateDynamicLayer(floor, accent);
+    updateDynamicLayer(floor, accent, visualTheme);
     if (renderCacheState.dynamicCanvas) {
       ctx.drawImage(renderCacheState.dynamicCanvas, 0, 0);
     }
     renderCacheState.stats.hits += 1;
   }
 
-  function rebuildFloorStaticLayer(floor, accent) {
+  function rebuildFloorStaticLayer(floor, accent, visualTheme = null) {
     if (!renderCacheState || !renderCacheState.staticCtx) {
       return;
     }
 
     withRenderContext(renderCacheState.staticCtx, () => {
       clearCurrentContext();
-      drawBackdrop(accent);
-      drawCorridorStaticLayer(floor, accent);
+      drawBackdrop(accent, visualTheme);
+      drawCorridorStaticLayer(floor, accent, visualTheme);
     });
 
     renderCacheState.dirty = false;
@@ -186,7 +250,7 @@
     renderCacheState.stats.staticRebuilds += 1;
   }
 
-  function updateDynamicLayer(floor, accent) {
+  function updateDynamicLayer(floor, accent, visualTheme = null) {
     if (!renderCacheState || !renderCacheState.dynamicCtx) {
       return;
     }
@@ -210,7 +274,7 @@
     withRenderContext(renderCacheState.dynamicCtx, () => {
       clearCurrentContext();
       if (dynamicActive) {
-        drawCorridorDynamicLayer(floor, accent);
+        drawCorridorDynamicLayer(floor, accent, visualTheme);
       }
     });
 
@@ -231,6 +295,7 @@
 
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
     const accent = accentColor(floor.accent);
+    const visualTheme = resolveFloorVisualTheme(floor, accent);
     const deathShake = game.state === GameState.DEATH_ANIM ? systems.getDeathShakeOffset() : null;
     systems.syncOverlayRestartButton();
 
@@ -258,7 +323,7 @@
       ctx.translate(deathShake.x, deathShake.y);
     }
 
-    drawEnvironment(floor, accent);
+    drawEnvironment(floor, accent, visualTheme);
 
     drawPickups(accent);
     drawBullets(accent);
@@ -1114,15 +1179,33 @@
     ctx.restore();
   }
 
-  function drawBackdrop(accent) {
+  function drawBackdrop(accent, visualTheme = null) {
     ctx.fillStyle = TOKENS.fog;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    drawCornerMotif(28, 24, accent, true);
-    drawCornerMotif(WIDTH - 210, HEIGHT - 130, accent, false);
+    const motifColor = visualTheme ? visualTheme.lead : accent;
+    const motifAlpha = visualTheme ? visualTheme.leadAlphaMax : 0.26;
+    drawCornerMotif(28, 24, motifColor, true, motifAlpha);
+    drawCornerMotif(WIDTH - 210, HEIGHT - 130, motifColor, false, motifAlpha);
+
+    if (!visualTheme || visualTheme.support.length === 0) {
+      return;
+    }
+
+    const markerCount = Math.min(6, visualTheme.support.length * 2);
+    const markerWidth = 56;
+    for (let i = 0; i < markerCount; i += 1) {
+      const xTop = 26 + i * 68;
+      const yTop = 10 + (i % 2) * 6;
+      const xBottom = WIDTH - 82 - i * 68;
+      const yBottom = HEIGHT - 20 - (i % 2) * 6;
+      ctx.fillStyle = supportTint(visualTheme, i, 0.08 + visualTheme.trippyLevel * 0.008, motifColor);
+      fillRoundRect(xTop, yTop, markerWidth, 5, 999);
+      fillRoundRect(xBottom, yBottom, markerWidth, 5, 999);
+    }
   }
 
-  function drawCorridor(floor, accent) {
+  function drawCorridor(floor, accent, visualTheme = null) {
     ctx.fillStyle = rgba(TOKENS.ink, 0.08);
     fillRoundRect(CORRIDOR.x + 8, CORRIDOR.y + 10, CORRIDOR.w, CORRIDOR.h, 24);
 
@@ -1148,20 +1231,30 @@
     strokeRoundRect(wallLeft.x, wallLeft.y, wallLeft.w, wallLeft.h, 14);
     strokeRoundRect(wallRight.x, wallRight.y, wallRight.w, wallRight.h, 14);
 
-    drawFloorSkin(floor, accent, wallLeft, wallRight);
+    drawFloorSkin(floor, accent, wallLeft, wallRight, visualTheme);
 
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     strokeRoundRect(WORLD.x, WORLD.y, WORLD.w, WORLD.h, 18);
 
-    ctx.fillStyle = rgba(accent, 0.35);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.35);
     fillRoundRect(WORLD.x + 18, WORLD.y - 10, WORLD.w - 36, 6, 999);
 
-    ctx.fillStyle = rgba(accent, 0.35);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.35);
     fillRoundRect(WORLD.x + 18, WORLD.y + WORLD.h + 4, WORLD.w - 36, 6, 999);
+
+    if (visualTheme && visualTheme.support.length > 0) {
+      const supportCount = Math.min(5, 2 + visualTheme.trippyLevel);
+      for (let i = 0; i < supportCount; i += 1) {
+        const x = WORLD.x + 42 + i * 140;
+        ctx.fillStyle = supportTint(visualTheme, i, 0.09 + visualTheme.trippyLevel * 0.005, accent);
+        fillRoundRect(x, WORLD.y - 8, 42, 4, 999);
+        fillRoundRect(x + 10, WORLD.y + WORLD.h + 6, 42, 4, 999);
+      }
+    }
   }
 
-  function drawCorridorStaticLayer(floor, accent) {
+  function drawCorridorStaticLayer(floor, accent, visualTheme = null) {
     ctx.fillStyle = rgba(TOKENS.ink, 0.08);
     fillRoundRect(CORRIDOR.x + 8, CORRIDOR.y + 10, CORRIDOR.w, CORRIDOR.h, 24);
 
@@ -1187,22 +1280,33 @@
     strokeRoundRect(wallLeft.x, wallLeft.y, wallLeft.w, wallLeft.h, 14);
     strokeRoundRect(wallRight.x, wallRight.y, wallRight.w, wallRight.h, 14);
 
-    drawFloorSkinStatic(floor, accent, wallLeft, wallRight);
+    drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme);
 
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     strokeRoundRect(WORLD.x, WORLD.y, WORLD.w, WORLD.h, 18);
 
-    ctx.fillStyle = rgba(accent, 0.35);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.35);
     fillRoundRect(WORLD.x + 18, WORLD.y - 10, WORLD.w - 36, 6, 999);
     fillRoundRect(WORLD.x + 18, WORLD.y + WORLD.h + 4, WORLD.w - 36, 6, 999);
+
+    if (visualTheme && visualTheme.support.length > 0) {
+      const supportCount = Math.min(5, 2 + visualTheme.trippyLevel);
+      for (let i = 0; i < supportCount; i += 1) {
+        const x = WORLD.x + 42 + i * 140;
+        ctx.fillStyle = supportTint(visualTheme, i, 0.09 + visualTheme.trippyLevel * 0.005, accent);
+        fillRoundRect(x, WORLD.y - 8, 42, 4, 999);
+        fillRoundRect(x + 10, WORLD.y + WORLD.h + 6, 42, 4, 999);
+      }
+    }
   }
 
-  function drawCorridorDynamicLayer(floor, accent) {
-    drawFloorSkinDynamic(floor, accent);
+  function drawCorridorDynamicLayer(floor, accent, visualTheme = null) {
+    drawFloorSkinDynamic(floor, accent, visualTheme);
   }
 
-  function drawFloorSkinStatic(floor, accent, wallLeft, wallRight) {
+  function drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme = null) {
+    const lead = visualTheme ? visualTheme.lead : accent;
     ctx.save();
     ctx.beginPath();
     roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
@@ -1211,20 +1315,21 @@
     drawWorldGridLines();
 
     if (floor.id === 1) {
-      drawWordBlocks(accent);
+      drawWordBlocks(lead, visualTheme);
     } else if (floor.id === 5) {
-      drawKitchenPanels(accent);
+      drawKitchenPanels(lead, visualTheme);
     } else if (floor.id === 6) {
-      drawDoorLoop(accent);
+      drawDoorLoop(lead, visualTheme);
     } else if (floor.id === 7) {
-      drawCracksAndFrames(accent);
+      drawCracksAndFrames(lead, visualTheme);
     }
 
     ctx.restore();
-    drawWallDecor(floor, accent, wallLeft, wallRight);
+    drawWallDecor(floor, lead, wallLeft, wallRight, visualTheme);
   }
 
-  function drawFloorSkinDynamic(floor, accent) {
+  function drawFloorSkinDynamic(floor, accent, visualTheme = null) {
+    const lead = visualTheme ? visualTheme.lead : accent;
     const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
 
     ctx.save();
@@ -1233,18 +1338,24 @@
     ctx.clip();
 
     if (floor.id === 1) {
-      drawMotifFlicker(accent);
+      drawMotifFlicker(lead, visualTheme);
     } else if (floor.id === 2) {
-      drawTileToWoodTransition(accent, progress);
+      drawTileToWoodTransition(lead, progress, visualTheme);
     } else if (floor.id === 3) {
-      drawLoadingBars(accent);
-      drawFloatingIcons(accent);
+      drawLoadingBars(lead, visualTheme);
+      drawFloatingIcons(lead, visualTheme);
     } else if (floor.id === 4) {
-      drawWaveBands(accent);
+      drawWaveBands(lead, visualTheme);
+    } else if (floor.id === 5) {
+      drawKitchenInterleaveOverlay(visualTheme, progress);
+    } else if (floor.id === 6) {
+      drawDoorPhaseRibbons(visualTheme, progress);
+    } else if (floor.id === 7) {
+      drawMirroredShardDrift(visualTheme, progress);
     } else if (floor.id === 8) {
-      drawThresholdBands(accent, progress);
+      drawThresholdBands(lead, progress, visualTheme);
     } else if (floor.id === 9) {
-      drawEvolutionDissolve(accent, progress);
+      drawEvolutionDissolve(lead, progress, visualTheme);
     }
 
     ctx.restore();
@@ -1261,7 +1372,8 @@
     }
   }
 
-  function drawFloorSkin(floor, accent, wallLeft, wallRight) {
+  function drawFloorSkin(floor, accent, wallLeft, wallRight, visualTheme = null) {
+    const lead = visualTheme ? visualTheme.lead : accent;
     const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
 
     ctx.save();
@@ -1272,44 +1384,47 @@
     drawWorldGridLines();
 
     if (floor.id === 1) {
-      drawMotifFlicker(accent);
-      drawWordBlocks(accent);
+      drawMotifFlicker(lead, visualTheme);
+      drawWordBlocks(lead, visualTheme);
     } else if (floor.id === 2) {
-      drawTileToWoodTransition(accent, progress);
+      drawTileToWoodTransition(lead, progress, visualTheme);
     } else if (floor.id === 3) {
-      drawLoadingBars(accent);
-      drawFloatingIcons(accent);
+      drawLoadingBars(lead, visualTheme);
+      drawFloatingIcons(lead, visualTheme);
     } else if (floor.id === 4) {
-      drawWaveBands(accent);
+      drawWaveBands(lead, visualTheme);
     } else if (floor.id === 5) {
-      drawKitchenPanels(accent);
+      drawKitchenPanels(lead, visualTheme);
+      drawKitchenInterleaveOverlay(visualTheme, progress);
     } else if (floor.id === 6) {
-      drawDoorLoop(accent);
+      drawDoorLoop(lead, visualTheme);
+      drawDoorPhaseRibbons(visualTheme, progress);
     } else if (floor.id === 7) {
-      drawCracksAndFrames(accent);
+      drawCracksAndFrames(lead, visualTheme);
+      drawMirroredShardDrift(visualTheme, progress);
     } else if (floor.id === 8) {
-      drawThresholdBands(accent, progress);
+      drawThresholdBands(lead, progress, visualTheme);
     } else if (floor.id === 9) {
-      drawEvolutionDissolve(accent, progress);
+      drawEvolutionDissolve(lead, progress, visualTheme);
     }
 
     ctx.restore();
 
-    drawWallDecor(floor, accent, wallLeft, wallRight);
+    drawWallDecor(floor, lead, wallLeft, wallRight, visualTheme);
   }
 
-  function drawMotifFlicker(accent) {
+  function drawMotifFlicker(accent, visualTheme = null) {
     for (let i = 0; i < 12; i += 1) {
       const y = WORLD.y + 12 + i * 40;
       const alpha = 0.08 + 0.1 * ((i + Math.floor(game.globalTime * 5)) % 2);
-      ctx.fillStyle = rgba(accent, alpha);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
       ctx.fillRect(WORLD.x + 12, y, 10, 3);
       ctx.fillRect(WORLD.x + WORLD.w - 22, y + 7, 10, 3);
     }
   }
 
-  function drawWordBlocks(accent) {
-    ctx.fillStyle = rgba(accent, 0.14);
+  function drawWordBlocks(accent, visualTheme = null) {
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.14, accent) : rgba(accent, 0.14);
     const step = 120;
     for (let x = WORLD.x + 32; x < WORLD.x + WORLD.w - 100; x += step) {
       fillRoundRect(x, WORLD.y + 40, 82, 22, 8);
@@ -1322,7 +1437,7 @@
     }
   }
 
-  function drawTileToWoodTransition(accent, progress) {
+  function drawTileToWoodTransition(accent, progress, visualTheme = null) {
     const transitionX = WORLD.x + WORLD.w * (0.35 + progress * 0.4);
 
     ctx.strokeStyle = rgba(TOKENS.ink, 0.18);
@@ -1340,7 +1455,7 @@
       ctx.stroke();
     }
 
-    ctx.fillStyle = rgba(accent, 0.16);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.16, accent) : rgba(accent, 0.16);
     fillRoundRect(transitionX - 4, WORLD.y + 18, 8, WORLD.h - 36, 8);
 
     ctx.strokeStyle = rgba(TOKENS.ink, 0.16);
@@ -1350,22 +1465,35 @@
       ctx.lineTo(WORLD.x + WORLD.w - 12, y + 8);
       ctx.stroke();
     }
+
+    if (visualTheme && visualTheme.support.length > 0) {
+      const columnCount = 7;
+      for (let i = 0; i < columnCount; i += 1) {
+        const y = WORLD.y + 28 + i * 72;
+        ctx.fillStyle = supportTint(visualTheme, i, 0.1, accent);
+        fillRoundRect(transitionX + 10 + (i % 2) * 10, y, 10, 34, 4);
+      }
+    }
   }
 
-  function drawLoadingBars(accent) {
+  function drawLoadingBars(accent, visualTheme = null) {
     for (let i = 0; i < 7; i += 1) {
       const x = WORLD.x + 44 + i * 120;
       const y = WORLD.y + 38 + ((i % 2) * 26);
       const width = 74;
       ctx.fillStyle = rgba(TOKENS.ink, 0.08);
       fillRoundRect(x, y, width, 12, 999);
-      ctx.fillStyle = rgba(accent, 0.35);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.35);
       fillRoundRect(x + 1, y + 1, (width - 2) * ((Math.sin(game.globalTime * 2.4 + i) + 1) * 0.5), 10, 999);
+      if (visualTheme && visualTheme.support.length > 0) {
+        ctx.fillStyle = supportTint(visualTheme, i, 0.11, accent);
+        fillRoundRect(x + width - 10, y + 3, 6, 6, 999);
+      }
     }
   }
 
-  function drawFloatingIcons(accent) {
-    ctx.strokeStyle = rgba(accent, 0.45);
+  function drawFloatingIcons(accent, visualTheme = null) {
+    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.2, accent) : rgba(accent, 0.45);
     ctx.lineWidth = 2;
 
     for (let i = 0; i < 18; i += 1) {
@@ -1379,14 +1507,14 @@
         ctx.lineTo(x + size + 4, y + size);
         ctx.lineTo(x + 5, y + size + 5);
         ctx.closePath();
-        ctx.fillStyle = rgba(accent, 0.25);
+        ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.14, accent) : rgba(accent, 0.25);
         ctx.fill();
       }
     }
   }
 
-  function drawWaveBands(accent) {
-    ctx.strokeStyle = rgba(accent, 0.34);
+  function drawWaveBands(accent, visualTheme = null) {
+    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.34);
     ctx.lineWidth = 2;
 
     for (let y = WORLD.y + 26; y < WORLD.y + WORLD.h - 20; y += 28) {
@@ -1401,22 +1529,46 @@
       }
       ctx.stroke();
     }
+
+    if (visualTheme && visualTheme.support.length > 0) {
+      for (let y = WORLD.y + 44; y < WORLD.y + WORLD.h - 28; y += 84) {
+        ctx.beginPath();
+        ctx.strokeStyle = supportTint(visualTheme, y, 0.11, accent);
+        for (let x = WORLD.x + 8; x <= WORLD.x + WORLD.w - 8; x += 22) {
+          const offset = Math.sin(x * 0.018 + y * 0.036 + game.globalTime * 2.2) * (4 + visualTheme.trippyLevel);
+          if (x === WORLD.x + 8) {
+            ctx.moveTo(x, y + offset);
+          } else {
+            ctx.lineTo(x, y + offset);
+          }
+        }
+        ctx.stroke();
+      }
+    }
   }
 
-  function drawKitchenPanels(accent) {
+  function drawKitchenPanels(accent, visualTheme = null) {
     for (let i = 0; i < 14; i += 1) {
       const x = WORLD.x + 24 + i * 66;
       const panelH = 22 + (i % 3) * 8;
-      ctx.fillStyle = i % 2 === 0 ? rgba(accent, 0.12) : rgba(TOKENS.ink, 0.08);
+      ctx.fillStyle = i % 2 === 0
+        ? visualTheme
+          ? leadTint(visualTheme, 0.12, accent)
+          : rgba(accent, 0.12)
+        : rgba(TOKENS.ink, 0.08);
       fillRoundRect(x, WORLD.y + WORLD.h - 40 - panelH, 48, panelH, 6);
 
       ctx.strokeStyle = rgba(TOKENS.ink, 0.2);
       ctx.strokeRect(x + 18, WORLD.y + 24, 12, 22);
       ctx.strokeRect(x + 14, WORLD.y + 46, 20, 4);
+      if (visualTheme && visualTheme.support.length > 0) {
+        ctx.fillStyle = supportTint(visualTheme, i, 0.1, accent);
+        fillRoundRect(x + 6, WORLD.y + WORLD.h - 24 - panelH * 0.5, 9, 5, 999);
+      }
     }
   }
 
-  function drawDoorLoop(accent) {
+  function drawDoorLoop(accent, visualTheme = null) {
     for (let i = 0; i < 8; i += 1) {
       const y = WORLD.y + 18 + i * 60;
       const leftX = WORLD.x + 28 + (i % 2) * 7;
@@ -1426,13 +1578,18 @@
       strokeRoundRect(leftX, y, 40, 48, 8);
       strokeRoundRect(rightX, y + 8, 40, 48, 8);
 
-      ctx.fillStyle = rgba(accent, 0.15);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.15, accent) : rgba(accent, 0.15);
       fillRoundRect(leftX + 5, y + 8, 7, 7, 999);
       fillRoundRect(rightX + 27, y + 16, 7, 7, 999);
+      if (visualTheme && visualTheme.support.length > 0) {
+        ctx.fillStyle = supportTint(visualTheme, i, 0.11, accent);
+        fillRoundRect(leftX + 26, y + 35, 8, 5, 999);
+        fillRoundRect(rightX + 6, y + 43, 8, 5, 999);
+      }
     }
   }
 
-  function drawCracksAndFrames(accent) {
+  function drawCracksAndFrames(accent, visualTheme = null) {
     ctx.strokeStyle = rgba(TOKENS.ink, 0.22);
     ctx.lineWidth = 2;
     for (let i = 0; i < 11; i += 1) {
@@ -1452,22 +1609,105 @@
       ctx.save();
       ctx.translate(x + 30, y + 18);
       ctx.rotate((i % 2 === 0 ? -1 : 1) * 0.08);
-      ctx.fillStyle = rgba(accent, 0.15);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.15, accent) : rgba(accent, 0.15);
       fillRoundRect(-30, -18, 60, 36, 8);
       ctx.strokeStyle = rgba(TOKENS.ink, 0.3);
       strokeRoundRect(-30, -18, 60, 36, 8);
       ctx.restore();
     }
+
+    if (visualTheme && visualTheme.support.length > 0) {
+      for (let i = 0; i < 14; i += 1) {
+        const x = WORLD.x + 28 + (i * 73) % (WORLD.w - 60);
+        const y = WORLD.y + 20 + (i * 37) % (WORLD.h - 42);
+        ctx.fillStyle = supportTint(visualTheme, i, 0.1, accent);
+        fillRoundRect(x, y, 8, 8, 3);
+      }
+    }
   }
 
-  function drawThresholdBands(accent, progress) {
+  function drawKitchenInterleaveOverlay(visualTheme, progress) {
+    if (!visualTheme || visualTheme.trippyLevel < 1) {
+      return;
+    }
+
+    const laneCount = Math.floor(8 + visualTheme.densityScale * 6);
+    const laneStep = (WORLD.h - 64) / Math.max(1, laneCount);
+    for (let i = 0; i < laneCount; i += 1) {
+      const y = WORLD.y + 30 + i * laneStep;
+      const wobble = Math.sin(game.floorElapsed * visualTheme.motionScale * 2 + i * 0.7 + progress * 6) * (4 + visualTheme.trippyLevel);
+      const isSupportLane = i % 2 === 0;
+      ctx.fillStyle = isSupportLane ? supportTint(visualTheme, i, 0.11, visualTheme.lead) : leadTint(visualTheme, 0.18, visualTheme.lead);
+      fillRoundRect(WORLD.x + 24 + wobble, y, WORLD.w - 48, 4, 999);
+    }
+  }
+
+  function drawDoorPhaseRibbons(visualTheme, progress) {
+    if (!visualTheme || visualTheme.trippyLevel < 2) {
+      return;
+    }
+
+    const lanes = Math.floor(5 + visualTheme.trippyLevel * 1.4);
+    const amp = 6 + visualTheme.trippyLevel * 2;
+    for (let i = 0; i < lanes; i += 1) {
+      const y = WORLD.y + 36 + i * ((WORLD.h - 72) / Math.max(1, lanes - 1));
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = i % 2 === 0 ? leadTint(visualTheme, 0.2, visualTheme.lead) : supportTint(visualTheme, i, 0.12, visualTheme.lead);
+      ctx.beginPath();
+      for (let x = WORLD.x + 12; x <= WORLD.x + WORLD.w - 12; x += 20) {
+        const offset = Math.sin(x * 0.018 + i * 0.5 + game.floorElapsed * visualTheme.motionScale * 2.1 + progress * 5.2) * amp;
+        if (x === WORLD.x + 12) {
+          ctx.moveTo(x, y + offset);
+        } else {
+          ctx.lineTo(x, y + offset);
+        }
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawMirroredShardDrift(visualTheme, progress) {
+    if (!visualTheme || visualTheme.trippyLevel < 3) {
+      return;
+    }
+
+    const shardCount = Math.floor(14 + visualTheme.densityScale * 12);
+    const centerX = WORLD.x + WORLD.w * 0.5;
+    const span = WORLD.w * 0.42;
+    for (let i = 0; i < shardCount; i += 1) {
+      const travel = ((i * 47 + game.floorElapsed * 30 * visualTheme.motionScale) % span);
+      const y = WORLD.y + 20 + ((i * 53 + game.floorElapsed * 24) % (WORLD.h - 40));
+      const size = 6 + (i % 4) * 2;
+      const tilt = ((i % 2 === 0 ? -1 : 1) * (0.05 + progress * 0.1));
+      const colorStyle = i % 3 === 0 ? supportTint(visualTheme, i, 0.12, visualTheme.lead) : leadTint(visualTheme, 0.18, visualTheme.lead);
+      const leftX = centerX - 24 - travel;
+      const rightX = centerX + 24 + travel * 0.95;
+
+      ctx.save();
+      ctx.translate(leftX, y);
+      ctx.rotate(tilt);
+      ctx.fillStyle = colorStyle;
+      fillRoundRect(-size * 0.5, -size * 0.5, size, size, 3);
+      ctx.restore();
+
+      ctx.save();
+      ctx.translate(rightX, y);
+      ctx.rotate(-tilt);
+      ctx.fillStyle = colorStyle;
+      fillRoundRect(-size * 0.5, -size * 0.5, size, size, 3);
+      ctx.restore();
+    }
+  }
+
+  function drawThresholdBands(accent, progress, visualTheme = null) {
     const top = WORLD.y;
     const oneThird = WORLD.h / 3;
 
-    ctx.fillStyle = rgba(TOKENS.blue, 0.1 + (1 - progress) * 0.08);
+    const topColor = visualTheme ? supportColorAt(visualTheme, 0, TOKENS.blue) : TOKENS.blue;
+    ctx.fillStyle = rgba(topColor, visualTheme ? clamp(0.08 + (1 - progress) * 0.06, 0, SUPPORT_TINT_ALPHA_MAX) : 0.1 + (1 - progress) * 0.08);
     fillRoundRect(WORLD.x + 2, top + 2, WORLD.w - 4, oneThird - 2, 10);
 
-    ctx.fillStyle = rgba(accent, 0.2 + progress * 0.08);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.2 + progress * 0.04, accent) : rgba(accent, 0.2 + progress * 0.08);
     fillRoundRect(WORLD.x + 2, top + oneThird + 2, WORLD.w - 4, oneThird - 2, 8);
 
     ctx.fillStyle = rgba(TOKENS.ink, 0.07 + progress * 0.1);
@@ -1481,15 +1721,33 @@
       ctx.lineTo(WORLD.x + WORLD.w - 10, y + Math.sin(i + game.globalTime * 2) * 4);
       ctx.stroke();
     }
+
+    if (visualTheme && visualTheme.support.length > 0) {
+      const extraLines = 8 + visualTheme.trippyLevel;
+      for (let i = 0; i < extraLines; i += 1) {
+        const y = WORLD.y + 22 + i * ((WORLD.h - 44) / Math.max(1, extraLines - 1));
+        ctx.strokeStyle = supportTint(visualTheme, i, 0.1 + progress * 0.03, accent);
+        ctx.beginPath();
+        for (let x = WORLD.x + 10; x <= WORLD.x + WORLD.w - 10; x += 26) {
+          const offset = Math.sin(game.globalTime * 2.3 + x * 0.015 + i * 0.4) * (3 + visualTheme.trippyLevel);
+          if (x === WORLD.x + 10) {
+            ctx.moveTo(x, y + offset);
+          } else {
+            ctx.lineTo(x, y + offset);
+          }
+        }
+        ctx.stroke();
+      }
+    }
   }
 
-  function drawEvolutionDissolve(accent, progress) {
+  function drawEvolutionDissolve(accent, progress, visualTheme = null) {
     const splitY = WORLD.y + WORLD.h * 0.56;
 
     ctx.fillStyle = rgba(TOKENS.white, 0.6);
     fillRoundRect(WORLD.x + 2, splitY, WORLD.w - 4, WORLD.h - (splitY - WORLD.y) - 2, 8);
 
-    ctx.fillStyle = rgba(accent, 0.12 + progress * 0.08);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.12 + progress * 0.08, accent) : rgba(accent, 0.12 + progress * 0.08);
     for (let i = 0; i < 45; i += 1) {
       const x = WORLD.x + ((i * 47 + game.floorElapsed * 22) % (WORLD.w - 20));
       const y = WORLD.y + ((i * 29) % Math.max(20, splitY - WORLD.y - 20));
@@ -1504,22 +1762,43 @@
       ctx.lineTo(WORLD.x + 26 + i * 95, WORLD.y + WORLD.h * 0.52);
       ctx.stroke();
     }
+
+    if (visualTheme && visualTheme.trippyLevel >= 4) {
+      const latticeCount = Math.floor(5 + visualTheme.trippyLevel * 2);
+      for (let i = 0; i < latticeCount; i += 1) {
+        const baseX = WORLD.x + 18 + i * ((WORLD.w - 36) / Math.max(1, latticeCount - 1));
+        const sway = Math.sin(game.floorElapsed * visualTheme.motionScale + i * 0.6) * 10;
+        ctx.strokeStyle = i % 2 === 0 ? supportTint(visualTheme, i, 0.11, accent) : leadTint(visualTheme, 0.18, accent);
+        ctx.beginPath();
+        ctx.moveTo(baseX - 14 + sway, WORLD.y + 14);
+        ctx.lineTo(baseX + 12 - sway, WORLD.y + WORLD.h * 0.54);
+        ctx.lineTo(baseX - 8 + sway, WORLD.y + WORLD.h - 18);
+        ctx.stroke();
+      }
+    }
   }
 
-  function drawWallDecor(floor, accent, wallLeft, wallRight) {
+  function drawWallDecor(floor, accent, wallLeft, wallRight, visualTheme = null) {
     const loops = 8;
     for (let i = 0; i < loops; i += 1) {
       const y = wallLeft.y + 22 + i * 58;
       const xL = wallLeft.x + 12;
       const xR = wallRight.x + 12;
+      const rightOffsetY = y + ((i + floor.id) % 2) * 8;
 
-      ctx.fillStyle = rgba(accent, 0.12);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.12, accent) : rgba(accent, 0.12);
       fillRoundRect(xL, y, wallLeft.w - 24, 18, 8);
-      fillRoundRect(xR, y + ((i + floor.id) % 2) * 8, wallRight.w - 24, 18, 8);
+      ctx.fillStyle =
+        visualTheme && visualTheme.support.length > 0
+          ? supportTint(visualTheme, i, 0.11, accent)
+          : visualTheme
+            ? leadTint(visualTheme, 0.12, accent)
+            : rgba(accent, 0.12);
+      fillRoundRect(xR, rightOffsetY, wallRight.w - 24, 18, 8);
 
       ctx.strokeStyle = rgba(TOKENS.ink, 0.3);
       strokeRoundRect(xL, y, wallLeft.w - 24, 18, 8);
-      strokeRoundRect(xR, y + ((i + floor.id) % 2) * 8, wallRight.w - 24, 18, 8);
+      strokeRoundRect(xR, rightOffsetY, wallRight.w - 24, 18, 8);
     }
   }
 
@@ -2248,7 +2527,7 @@
     }
   }
 
-  function drawCornerMotif(x, y, accent, flip) {
+  function drawCornerMotif(x, y, accent, flip, accentAlpha = 0.26) {
     ctx.save();
     if (flip) {
       ctx.translate(x + 180, y + 98);
@@ -2265,7 +2544,7 @@
     ctx.lineTo(x + 56, y + 38);
     ctx.stroke();
 
-    ctx.fillStyle = rgba(accent, 0.26);
+    ctx.fillStyle = rgba(accent, clamp(accentAlpha, 0, 1));
     fillRoundRect(x + 68, y + 20, 98, 18, 999);
     fillRoundRect(x + 105, y + 52, 61, 13, 999);
 
