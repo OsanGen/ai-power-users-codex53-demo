@@ -1030,6 +1030,11 @@
 
     const flags = new Set(waveCfg.specialFlags || []);
     const speedMultiplier = lerp(waveCfg.speedMultiplierStart, waveCfg.speedMultiplierEnd, phase);
+    const shootCooldownOpenMin = Number.isFinite(def.shootCooldownOpenMin) ? def.shootCooldownOpenMin : 0.55;
+    const shootCooldownOpenMax = Number.isFinite(def.shootCooldownOpenMax) ? def.shootCooldownOpenMax : 1.45;
+    const shootCooldownMin = Number.isFinite(def.shootCooldownMin) ? def.shootCooldownMin : 0.9;
+    const shootCooldownMax = Number.isFinite(def.shootCooldownMax) ? def.shootCooldownMax : 1.55;
+    const firstShotDelay = Number.isFinite(def.firstShotDelay) ? def.firstShotDelay : 0;
 
     const spawnPoint = findSpawnPoint(flags, waveCfg.enemyType);
 
@@ -1050,7 +1055,10 @@
       age: 0,
       hurtFlash: 0,
       flags,
-      shootCooldown: rand(0.55, 1.45),
+      shootCooldown: rand(shootCooldownOpenMin, shootCooldownOpenMax),
+      shootCooldownMin,
+      shootCooldownMax,
+      firstShotDelay,
       chargeState: "idle",
       chargeTimer: rand(0.3, 1.1),
       chargeDirX: 0,
@@ -1177,12 +1185,12 @@
         enemy.vx = lerp(enemy.vx, chase.x * enemy.speed * desired, clamp(4 * dt, 0, 1));
         enemy.vy = lerp(enemy.vy, chase.y * enemy.speed * desired, clamp(4 * dt, 0, 1));
 
-        if (canAttack) {
+        if (canAttack && enemy.age >= (enemy.firstShotDelay || 0)) {
           enemy.shootCooldown -= dt;
           if (enemy.shootCooldown <= 0) {
             const shot = unitVector(player.x - enemy.x, player.y - enemy.y);
             spawnEnemyBullet(enemy.x, enemy.y, shot.x, shot.y, ENEMY_DEFS[enemy.type].projectileSpeed || 180, 1);
-            enemy.shootCooldown = rand(0.9, 1.55);
+            enemy.shootCooldown = rand(enemy.shootCooldownMin || 0.9, enemy.shootCooldownMax || 1.55);
           }
         }
       } else if (enemy.behavior === "wallhand") {

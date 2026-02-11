@@ -512,6 +512,7 @@
       enemyWaves: [
         wave("chair_knight", 0, 64, 0.35, 0.9, 0.95, 1.2),
         wave("rabbit_glimpse", 5, 30, 0.35, 0.9, 1.0, 1.2),
+        wave("flank_drone", 20, 56, 0.1, 0.26, 0.98, 1.18, ["spawnsBehindPlayer"]),
         wave("hammer_rabbit", 24, 64, 0.2, 0.55, 1.0, 1.22),
         wave("chair_knight", 35, 64, 0.25, 0.85, 1.08, 1.28)
       ]
@@ -527,6 +528,8 @@
       heartSpawn: { initialCount: 1, baseRate: 0.082, clutchBoostStart: 14 },
       enemyWaves: [
         wave("loop_ghost", 0, 70, 0.55, 1.2, 0.95, 1.25, ["spawnsBehindPlayer"]),
+        wave("flank_drone", 10, 46, 0.22, 0.48, 1.0, 1.24, ["spawnsBehindPlayer"]),
+        wave("flank_drone", 42, 70, 0.16, 0.44, 1.05, 1.3, ["spawnsBehindPlayer"]),
         wave("name_glitch_shade", 15, 60, 0.2, 0.7, 1.0, 1.2),
         wave("loop_ghost", 38, 70, 0.45, 1.35, 1.05, 1.35, ["spawnsBehindPlayer"])
       ]
@@ -593,6 +596,19 @@
     rabbit_glimpse: { hp: 1, size: 12, speed: 128, behavior: "dash", touchDamage: 1 },
     notification_swarm: { hp: 1, size: 10, speed: 104, behavior: "swarm", touchDamage: 1 },
     name_glitch_shade: { hp: 2, size: 14, speed: 88, behavior: "phase", touchDamage: 1 },
+    flank_drone: {
+      hp: 2,
+      size: 12,
+      speed: 96,
+      behavior: "ranged",
+      touchDamage: 1,
+      projectileSpeed: 196,
+      shootCooldownOpenMin: 0.9,
+      shootCooldownOpenMax: 1.45,
+      shootCooldownMin: 1.0,
+      shootCooldownMax: 1.7,
+      firstShotDelay: 0.6
+    },
     speaker_wraith: {
       hp: 3,
       size: 15,

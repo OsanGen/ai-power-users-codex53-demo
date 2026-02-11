@@ -1570,6 +1570,18 @@
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 4);
         ctx.fillStyle = TOKENS.ink;
         ctx.fillRect(x - 3, y - 4, 6, 8);
+      } else if (enemy.type === "flank_drone") {
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, r * 0.36, 0, Math.PI * 2);
+        ctx.stroke();
       } else if (enemy.type === "speaker_wraith") {
         fillRoundRect(x - r, y - r, r * 2, r * 2, 8);
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 8);
