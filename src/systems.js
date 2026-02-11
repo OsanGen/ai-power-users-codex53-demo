@@ -68,6 +68,30 @@
     }
   }
 
+  function isSpaceKey(event) {
+    const key = typeof event.key === "string" ? event.key : "";
+    const code = typeof event.code === "string" ? event.code : "";
+    return key === " " || key === "Spacebar" || key === "Space" || code === "Space";
+  }
+
+  function isEnterKey(event) {
+    const key = typeof event.key === "string" ? event.key : "";
+    const code = typeof event.code === "string" ? event.code : "";
+    return key === "Enter" || code === "Enter" || code === "NumpadEnter";
+  }
+
+  function isEscapeKey(event) {
+    const key = typeof event.key === "string" ? event.key : "";
+    const code = typeof event.code === "string" ? event.code : "";
+    return key === "Escape" || code === "Escape";
+  }
+
+  function isArrowKey(event) {
+    const key = typeof event.key === "string" ? event.key : "";
+    const code = typeof event.code === "string" ? event.code : "";
+    return key.startsWith("Arrow") || code.startsWith("Arrow");
+  }
+
   function normalizeCheckpointFloor(value) {
     const maxFloors = Math.max(1, FLOORS.length);
     const parsed = Number.parseInt(String(value), 10);
@@ -223,7 +247,7 @@
 
   window.addEventListener("keydown", (event) => {
     if (isTextModalOpen()) {
-      if (event.key === "Escape") {
+      if (isEscapeKey(event)) {
         event.preventDefault();
         closeTextModal({ save: false });
       }
@@ -234,45 +258,53 @@
       return;
     }
 
-    keys[event.key] = true;
+    const key = typeof event.key === "string" ? event.key : "";
+    const code = typeof event.code === "string" ? event.code : "";
+    const lower = key.toLowerCase();
 
-    if (event.key.startsWith("Arrow")) {
-      AIPU.input.lastShootKey = event.key;
+    keys[key] = true;
+
+    if (isArrowKey(event)) {
+      const arrow = key.startsWith("Arrow") ? key : code;
+      if (arrow.startsWith("Arrow")) {
+        AIPU.input.lastShootKey = arrow;
+      }
     }
 
-    if (event.key === "`" || event.key === "~") {
+    if (key === "`" || key === "~") {
       game.showDebugStats = !game.showDebugStats;
       return;
     }
 
     if (
-      event.key === " " ||
-      event.key === "Enter" ||
-      event.key.startsWith("Arrow") ||
-      event.key === "1" ||
-      event.key === "2" ||
-      event.key === "3" ||
-      event.key.toLowerCase() === "w" ||
-      event.key.toLowerCase() === "a" ||
-      event.key.toLowerCase() === "s" ||
-      event.key.toLowerCase() === "d"
+      isSpaceKey(event) ||
+      isEnterKey(event) ||
+      isArrowKey(event) ||
+      key === "1" ||
+      key === "2" ||
+      key === "3" ||
+      lower === "w" ||
+      lower === "a" ||
+      lower === "s" ||
+      lower === "d"
     ) {
       event.preventDefault();
     }
 
-    const lower = event.key.toLowerCase();
     if (game.state === GameState.TITLE) {
-      if (event.key === " " || event.key === "Enter") {
+      if (isSpaceKey(event) || isEnterKey(event)) {
         if (!(AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete())) {
           game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
         }
         startRun();
+      } else if (lower === "t") {
+        openTextModal();
       } else if (lower === "r") {
         clearCheckpointFloor();
         startRun(1);
       }
     } else if (game.state === GameState.BOMB_BRIEFING) {
-      if (event.key === "Enter" && !event.repeat) {
+      if (isEnterKey(event) && !event.repeat) {
         game.bombBriefingEnterCount = clamp(game.bombBriefingEnterCount + 1, 0, BOMB_BRIEFING_ACCEPT_COUNT);
         if (game.bombBriefingEnterCount >= BOMB_BRIEFING_ACCEPT_COUNT) {
           game.bombBriefingSeenThisRun = true;
@@ -280,24 +312,24 @@
         }
       }
     } else if (game.state === GameState.UPGRADE_SELECT) {
-      if (event.key === "1") {
+      if (key === "1") {
         confirmUpgradeSelection(0);
-      } else if (event.key === "2") {
+      } else if (key === "2") {
         confirmUpgradeSelection(1);
-      } else if (event.key === "3") {
+      } else if (key === "3") {
         confirmUpgradeSelection(2);
-      } else if (event.key === "ArrowLeft" || lower === "a") {
+      } else if (key === "ArrowLeft" || code === "ArrowLeft" || lower === "a") {
         shiftUpgradeSelection(-1);
-      } else if (event.key === "ArrowRight" || lower === "d") {
+      } else if (key === "ArrowRight" || code === "ArrowRight" || lower === "d") {
         shiftUpgradeSelection(1);
-      } else if (event.key === "Enter" || event.key === " ") {
+      } else if (isEnterKey(event) || isSpaceKey(event)) {
         confirmUpgradeSelection(game.upgradeSelectedIndex);
-      } else if (event.key === "Escape") {
+      } else if (isEscapeKey(event)) {
         game.upgradeNoticeTimer = 1.2;
       }
-    } else if (game.state === GameState.PLAYING && event.key === " ") {
+    } else if (game.state === GameState.PLAYING && isSpaceKey(event)) {
       triggerBomb();
-    } else if (game.state === GameState.FLOOR_INTRO && (event.key === " " || event.key === "Enter")) {
+    } else if (game.state === GameState.FLOOR_INTRO && (isSpaceKey(event) || isEnterKey(event))) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
       requestRestart();
