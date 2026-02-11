@@ -514,10 +514,12 @@
     const ctaLine1 = accepted >= enterGoal ? "Accepted. Loading floor..." : baseCta;
     const ctaLine2 = accepted >= enterGoal ? "Use Space in PLAYING to clear screen." : "Then press Space in PLAYING";
 
-    const panelW = 1060;
-    const panelH = 566;
-    const panelX = (WIDTH - panelW) * 0.5;
-    const panelY = (HEIGHT - panelH) * 0.5;
+    const safeMarginX = Math.round(WIDTH * 0.06);
+    const safeMarginY = Math.round(HEIGHT * 0.06);
+    const panelX = safeMarginX;
+    const panelY = safeMarginY;
+    const panelW = WIDTH - safeMarginX * 2;
+    const panelH = HEIGHT - safeMarginY * 2;
 
     ctx.fillStyle = rgba(accent, 0.2);
     fillRoundRect(panelX + 10, panelY + 14, panelW, panelH, 26);
@@ -535,17 +537,17 @@
     fillRoundRect(panelX + 24, panelY + 22, panelW - 48, 10, 999);
 
     const panelPad = 30;
-    const zoneGap = 18;
-    const headerH = 64;
-    const ctaH = 94;
+    const zoneGap = 16;
+    const headerH = 74;
+    const ctaH = 100;
     const bodyGap = 20;
-    const rightW = 344;
+    const rightW = 350;
     const contentX = panelX + panelPad;
     const contentW = panelW - panelPad * 2;
-    const headerY = panelY + 44;
+    const headerY = panelY + 42;
     const ctaY = panelY + panelH - panelPad - ctaH;
     const bodyY = headerY + headerH + zoneGap;
-    const bodyH = Math.max(214, ctaY - zoneGap - bodyY);
+    const bodyH = Math.max(220, ctaY - zoneGap - bodyY);
 
     const leftRect = { x: contentX, y: bodyY, w: contentW - rightW - bodyGap, h: bodyH };
     const rightRect = { x: leftRect.x + leftRect.w + bodyGap, y: bodyY, w: rightW, h: bodyH };
@@ -565,14 +567,14 @@
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     ctx.font = '700 17px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(lessonTag, contentW - 290), contentX, headerY + 8);
+    ctx.fillText(fitCanvasText(lessonTag, contentW - 340), contentX, headerY + 8);
 
-    const badgeFont = fitFontSizeForLine(badgeText, 268, 48, 18, '700 ${size}px "Sora", "Inter", sans-serif');
+    const badgeFont = fitFontSizeForLine(badgeText, 280, 48, 18, '700 ${size}px "Sora", "Inter", sans-serif');
     ctx.font = `700 ${badgeFont}px "Sora", "Inter", sans-serif`;
-    const badgeW = clamp(Math.ceil(ctx.measureText(badgeText).width) + 52, 196, 286);
+    const badgeW = clamp(Math.ceil(ctx.measureText(badgeText).width) + 54, 204, 296);
     const badgeH = 66;
     const badgeX = contentX + contentW - badgeW;
-    const badgeY = headerY;
+    const badgeY = headerY + 2;
     ctx.fillStyle = rgba(accent, 0.2);
     fillRoundRect(badgeX + 8, badgeY + 6, badgeW, badgeH, 999);
     ctx.fillStyle = accent;
@@ -596,67 +598,136 @@
     const leftInnerX = leftRect.x + 18;
     const leftInnerY = leftRect.y + 16;
     const leftInnerW = leftRect.w - 36;
-    const leftInnerH = leftRect.h - 28;
+    const leftInnerH = leftRect.h - 30;
 
-    const keyCalloutH = 76;
-    const actionStripH = 40;
+    let keyCalloutH = 74;
+    let actionStripH = 40;
+    let visibleBulletCount = Math.min(3, bullets.length);
     const bulletLineH = 21;
-    const visibleBulletCount = Math.min(3, bullets.length);
-    const bulletAreaH = Math.max(48, visibleBulletCount * bulletLineH + 6);
     const blockGap = 10;
-    const reservedBottom = keyCalloutH + actionStripH + bulletAreaH + blockGap * 3;
-    const topTextH = Math.max(88, leftInnerH - reservedBottom);
+    let minTopCopyH = 146;
+    let topTextH = 0;
+    let bulletAreaH = 0;
+
+    for (let i = 0; i < 10; i += 1) {
+      bulletAreaH = visibleBulletCount > 0 ? visibleBulletCount * bulletLineH + 8 : 0;
+      const bulletReserve = bulletAreaH > 0 ? bulletAreaH + blockGap : 0;
+      const reservedBottom = keyCalloutH + actionStripH + bulletReserve + blockGap * 2;
+      topTextH = leftInnerH - reservedBottom;
+      if (topTextH >= minTopCopyH) {
+        break;
+      }
+      if (visibleBulletCount > 2) {
+        visibleBulletCount -= 1;
+        continue;
+      }
+      if (visibleBulletCount > 1 && topTextH < minTopCopyH - 10) {
+        visibleBulletCount -= 1;
+        continue;
+      }
+      if (keyCalloutH > 66) {
+        keyCalloutH -= 4;
+        continue;
+      }
+      if (actionStripH > 34) {
+        actionStripH -= 2;
+        continue;
+      }
+      if (visibleBulletCount > 0 && topTextH < minTopCopyH - 8) {
+        visibleBulletCount -= 1;
+        continue;
+      }
+      minTopCopyH = Math.max(112, minTopCopyH - 10);
+    }
+    topTextH = Math.max(112, topTextH);
 
     withClipRect(leftInnerX, leftInnerY, leftInnerW, leftInnerH, () => {
-      withClipRect(leftInnerX, leftInnerY, leftInnerW, topTextH, () => {
+      const topCopyRect = { x: leftInnerX, y: leftInnerY, w: leftInnerW, h: topTextH };
+      const keyRect = { x: leftInnerX, y: topCopyRect.y + topCopyRect.h + blockGap, w: Math.min(338, leftInnerW), h: keyCalloutH };
+      const actionRect = { x: leftInnerX, y: keyRect.y + keyRect.h + blockGap, w: leftInnerW, h: actionStripH };
+      const bulletsRect = {
+        x: leftInnerX,
+        y: actionRect.y + actionRect.h + blockGap,
+        w: leftInnerW,
+        h: Math.max(0, leftInnerY + leftInnerH - (actionRect.y + actionRect.h + blockGap))
+      };
+
+      withClipRect(topCopyRect.x, topCopyRect.y, topCopyRect.w, topCopyRect.h, () => {
         let textY = leftInnerY;
-        const headingSize = fitHeadingFontSize(title, leftInnerW, 74, 42, 2);
+        const headingMaxH = Math.max(66, topCopyRect.h - 44);
+        const headingSize = fitHeadingFontSizeForBox(title, leftInnerW, headingMaxH, 72, 36, 2, 1.04);
         ctx.fillStyle = TOKENS.ink;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
         ctx.font = `700 ${headingSize}px "Sora", "Inter", sans-serif`;
-        textY = drawWrappedText(title, leftInnerX, textY, leftInnerW, Math.round(headingSize * 1.04), { maxLines: 2 });
+        const headingLineH = Math.round(headingSize * 1.04);
+        const headingLines = getWrappedLines(title, leftInnerW, 2);
+        for (let i = 0; i < headingLines.length; i += 1) {
+          ctx.fillText(headingLines[i], leftInnerX, textY + i * headingLineH);
+        }
+        textY += headingLines.length * headingLineH;
         textY += 6;
-        ctx.font = '600 18px "Inter", sans-serif';
-        drawWrappedText(subtitle, leftInnerX, textY, leftInnerW, 24, { maxLines: 2 });
+        const subtitleMaxH = Math.max(20, topCopyRect.y + topCopyRect.h - textY);
+        let subtitleSize = 18;
+        let subtitleLineH = 24;
+        let subtitleLines = getWrappedLines(subtitle, leftInnerW, 2);
+        while (subtitleSize > 14) {
+          ctx.font = `600 ${subtitleSize}px "Inter", sans-serif`;
+          subtitleLineH = Math.round(subtitleSize * 1.24);
+          subtitleLines = getWrappedLines(subtitle, leftInnerW, 2);
+          if (subtitleLines.length * subtitleLineH <= subtitleMaxH) {
+            break;
+          }
+          subtitleSize -= 1;
+        }
+        ctx.font = `600 ${subtitleSize}px "Inter", sans-serif`;
+        for (let i = 0; i < subtitleLines.length; i += 1) {
+          ctx.fillText(subtitleLines[i], leftInnerX, textY + i * subtitleLineH);
+        }
       });
 
-      const keyY = leftInnerY + topTextH + blockGap;
-      const keyW = Math.min(338, leftInnerW);
       ctx.fillStyle = rgba(accent, 0.22);
-      fillRoundRect(leftInnerX + 9, keyY + 7, keyW, keyCalloutH, 18);
+      fillRoundRect(keyRect.x + 9, keyRect.y + 7, keyRect.w, keyRect.h, 18);
       ctx.fillStyle = accent;
-      fillRoundRect(leftInnerX, keyY, keyW, keyCalloutH, 18);
+      fillRoundRect(keyRect.x, keyRect.y, keyRect.w, keyRect.h, 18);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 3;
-      strokeRoundRect(leftInnerX, keyY, keyW, keyCalloutH, 18);
+      strokeRoundRect(keyRect.x, keyRect.y, keyRect.w, keyRect.h, 18);
 
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.font = '700 54px "Sora", "Inter", sans-serif';
-      ctx.fillText("SPACE", leftInnerX + keyW * 0.5, keyY + 31);
+      const keyWordSize = fitHeadingFontSizeForBox("SPACE", keyRect.w - 24, Math.max(28, keyRect.h - 32), 54, 34, 1, 1.02);
+      ctx.font = `700 ${keyWordSize}px "Sora", "Inter", sans-serif`;
+      ctx.fillText("SPACE", keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h * 0.45);
       ctx.font = '700 15px "Inter", sans-serif';
-      ctx.fillText("Use during PLAYING", leftInnerX + keyW * 0.5, keyY + 58);
+      ctx.fillText("Use during PLAYING", keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h - 20);
 
-      const actionY = keyY + keyCalloutH + blockGap;
       ctx.fillStyle = TOKENS.white;
-      fillRoundRect(leftInnerX, actionY, leftInnerW, actionStripH, 12);
+      fillRoundRect(actionRect.x, actionRect.y, actionRect.w, actionRect.h, 12);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
-      strokeRoundRect(leftInnerX, actionY, leftInnerW, actionStripH, 12);
+      strokeRoundRect(actionRect.x, actionRect.y, actionRect.w, actionRect.h, 12);
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      ctx.font = '700 20px "Inter", sans-serif';
-      ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", leftInnerW - 24), leftInnerX + 14, actionY + 9);
+      const actionTextSize = fitFontSizeForLine(
+        "Clears all enemies + enemy bullets",
+        actionRect.w - 24,
+        34,
+        16,
+        '700 ${size}px "Inter", sans-serif'
+      );
+      ctx.font = `700 ${actionTextSize}px "Inter", sans-serif`;
+      const actionLineH = Math.round(actionTextSize * 1.15);
+      const actionTextY = actionRect.y + Math.round((actionRect.h - actionLineH) * 0.5);
+      ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", actionRect.w - 24), actionRect.x + 12, actionTextY);
 
-      const bulletY = actionY + actionStripH + blockGap;
-      withClipRect(leftInnerX, bulletY, leftInnerW, bulletAreaH, () => {
+      withClipRect(bulletsRect.x, bulletsRect.y, bulletsRect.w, bulletsRect.h, () => {
         ctx.fillStyle = TOKENS.ink;
         ctx.font = '600 16px "Inter", sans-serif';
-        let lineY = bulletY;
-        const maxBullets = Math.min(visibleBulletCount, Math.max(1, Math.floor(bulletAreaH / bulletLineH)));
+        let lineY = bulletsRect.y;
+        const maxBullets = Math.min(visibleBulletCount, Math.max(0, Math.floor(bulletsRect.h / bulletLineH)));
         for (let i = 0; i < maxBullets; i += 1) {
           lineY = drawWrappedText(`• ${bullets[i]}`, leftInnerX, lineY, leftInnerW, bulletLineH, { maxLines: 1 });
         }
@@ -670,7 +741,7 @@
 
     withClipRect(rightInnerX, rightInnerY, rightInnerW, rightInnerH, () => {
       const stepGap = 12;
-      const stepCardH = Math.max(72, Math.floor((rightInnerH - stepGap * (enterGoal - 1)) / enterGoal));
+      const stepCardH = Math.max(78, Math.floor((rightInnerH - stepGap * (enterGoal - 1)) / enterGoal));
       let stepY = rightInnerY;
 
       for (let i = 0; i < enterGoal; i += 1) {
@@ -690,8 +761,24 @@
         ctx.fillStyle = TOKENS.ink;
         ctx.textAlign = "left";
         ctx.textBaseline = "top";
-        ctx.font = '700 17px "Inter", sans-serif';
-        drawWrappedText(`Enter ${i + 1}: ${label}`, cardX + 16, cardY + 16, cardW - markerGutter - 26, 22, { maxLines: 2 });
+        let stepFont = 17;
+        let stepLineH = 22;
+        let stepLines = getWrappedLines(`Enter ${i + 1}: ${label}`, cardW - markerGutter - 26, 2);
+        const stepTextHLimit = Math.max(26, stepCardH - 24);
+        while (stepFont > 14) {
+          ctx.font = `700 ${stepFont}px "Inter", sans-serif`;
+          stepLineH = Math.round(stepFont * 1.22);
+          stepLines = getWrappedLines(`Enter ${i + 1}: ${label}`, cardW - markerGutter - 26, 2);
+          if (stepLines.length * stepLineH <= stepTextHLimit) {
+            break;
+          }
+          stepFont -= 1;
+        }
+        ctx.font = `700 ${stepFont}px "Inter", sans-serif`;
+        const stepTextY = cardY + Math.max(10, Math.floor((stepCardH - stepLines.length * stepLineH) * 0.5));
+        for (let j = 0; j < stepLines.length; j += 1) {
+          ctx.fillText(stepLines[j], cardX + 16, stepTextY + j * stepLineH);
+        }
 
         ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.45);
         ctx.textAlign = "center";
@@ -713,16 +800,28 @@
     ctx.lineWidth = 3;
     strokeRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
 
-    const ctaLine1Size = fitFontSizeForLine(ctaLine1, ctaW - 44, 42, 22, '700 ${size}px "Sora", "Inter", sans-serif');
-    const ctaLine2Size = fitFontSizeForLine(ctaLine2, ctaW - 44, 24, 16, '700 ${size}px "Inter", sans-serif');
+    const ctaInnerW = ctaW - 44;
+    const ctaLine1Size = fitHeadingFontSizeForBox(ctaLine1, ctaInnerW, 42, 42, 22, 1, 1.08);
+    const ctaLine2Size = fitHeadingFontSizeForBox(
+      ctaLine2,
+      ctaInnerW,
+      30,
+      24,
+      15,
+      1,
+      1.2,
+      '700 ${size}px "Inter", sans-serif'
+    );
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     ctx.font = `700 ${ctaLine1Size}px "Sora", "Inter", sans-serif`;
-    ctx.fillText(fitCanvasText(ctaLine1, ctaW - 44), ctaX + ctaW * 0.5, ctaY + 15);
+    const ctaLine1Y = ctaY + 12;
+    ctx.fillText(fitCanvasText(ctaLine1, ctaInnerW), ctaX + ctaW * 0.5, ctaLine1Y);
     ctx.font = `700 ${ctaLine2Size}px "Inter", sans-serif`;
-    ctx.fillText(fitCanvasText(ctaLine2, ctaW - 44), ctaX + ctaW * 0.5, ctaY + ctaH - 32);
+    const ctaLine2Y = ctaY + ctaH - Math.round(ctaLine2Size * 1.28);
+    ctx.fillText(fitCanvasText(ctaLine2, ctaInnerW), ctaX + ctaW * 0.5, ctaLine2Y);
 
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
@@ -2059,6 +2158,32 @@
       ctx.font = `700 ${size}px "Sora", "Inter", sans-serif`;
       const lines = getWrappedLines(text, maxWidth, Infinity);
       if (lines.length <= maxLines) {
+        return size;
+      }
+    }
+    return minPx;
+  }
+
+  function fitHeadingFontSizeForBox(
+    text,
+    maxWidth,
+    maxHeight,
+    startPx,
+    minPx,
+    maxLines,
+    lineFactor = 1.08,
+    fontPattern = '700 ${size}px "Sora", "Inter", sans-serif'
+  ) {
+    const pattern =
+      typeof fontPattern === "string" && fontPattern.includes("${size}")
+        ? fontPattern
+        : '700 ${size}px "Sora", "Inter", sans-serif';
+    const safeHeight = Math.max(1, maxHeight);
+    for (let size = startPx; size >= minPx; size -= 1) {
+      ctx.font = pattern.replace("${size}", String(size));
+      const lines = getWrappedLines(text, maxWidth, Infinity);
+      const lineHeight = Math.round(size * lineFactor);
+      if (lines.length <= maxLines && lines.length * lineHeight <= safeHeight) {
         return size;
       }
     }
