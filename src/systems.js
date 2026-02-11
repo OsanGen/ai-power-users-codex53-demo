@@ -267,8 +267,6 @@
           game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
         }
         startRun();
-      } else if (lower === "t") {
-        openTextModal();
       } else if (lower === "r") {
         clearCheckpointFloor();
         startRun(1);

@@ -8,7 +8,7 @@ window.AI_POWER_USER_NARRATIVE = {
       "Weights choose what matters most.",
       "It outputs one risk score."
     ],
-    footerHint: "Enter: start • T: add text"
+    footerHint: "Enter: start"
   },
 
   // Teach card per floor (1..9). Each card is a micro-lesson + micro-challenge.

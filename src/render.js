@@ -364,27 +364,16 @@
       title:
         teachCardRaw && typeof teachCardRaw.title === "string" && teachCardRaw.title.trim()
           ? teachCardRaw.title.trim()
-          : "Model loop check",
+          : "Model loop",
       oneLiner:
         teachCardRaw && typeof teachCardRaw.oneLiner === "string" && teachCardRaw.oneLiner.trim()
           ? teachCardRaw.oneLiner.trim()
-          : "Inputs become signals, then one prediction.",
+          : "Inputs become signals, then one score.",
       bullets:
         teachCardRaw && Array.isArray(teachCardRaw.bullets)
           ? teachCardRaw.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3)
-          : ["Read the example.", "Track dominant signals.", "Explain the output."],
-      exampleLabel:
-        teachCardRaw && typeof teachCardRaw.exampleLabel === "string" && teachCardRaw.exampleLabel.trim()
-          ? teachCardRaw.exampleLabel.trim()
-          : "From your text:",
-      exampleText:
-        teachCardRaw && typeof teachCardRaw.exampleText === "string" && teachCardRaw.exampleText.trim()
-          ? teachCardRaw.exampleText.trim()
-          : "No saved text yet.\nTop words: none"
+          : ["Read the loop.", "Find strong signals.", "Explain the score."]
     };
-    const teachExampleLines = teachCard.exampleText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
-    const teachSnippet = teachExampleLines[0] || "No saved text yet.";
-    const teachTokensLine = teachExampleLines.slice(1).join(" ").trim() || "Top words: none";
 
     const contentTop = panelY + 198;
     const contentBottom = panelY + panelH - 76;
@@ -464,37 +453,6 @@
         for (let i = 0; i < teachCard.bullets.length; i += 1) {
           const bulletText = `• ${teachCard.bullets[i]}`;
           y = drawWrappedText(bulletText, innerX, y, innerW, 20, { maxLines: 1 });
-        }
-
-        const exampleBoxY = Math.max(y + 8, teachY + contentH - 146);
-        const exampleBoxH = teachY + contentH - 16 - exampleBoxY;
-        if (exampleBoxH > 64) {
-          ctx.fillStyle = TOKENS.white;
-          fillRoundRect(innerX, exampleBoxY, innerW, exampleBoxH, 12);
-          ctx.strokeStyle = TOKENS.ink;
-          ctx.lineWidth = 2;
-          strokeRoundRect(innerX, exampleBoxY, innerW, exampleBoxH, 12);
-
-          ctx.fillStyle = TOKENS.ink;
-          ctx.font = '700 13px "Inter", sans-serif';
-          ctx.fillText(fitCanvasText(teachCard.exampleLabel, innerW - 20), innerX + 10, exampleBoxY + 8);
-
-          ctx.font = '500 13px "Inter", sans-serif';
-          const snippetTop = exampleBoxY + 28;
-          const snippetBottomCap = exampleBoxY + exampleBoxH - 34;
-          const snippetMaxLines = Math.max(1, Math.floor((snippetBottomCap - snippetTop) / 18));
-          drawWrappedText(teachSnippet, innerX + 10, snippetTop, innerW - 20, 18, {
-            maxLines: Math.min(4, snippetMaxLines)
-          });
-
-          ctx.fillStyle = rgba(accent, 0.2);
-          fillRoundRect(innerX + 10, exampleBoxY + exampleBoxH - 24, innerW - 20, 16, 999);
-          ctx.strokeStyle = TOKENS.ink;
-          ctx.lineWidth = 1.5;
-          strokeRoundRect(innerX + 10, exampleBoxY + exampleBoxH - 24, innerW - 20, 16, 999);
-          ctx.fillStyle = TOKENS.ink;
-          ctx.font = '700 11px "Inter", sans-serif';
-          ctx.fillText(fitCanvasText(teachTokensLine, innerW - 30), innerX + 16, exampleBoxY + exampleBoxH - 21);
         }
       });
 
@@ -742,10 +700,7 @@
     // Title copy is drawn in a clipped context. Re-apply prompt anchors after clip restore.
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    let prompt = titleCard.footerHint || "Enter: start";
-    if (!/t:\s*set text/i.test(prompt)) {
-      prompt = "Enter: start • T: set text";
-    }
+    const prompt = titleCard.footerHint || "Enter: start";
     ctx.font = '700 18px "Inter", sans-serif';
     const promptWidth = ctx.measureText(prompt).width;
     const promptH = 38;

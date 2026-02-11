@@ -111,6 +111,21 @@
       bullets: ["Read the example.", "Find strong signals.", "Explain the score."]
     }
   };
+  const UPGRADE_HELP_BULLETS = {
+    comfy_soles: "This upgrade helps you test more cases.",
+    quick_trigger: "This upgrade gives faster feedback.",
+    wide_shots: "This upgrade makes hit decisions easier.",
+    fast_rounds: "This upgrade increases practice rounds.",
+    ghost_rounds: "This upgrade keeps signal moving.",
+    heart_container: "This upgrade gives room for mistakes.",
+    bubble_shield: "This upgrade adds a safety layer.",
+    grace_frames: "This upgrade gives reset time.",
+    magnet_hands: "This upgrade pulls in useful data.",
+    slowmo_aura: "This upgrade slows noisy pressure.",
+    fallback_heal: "This effect helps recover and continue.",
+    fallback_gold: "This effect gives a safer pause.",
+    default: "This choice supports the learning loop."
+  };
 
   function pickNarrativeText(value, fallback) {
     return typeof value === "string" && value.trim() ? value.trim() : fallback;
@@ -220,17 +235,39 @@
 
   function buildTeachCardForUpgrade(upgradeId, floorId) {
     const key = resolveTeachUpgradeKey(upgradeId);
-    const teach = UPGRADE_TEACH_MAP[key] || UPGRADE_TEACH_MAP.default;
-    const snippet = getLessonSnippet(floorId);
-    const keywords = extractKeywords(snippet, 6);
-    const keywordLine = keywords.length > 0 ? `Key words: ${keywords.join(", ")}` : "Key words: none";
+    const cards = Array.isArray(N && N.teachCards) ? N.teachCards : [];
+    const safeFloor = Math.max(1, Number.parseInt(String(floorId), 10) || 1);
+    const floorCard = cards.find((card) => card && Number(card.floor) === safeFloor) || null;
+    const fallbackTeach = UPGRADE_TEACH_MAP.default;
+    const helperBullet = UPGRADE_HELP_BULLETS[key] || UPGRADE_HELP_BULLETS.default;
+
+    const title = pickNarrativeText(
+      floorCard && floorCard.title,
+      `Step ${safeFloor}: ${fallbackTeach.title}`
+    );
+    const oneLiner = pickNarrativeText(
+      floorCard && floorCard.oneLiner,
+      fallbackTeach.oneLiner
+    );
+    const floorBullets = Array.isArray(floorCard && floorCard.bullets)
+      ? floorCard.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 2)
+      : [];
+    const fallbackBullets = Array.isArray(fallbackTeach.bullets)
+      ? fallbackTeach.bullets.filter((line) => typeof line === "string" && line.trim())
+      : [];
+    const bullets = [...floorBullets, helperBullet];
+    let fallbackIndex = 0;
+    while (bullets.length < 3 && fallbackIndex < fallbackBullets.length) {
+      bullets.push(fallbackBullets[fallbackIndex]);
+      fallbackIndex += 1;
+    }
 
     return {
-      title: teach.title,
-      oneLiner: teach.oneLiner,
-      bullets: Array.isArray(teach.bullets) ? teach.bullets.slice(0, 3) : [],
-      exampleLabel: "From your text:",
-      exampleText: `${snippet}\n${keywordLine}`
+      title,
+      oneLiner,
+      bullets: bullets.slice(0, 3),
+      exampleLabel: "",
+      exampleText: ""
     };
   }
 
