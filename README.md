@@ -149,8 +149,9 @@ From `src/systems.js`:
 ### Shooting + directional burst mechanic
 
 - Shooting uses arrow direction (last pressed arrow retained).
-- If the same shoot direction is held for `>= 2.0s` in `PLAYING`, each shot fires both forward and backward.
-- If the same shoot direction is held for `>= 10.0s` in `PLAYING`, each shot fires in all four cardinal directions.
+- Floor `1`: normal directional shots only.
+- Floors `2-7`: if the same shoot direction is held for `>= 2.0s` in `PLAYING`, each shot fires both forward and backward.
+- Floors `8-9`: if the same shoot direction is held for `>= 10.0s` in `PLAYING`, each shot fires in all four cardinal directions.
 - Player and enemy bullets use the cogsec palette (`yellow`, `blue`, `mint`, `pink`), with deterministic cycling per volley/spawn.
 - Tier hints appear once per run (`Dual`, then `Omni`) for `4.2s`.
 
@@ -252,6 +253,7 @@ Floor definitions are in `src/content.js` (`FLOORS`).
 - Floor 7 `Mirror Workflow` (`76s`, mint)
 - Floor 8 `Integration Threshold` (`84s`, pink)
 - Floor 9 `Power User Emergence` (`92s`, yellow)
+- Floors `8-9` have a mild pressure ramp (spawn-rate/speed tuning) to offset omni burst availability.
 
 ## Enemy catalog (definitions)
 

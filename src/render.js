@@ -2156,7 +2156,11 @@
     ctx.fillText(`Burst: ${burst.label}`, panelX + 12, panelY + 18);
 
     const detail =
-      burst.mode === "omni" ? "All directions active" : `Next ${burst.nextLabel} in ${burst.secondsToNext.toFixed(1)}s`;
+      typeof burst.detailOverride === "string" && burst.detailOverride.trim()
+        ? burst.detailOverride
+        : burst.mode === "omni"
+          ? "All directions active"
+          : `Next ${burst.nextLabel} in ${burst.secondsToNext.toFixed(1)}s`;
     ctx.font = '600 12px "Inter", sans-serif';
     ctx.fillText(detail, panelX + 12, panelY + 35);
 

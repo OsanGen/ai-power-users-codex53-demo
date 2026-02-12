@@ -19,6 +19,8 @@
     BASE_MAX_HP,
     REAR_SHOT_TRIGGER_SECONDS,
     ALL_DIRECTION_SHOT_TRIGGER_SECONDS,
+    DUAL_SHOT_UNLOCK_FLOOR,
+    OMNI_SHOT_UNLOCK_FLOOR,
     REAR_SHOT_NOTICE_DURATION,
     BOMB_BRIEFING_ACCEPT_COUNT,
     BOMB_CHARGES_BASE,
@@ -1002,8 +1004,22 @@
     game.rearShotHoldTime = dt;
   }
 
-  function resolveDirectionalBurstMode(holdSeconds = game.rearShotHoldTime) {
+  function resolveDirectionalBurstMode(holdSeconds = game.rearShotHoldTime, floorId = null) {
     const hold = Math.max(0, Number(holdSeconds) || 0);
+    const fallbackFloorId = Math.max(1, game.currentFloorIndex + 1);
+    const activeFloorId = floorId == null ? (currentFloor() && currentFloor().id) || fallbackFloorId : Math.max(1, Number(floorId) || fallbackFloorId);
+
+    if (activeFloorId < DUAL_SHOT_UNLOCK_FLOOR) {
+      return "normal";
+    }
+
+    if (activeFloorId < OMNI_SHOT_UNLOCK_FLOOR) {
+      if (hold >= REAR_SHOT_TRIGGER_SECONDS) {
+        return "dual";
+      }
+      return "normal";
+    }
+
     if (hold >= ALL_DIRECTION_SHOT_TRIGGER_SECONDS) {
       return "omni";
     }
@@ -1015,10 +1031,28 @@
 
   function getDirectionalBurstStatus() {
     const holdSeconds = Math.max(0, Number(game.rearShotHoldTime) || 0);
+    const floor = currentFloor();
+    const floorId = floor && Number.isFinite(floor.id) ? floor.id : Math.max(1, game.currentFloorIndex + 1);
+    const dualUnlocked = floorId >= DUAL_SHOT_UNLOCK_FLOOR;
+    const omniUnlocked = floorId >= OMNI_SHOT_UNLOCK_FLOOR;
     const dualThreshold = Math.max(0.001, REAR_SHOT_TRIGGER_SECONDS);
     const omniThreshold = Math.max(dualThreshold, ALL_DIRECTION_SHOT_TRIGGER_SECONDS);
-    const mode = resolveDirectionalBurstMode(holdSeconds);
+    const mode = resolveDirectionalBurstMode(holdSeconds, floorId);
     const label = mode === "omni" ? "Omni" : mode === "dual" ? "Dual" : "Normal";
+
+    if (!dualUnlocked) {
+      return {
+        mode: "normal",
+        label: "Normal",
+        holdSeconds,
+        dualThreshold,
+        omniThreshold,
+        nextLabel: "Dual",
+        secondsToNext: 0,
+        progressToNext: 0,
+        detailOverride: `Unlocks on Floor ${DUAL_SHOT_UNLOCK_FLOOR}`
+      };
+    }
 
     if (mode === "normal") {
       return {
@@ -1034,6 +1068,20 @@
     }
 
     if (mode === "dual") {
+      if (!omniUnlocked) {
+        return {
+          mode,
+          label,
+          holdSeconds,
+          dualThreshold,
+          omniThreshold,
+          nextLabel: "Omni",
+          secondsToNext: 0,
+          progressToNext: 1,
+          detailOverride: `Omni unlocks on Floor ${OMNI_SHOT_UNLOCK_FLOOR}`
+        };
+      }
+
       const span = Math.max(0.001, omniThreshold - dualThreshold);
       return {
         mode,

@@ -574,9 +574,9 @@
       heartType: "bloom",
       heartSpawn: { initialCount: 1, baseRate: 0.075, clutchBoostStart: 16 },
       enemyWaves: [
-        wave("apex_rabbit", 0, 84, 0.22, 0.72, 1.0, 1.24),
-        wave("cell_blob", 8, 84, 0.45, 1.1, 0.95, 1.26, ["canSplit"]),
-        wave("speaker_wraith", 28, 84, 0.2, 0.62, 1.05, 1.3)
+        wave("apex_rabbit", 0, 84, 0.24, 0.78, 1.0, 1.28),
+        wave("cell_blob", 8, 84, 0.49, 1.18, 0.95, 1.3, ["canSplit"]),
+        wave("speaker_wraith", 28, 84, 0.22, 0.68, 1.08, 1.34)
       ]
     },
     {
@@ -589,10 +589,10 @@
       heartType: "final",
       heartSpawn: { initialCount: 1, baseRate: 0.07, clutchBoostStart: 18 },
       enemyWaves: [
-        wave("reach_shadow", 0, 92, 0.35, 0.92, 1.0, 1.22),
-        wave("evolution_rabbit", 8, 92, 0.09, 0.22, 1.0, 1.14),
-        wave("decay_mote", 30, 92, 0.45, 1.45, 1.05, 1.36),
-        wave("loop_ghost", 42, 92, 0.22, 0.72, 1.08, 1.34, ["spawnsBehindPlayer"])
+        wave("reach_shadow", 0, 92, 0.38, 1.0, 1.0, 1.26),
+        wave("evolution_rabbit", 8, 92, 0.1, 0.24, 1.0, 1.18),
+        wave("decay_mote", 30, 92, 0.5, 1.52, 1.05, 1.4),
+        wave("loop_ghost", 42, 92, 0.24, 0.78, 1.08, 1.38, ["spawnsBehindPlayer"])
       ]
     }
   ];
