@@ -158,6 +158,7 @@ From `src/systems.js`:
 ### Bomb (Escalation Pulse)
 
 - Trigger: `Space` in `PLAYING` only
+- Input behavior: one activation per physical key press; held-key repeat events are ignored
 - Effect on use:
   - Clears all `enemies`
   - Clears all `enemyBullets`

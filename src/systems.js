@@ -109,6 +109,10 @@
     return key.startsWith("Arrow") || code.startsWith("Arrow");
   }
 
+  function isSinglePress(event) {
+    return !event.repeat;
+  }
+
   function isMovementCode(code) {
     return code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD";
   }
@@ -372,9 +376,9 @@
       } else if (isEscapeKey(event)) {
         game.upgradeNoticeTimer = 1.2;
       }
-    } else if (game.state === GameState.PLAYING && isSpaceKey(event)) {
+    } else if (game.state === GameState.PLAYING && isSpaceKey(event) && isSinglePress(event)) {
       triggerBomb();
-    } else if (game.state === GameState.FLOOR_INTRO && (isSpaceKey(event) || isEnterKey(event))) {
+    } else if (game.state === GameState.FLOOR_INTRO && (isSpaceKey(event) || isEnterKey(event)) && isSinglePress(event)) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
       requestRestart();
