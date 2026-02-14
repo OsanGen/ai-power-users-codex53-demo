@@ -661,6 +661,117 @@
         wave("decay_mote", 30, 92, 0.5, 1.52, 1.05, 1.4),
         wave("loop_ghost", 42, 92, 0.24, 0.78, 1.08, 1.38, ["spawnsBehindPlayer"])
       ]
+    },
+    {
+      id: 10,
+      name: "Regularization Furnace",
+      durationSeconds: 100,
+      accent: "blue",
+      overlayTitle: "Floor 10 - Regularization",
+      overlaySubtitle: "Noise rises. Only the signal survives.",
+      heartType: "noise_cancel",
+      heartSpawn: { initialCount: 1, baseRate: 0.065, clutchBoostStart: 20 },
+      enemyWaves: [
+        wave("speaker_wraith", 0, 100, 0.28, 0.85, 1.0, 1.28),
+        wave("cell_blob", 6, 100, 0.38, 1.15, 0.98, 1.3, ["canSplit"]),
+        wave("decay_mote", 12, 68, 0.55, 1.75, 1.05, 1.42),
+        wave("flank_drone", 40, 100, 0.14, 0.46, 1.0, 1.28, ["spawnsBehindPlayer"]),
+        wave("reach_shadow", 58, 100, 0.1, 0.32, 1.0, 1.0)
+      ]
+    },
+    {
+      id: 11,
+      name: "Optimizer Overdrive",
+      durationSeconds: 108,
+      accent: "mint",
+      overlayTitle: "Floor 11 - Optimizer Overdrive",
+      overlaySubtitle: "Momentum, friction, correction. Keep moving.",
+      heartType: "checkpoint",
+      heartSpawn: { initialCount: 1, baseRate: 0.06, clutchBoostStart: 22 },
+      enemyWaves: [
+        wave("rabbit_glimpse", 0, 56, 0.55, 1.55, 1.05, 1.42),
+        wave("hammer_rabbit", 0, 108, 0.16, 0.58, 1.05, 1.36, ["spawnsBehindPlayer"]),
+        wave("apex_rabbit", 10, 108, 0.1, 0.36, 1.0, 1.32),
+        wave("flank_drone", 28, 86, 0.1, 0.34, 1.0, 1.22),
+        wave("double", 46, 108, 0.08, 0.3, 1.0, 1.28),
+        wave("loop_ghost", 64, 108, 0.22, 0.78, 1.1, 1.45, ["spawnsBehindPlayer"])
+      ]
+    },
+    {
+      id: 12,
+      name: "Batch Storm",
+      durationSeconds: 116,
+      accent: "pink",
+      overlayTitle: "Floor 12 - Batch Storm",
+      overlaySubtitle: "Everything arrives at once. Sort it fast.",
+      heartType: "table",
+      heartSpawn: { initialCount: 1, baseRate: 0.058, clutchBoostStart: 24 },
+      enemyWaves: [
+        wave("notification_swarm", 0, 116, 1.05, 2.65, 1.05, 1.45),
+        wave("decay_mote", 18, 116, 0.7, 2.05, 1.1, 1.55),
+        wave("chair_knight", 8, 116, 0.2, 0.68, 1.0, 1.32),
+        wave("flank_drone", 40, 116, 0.18, 0.52, 1.0, 1.26, ["spawnsBehindPlayer"]),
+        wave("cell_blob", 64, 116, 0.22, 0.72, 1.0, 1.25, ["canSplit"]),
+        wave("drift_hound", 56, 116, 0.2, 1.1, 1.03, 1.52, ["spawnsBehindPlayer"])
+      ]
+    },
+    {
+      id: 13,
+      name: "Attention Corridor",
+      durationSeconds: 124,
+      accent: "yellow",
+      overlayTitle: "Floor 13 - Attention Corridor",
+      overlaySubtitle: "Hold focus while the walls reach in.",
+      heartType: "memory",
+      heartSpawn: { initialCount: 1, baseRate: 0.055, clutchBoostStart: 26 },
+      enemyWaves: [
+        wave("reach_shadow", 0, 124, 0.22, 0.72, 1.0, 1.0),
+        wave("speaker_wraith", 0, 124, 0.22, 0.72, 1.0, 1.3),
+        wave("flank_drone", 18, 124, 0.2, 0.62, 1.0, 1.34, ["spawnsBehindPlayer"]),
+        wave("name_glitch_shade", 24, 124, 0.22, 0.88, 1.05, 1.38),
+        wave("apex_rabbit", 72, 124, 0.1, 0.32, 1.1, 1.45),
+        wave("arc_turret", 48, 124, 0.16, 0.62, 1.02, 1.34)
+      ]
+    },
+    {
+      id: 14,
+      name: "Gradient Catastrophe",
+      durationSeconds: 132,
+      accent: "blue",
+      overlayTitle: "Floor 14 - Gradient Catastrophe",
+      overlaySubtitle: "Too steep, and everything explodes.",
+      heartType: "bloom",
+      heartSpawn: { initialCount: 1, baseRate: 0.052, clutchBoostStart: 28 },
+      enemyWaves: [
+        wave("evolution_rabbit", 0, 132, 0.12, 0.32, 1.0, 1.22),
+        wave("speaker_wraith", 0, 132, 0.18, 0.6, 1.0, 1.32),
+        wave("cell_blob", 20, 132, 0.34, 0.95, 1.0, 1.26, ["canSplit"]),
+        wave("decay_mote", 30, 96, 0.52, 1.72, 1.12, 1.52),
+        wave("reach_shadow", 60, 132, 0.16, 0.5, 1.0, 1.0),
+        wave("drift_hound", 60, 132, 0.2, 1.02, 1.04, 1.62, ["spawnsBehindPlayer"])
+      ]
+    },
+    {
+      id: 15,
+      name: "Convergence Proof",
+      durationSeconds: 140,
+      accent: "mint",
+      overlayTitle: "Floor 15 - Convergence Proof",
+      overlaySubtitle: "One loop. One run. Prove it.",
+      heartType: "final",
+      heartSpawn: { initialCount: 1, baseRate: 0.05, clutchBoostStart: 30 },
+      enemyWaves: [
+        wave("double", 0, 56, 0.16, 0.52, 1.1, 1.38),
+        wave("flank_drone", 10, 56, 0.16, 0.45, 1.0, 1.24, ["spawnsBehindPlayer"]),
+        wave("reach_shadow", 44, 140, 0.22, 0.78, 1.0, 1.0),
+        wave("speaker_wraith", 44, 140, 0.22, 0.78, 1.0, 1.34),
+        wave("cell_blob", 58, 140, 0.38, 1.18, 1.02, 1.28, ["canSplit"]),
+        wave("evolution_rabbit", 84, 140, 0.14, 0.4, 1.05, 1.25),
+        wave("apex_rabbit", 84, 140, 0.1, 0.32, 1.18, 1.55),
+        wave("decay_mote", 96, 140, 0.7, 2.05, 1.2, 1.6),
+        wave("drift_hound", 76, 140, 0.16, 1.28, 1.06, 1.72, ["spawnsBehindPlayer"]),
+        wave("arc_turret", 84, 140, 0.14, 0.5, 1.12, 1.64)
+      ]
     }
   ];
 
@@ -707,7 +818,21 @@
     apex_rabbit: { hp: 6, size: 17, speed: 126, behavior: "charge", touchDamage: 2 },
     cell_blob: { hp: 2, size: 11, speed: 88, behavior: "blob", touchDamage: 1 },
     reach_shadow: { hp: 3, size: 13, speed: 0, behavior: "wallhand", touchDamage: 2 },
-    evolution_rabbit: { hp: 10, size: 19, speed: 122, behavior: "boss", touchDamage: 2 }
+    evolution_rabbit: { hp: 10, size: 19, speed: 122, behavior: "boss", touchDamage: 2 },
+    drift_hound: { hp: 3, size: 13, speed: 110, behavior: "phase", touchDamage: 1 },
+    arc_turret: {
+      hp: 2,
+      size: 11,
+      speed: 88,
+      behavior: "ranged",
+      touchDamage: 1,
+      projectileSpeed: 220,
+      shootCooldownOpenMin: 0.94,
+      shootCooldownOpenMax: 1.68,
+      shootCooldownMin: 0.9,
+      shootCooldownMax: 1.46,
+      firstShotDelay: 0.35
+    }
   };
 
   function getThreatGlossaryRows(maxRows = 4, namesOnly = false) {
