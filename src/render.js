@@ -217,7 +217,8 @@
 
   function hasDynamicFloorVisuals(floor) {
     const id = floor && floor.id;
-    return id === 1 || id === 2 || id === 3 || id === 4 || id === 5 || id === 6 || id === 7 || id === 8 || id === 9;
+    const safeId = Number.isFinite(id) ? id : Number.parseInt(String(id), 10);
+    return Number.isFinite(safeId) && safeId >= 1 && safeId <= 9;
   }
 
   function drawEnvironment(floor, accent, visualTheme = null) {

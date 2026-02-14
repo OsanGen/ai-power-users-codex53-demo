@@ -150,6 +150,16 @@
       return;
     }
 
+    if (key.length === 1) {
+      const movementCodeFallback = `Key${key.toUpperCase()}`;
+      if (isMovementCode(movementCodeFallback)) {
+        keys[movementCodeFallback] = isDown;
+        keys[key.toUpperCase()] = isDown;
+        keys[key.toLowerCase()] = isDown;
+        return;
+      }
+    }
+
     if (key) {
       keys[key] = isDown;
     }

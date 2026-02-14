@@ -21,6 +21,7 @@ State/Edges:
 - Keeps overlay text readable by top-aligned clipping paths with insets.
 - Supports reduced-motion by removing motion terms.
 - No gameplay mechanics are changed in render path.
+- `hasDynamicFloorVisuals` now safely accepts numeric or numeric-string floor IDs before enabling dynamic layer effects.
 
 Dependencies:
 - `AIPU.content` narrative helper methods for labels.
