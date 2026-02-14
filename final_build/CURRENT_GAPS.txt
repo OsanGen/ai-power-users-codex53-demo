@@ -1,5 +1,5 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Prevent shooting in non-combat states (floor intro/clear/briefing/overlays) to avoid overlay-state input bleed.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Re-check floor intro/lesson/death overlay clipping and baseline alignment; keep withRectClip + top baseline and verify glyph edges at default viewport.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Reconcile fallback UI literals in content/share/render with narrative.js and remove debug/config text drift.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/live-site | in_progress | Validate deployed state on live link and confirm lesson/death overlays render correctly at runtime.
-- DEPLOY | in_progress | Push latest fixes and verify live site refresh check.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/live-site | completed | Live page loads at updated HEAD on GitHub Pages; visual runtime check still needed to confirm overlays.
+- DEPLOY | completed | Push latest fixes and verify live site HTTP refresh from HEAD.
