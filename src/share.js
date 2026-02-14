@@ -17,10 +17,30 @@
   } = AIPU.dom;
   const { TOKENS, SHARE_DONT_ASK_KEY } = AIPU.constants;
   const N = AIPU.content && AIPU.content.N ? AIPU.content.N : null;
+  const getNarrativeUiText =
+    AIPU.content && typeof AIPU.content.getNarrativeUiText === "function" ? AIPU.content.getNarrativeUiText : null;
   const shareTitleEl = document.getElementById("shareTitle");
   const shareSummaryEl = shareModalEl ? shareModalEl.querySelector(".modal-summary") : null;
+  const shareTextLabelEl = document.getElementById("shareTextLabel");
+  const shareDontAskTextEl = document.getElementById("shareDontAskText");
+  const shareModalNoteEl = document.getElementById("shareModalNote");
 
   const CANONICAL_SHARE_URL = "";
+
+  function uiText(key, fallback) {
+    return typeof getNarrativeUiText === "function" ? getNarrativeUiText(key, fallback) : fallback;
+  }
+
+  function formatUiText(key, fallback, values = null) {
+    let text = uiText(key, fallback);
+    if (!values || typeof values !== "object") {
+      return text;
+    }
+    for (const [name, value] of Object.entries(values)) {
+      text = text.replaceAll(`{${name}}`, String(value));
+    }
+    return text;
+  }
 
   function isHttpShareUrl(value) {
     if (typeof value !== "string") {
@@ -79,15 +99,18 @@
       templatedLines.length > 0
         ? templatedLines
         : [
-            `I reached Floor ${floorReached} of ${maxFloors} in Neural Glass.`,
-            "Neural nets: inputs -> weights -> concepts -> prediction."
+            formatUiText("shareFallbackLine1", "I reached Floor {floor} of {maxFloors}.", {
+              floor: floorReached,
+              maxFloors
+            }),
+            uiText("shareFallbackLine2", "Neural nets: inputs -> weights -> concepts -> prediction.")
           ];
 
     if (upgradesSummary) {
-      lines.push(`Run build: ${upgradesSummary}.`);
+      lines.push(formatUiText("shareRunBuildLine", "Run build: {upgrades}.", { upgrades: upgradesSummary }));
     }
 
-    lines.push("AI-assisted; reviewed by humans; results vary.");
+    lines.push(uiText("shareDisclosureLine", "AI-assisted; reviewed by humans; results vary."));
     return lines.join("\n");
   }
 
@@ -167,13 +190,17 @@
     cardCtx.textAlign = "left";
     cardCtx.textBaseline = "top";
     cardCtx.font = '700 82px "Sora", "Inter", sans-serif';
-    cardCtx.fillText(`Floor ${floorReached} of ${maxFloors}`, innerPad, 124);
+    cardCtx.fillText(
+      formatUiText("shareFloorLabel", "Floor {floor} of {maxFloors}", { floor: floorReached, maxFloors }),
+      innerPad,
+      124
+    );
 
     const titleScreen = N && N.titleScreen && typeof N.titleScreen === "object" ? N.titleScreen : null;
     const cardTitle =
       titleScreen && typeof titleScreen.title === "string" && titleScreen.title.trim()
         ? titleScreen.title.trim()
-        : "Neural Glass: Neural Nets";
+        : uiText("shareCardTitleFallback", "Neural Nets: Learn the Loop");
     cardCtx.font = '700 36px "Inter", sans-serif';
     cardCtx.fillText(fitLine(cardCtx, cardTitle, width - innerPad * 2), innerPad, 232);
 
@@ -187,11 +214,11 @@
 
     cardCtx.fillStyle = TOKENS.ink;
     cardCtx.font = '700 30px "Inter", sans-serif';
-    cardCtx.fillText("Run build", innerPad + 30, buildPanelY + 28);
+    cardCtx.fillText(uiText("shareCardRunBuildTitle", "Run build"), innerPad + 30, buildPanelY + 28);
 
     cardCtx.font = '600 33px "Inter", sans-serif';
     if (upgradeLines.length === 0) {
-      cardCtx.fillText("No upgrades stacked this run.", innerPad + 30, buildPanelY + 84);
+      cardCtx.fillText(uiText("shareCardNoUpgrades", "No upgrades stacked this run."), innerPad + 30, buildPanelY + 84);
     } else {
       for (let i = 0; i < Math.min(3, upgradeLines.length); i += 1) {
         const line = fitLine(cardCtx, `${i + 1}. ${upgradeLines[i]}`, width - innerPad * 2 - 70);
@@ -202,7 +229,11 @@
     if (isHttpShareUrl(shareUrl)) {
       cardCtx.fillStyle = TOKENS.ink;
       cardCtx.font = '600 22px "Inter", sans-serif';
-      const line = fitLine(cardCtx, `Try it: ${shareUrl}`, width - innerPad * 2);
+      const line = fitLine(
+        cardCtx,
+        formatUiText("shareCardTryItLine", "Try it: {url}", { url: shareUrl }),
+        width - innerPad * 2
+      );
       cardCtx.fillText(line, innerPad, height - 66);
     }
 
@@ -321,7 +352,7 @@
       this._cardDataUrl = typeof data.cardDataUrl === "string" ? data.cardDataUrl : "";
 
       if (shareFloorEl) {
-        shareFloorEl.textContent = data.floorLabel || "Floor 1";
+        shareFloorEl.textContent = data.floorLabel || uiText("shareDefaultFloorLabel", "Floor 1");
       }
 
       const narrativeShare = N && N.share && typeof N.share === "object" ? N.share : null;
@@ -329,26 +360,24 @@
         const nextTitle =
           narrativeShare && typeof narrativeShare.title === "string" && narrativeShare.title.trim()
             ? narrativeShare.title.trim()
-            : "Share what you learned";
+            : uiText("shareTitleFallback", "Share what you learned");
         shareTitleEl.textContent = nextTitle;
       }
       if (shareSummaryEl) {
         const oneLiner =
           narrativeShare && typeof narrativeShare.oneLiner === "string" && narrativeShare.oneLiner.trim()
             ? narrativeShare.oneLiner.trim()
-            : "";
-        if (oneLiner) {
-          const floorLabel = data.floorLabel || "Floor 1";
-          shareSummaryEl.textContent = "";
-          shareSummaryEl.appendChild(document.createTextNode(`${oneLiner} (`));
-          if (shareFloorEl) {
-            shareFloorEl.textContent = floorLabel;
-            shareSummaryEl.appendChild(shareFloorEl);
-          } else {
-            shareSummaryEl.appendChild(document.createTextNode(floorLabel));
-          }
-          shareSummaryEl.appendChild(document.createTextNode(")"));
+            : uiText("shareOneLinerFallback", "Post your floor and the neural net loop.");
+        const floorLabel = data.floorLabel || uiText("shareDefaultFloorLabel", "Floor 1");
+        shareSummaryEl.textContent = "";
+        shareSummaryEl.appendChild(document.createTextNode(`${oneLiner} (`));
+        if (shareFloorEl) {
+          shareFloorEl.textContent = floorLabel;
+          shareSummaryEl.appendChild(shareFloorEl);
+        } else {
+          shareSummaryEl.appendChild(document.createTextNode(floorLabel));
         }
+        shareSummaryEl.appendChild(document.createTextNode(")"));
       }
 
       if (shareTextEl) {
@@ -366,6 +395,7 @@
       }
 
       if (shareCardPreviewEl) {
+        shareCardPreviewEl.alt = uiText("shareCardPreviewAlt", "Neural net run card preview");
         if (this._cardDataUrl) {
           shareCardPreviewEl.src = this._cardDataUrl;
           shareCardPreviewEl.style.display = "block";
@@ -468,6 +498,34 @@
         }
       }
 
+      if (shareTextLabelEl) {
+        shareTextLabelEl.textContent = uiText("shareTextLabel", "Suggested post copy");
+      }
+
+      if (shareDontAskTextEl) {
+        shareDontAskTextEl.textContent = uiText("shareDontAskText", "Don't ask again");
+      }
+
+      if (shareModalNoteEl) {
+        shareModalNoteEl.textContent = uiText("shareModalNote", "You can re-enable in settings.");
+      }
+
+      if (shareCopyBtn) {
+        shareCopyBtn.textContent = uiText("shareCopyButton", "Copy text");
+      }
+
+      if (shareLinkedInBtn) {
+        shareLinkedInBtn.textContent = uiText("shareLinkedInButton", "Open LinkedIn");
+      }
+
+      if (shareDownloadBtn) {
+        shareDownloadBtn.textContent = uiText("shareDownloadButton", "Download card");
+      }
+
+      if (shareCloseBtn) {
+        shareCloseBtn.textContent = uiText("shareCloseButton", "Not now");
+      }
+
       if (shareCopyBtn) {
         shareCopyBtn.addEventListener("click", async () => {
           const text = shareTextEl ? shareTextEl.value : "";
@@ -477,9 +535,12 @@
 
           const copied = await this._copyText(text);
           if (copied) {
-            this._setStatus("Copied", 1200);
+            this._setStatus(uiText("shareStatusCopied", "Copied"), 1200);
           } else {
-            this._setStatus("Copy failed. Select the text and copy manually.", 1800);
+            this._setStatus(
+              uiText("shareStatusCopyFailed", "Copy failed. Select the text and copy manually."),
+              1800
+            );
           }
         });
       }
@@ -488,14 +549,14 @@
         shareLinkedInBtn.addEventListener("click", () => {
           const target = this._getLinkedInShareTarget();
           window.open(target, "_blank", "noopener,noreferrer");
-          this._setStatus("Paste the copied text, then Post.", 2200);
+          this._setStatus(uiText("shareStatusLinkedIn", "Paste the copied text, then Post."), 2200);
         });
       }
 
       if (shareDownloadBtn) {
         shareDownloadBtn.addEventListener("click", () => {
           if (!this._cardDataUrl) {
-            this._setStatus("Card unavailable right now.", 1400);
+            this._setStatus(uiText("shareStatusCardUnavailable", "Card unavailable right now."), 1400);
             return;
           }
 
@@ -507,7 +568,7 @@
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
-          this._setStatus("Card downloaded.", 1200);
+          this._setStatus(uiText("shareStatusCardDownloaded", "Card downloaded."), 1200);
         });
       }
 
@@ -522,7 +583,7 @@
         const nativeBtn = document.createElement("button");
         nativeBtn.type = "button";
         nativeBtn.className = "btn";
-        nativeBtn.textContent = "Share...";
+        nativeBtn.textContent = uiText("shareNativeButton", "Share...");
         if (shareCloseBtn) {
           actionsEl.insertBefore(nativeBtn, shareCloseBtn);
         } else {

@@ -23,6 +23,8 @@
     TITLE_SEQUENCE,
     getNarrativeTitleCard,
     getNarrativeFloorCopy,
+    getNarrativeTeachCard,
+    getDeathLessonCard,
     getNarrativeOutcomeCopy,
     getNarrativeUiText,
     getWhatYouLearnedBullets,
@@ -55,6 +57,21 @@
     steps: ["Key: Space", "Effect: Clear screen", "Limit: Once per floor"],
     cta: (step, total) => `Press Enter to accept (${step}/${total})`
   };
+
+  function uiText(key, fallback) {
+    return typeof getNarrativeUiText === "function" ? getNarrativeUiText(key, fallback) : fallback;
+  }
+
+  function formatUiText(key, fallback, values = null) {
+    let text = uiText(key, fallback);
+    if (!values || typeof values !== "object") {
+      return text;
+    }
+    for (const [name, value] of Object.entries(values)) {
+      text = text.replaceAll(`{${name}}`, String(value));
+    }
+    return text;
+  }
 
   const LEAD_TINT_ALPHA_MAX = 0.22;
   const SUPPORT_TINT_ALPHA_MAX = 0.14;
@@ -318,6 +335,18 @@
       return;
     }
 
+    if (game.state === GameState.LESSON_SLIDE) {
+      drawBackdrop(accent);
+      drawLessonSlideOverlay(floor, accent);
+      return;
+    }
+
+    if (game.state === GameState.DEATH_LESSON) {
+      drawBackdrop(accent);
+      drawDeathLessonOverlay(floor, accent);
+      return;
+    }
+
     if (deathShake) {
       ctx.save();
       ctx.translate(deathShake.x, deathShake.y);
@@ -449,8 +478,8 @@
     fillRoundRect(panelX + 26, panelY + 26, panelW - 52, 10, 999);
 
     const floorCopy = getNarrativeFloorCopy(floor);
-    const pickTitle = getNarrativeUiText("upgradePickTitle", "Pick an upgrade");
-    const pickSubtitle = getNarrativeUiText("upgradePickSubtitle", "Stack small power. Keep control.");
+    const pickTitle = uiText("upgradePickTitle", "Pick an upgrade");
+    const pickSubtitle = uiText("upgradePickSubtitle", "Stack small power. Keep control.");
     const floorLesson = floorCopy && floorCopy.title ? floorCopy.title : `Floor ${floor.id}`;
     const selectedOption = game.upgradeOptions[game.upgradeSelectedIndex] || game.upgradeOptions[0] || null;
     const teachCardRaw =
@@ -509,7 +538,11 @@
 
       ctx.font = '600 17px "Inter", sans-serif';
       ctx.fillStyle = TOKENS.ink;
-      ctx.fillText(fitCanvasText(`Floor ${floor.id}: ${floorLesson}`, panelW - 68), panelX + 34, panelY + 174);
+      const floorLessonLabel = formatUiText("upgradeFloorLesson", "Floor {floor}: {lesson}", {
+        floor: floor.id,
+        lesson: floorLesson
+      });
+      ctx.fillText(fitCanvasText(floorLessonLabel, panelW - 68), panelX + 34, panelY + 174);
 
       for (let i = 0; i < game.upgradeOptions.length; i += 1) {
         const option = game.upgradeOptions[i];
@@ -534,7 +567,7 @@
 
         ctx.fillStyle = TOKENS.ink;
         ctx.font = '700 14px "Inter", sans-serif';
-        const teachPanelLabel = getNarrativeUiText("teachCardTitlePrefix", "Teach Card");
+        const teachPanelLabel = uiText("teachCardTitlePrefix", "Teach Card");
         ctx.fillText(fitCanvasText(teachPanelLabel, innerW), innerX, y);
         y += 24;
 
@@ -554,7 +587,7 @@
         }
       });
 
-      const footerText = "1-3 pick • Enter confirm • Esc disabled";
+      const footerText = uiText("upgradePanelFooter", "1-3 pick • Enter confirm • Esc disabled");
       ctx.font = '600 17px "Inter", sans-serif';
       ctx.fillStyle = TOKENS.ink;
       ctx.fillText(fitCanvasText(footerText, panelW - 68), panelX + 34, panelY + panelH - 56);
@@ -567,7 +600,7 @@
       strokeRoundRect(panelX + panelW - 282, panelY + panelH - 74, 246, 32, 999);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 15px "Inter", sans-serif';
-      ctx.fillText("Choose one to continue.", panelX + panelW - 258, panelY + panelH - 66);
+      ctx.fillText(uiText("upgradePanelNoticeChooseOne", "Choose one to continue."), panelX + panelW - 258, panelY + panelH - 66);
     }
   }
 
@@ -584,9 +617,15 @@
     const enterGoal = Math.max(1, BOMB_BRIEFING_ACCEPT_COUNT || 3);
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
-    const baseCta = typeof copy.cta === "function" ? copy.cta(nextStep, enterGoal) : `Press Enter to accept (${nextStep}/${enterGoal})`;
-    const ctaLine1 = accepted >= enterGoal ? "Accepted. Loading floor..." : baseCta;
-    const ctaLine2 = accepted >= enterGoal ? "Use Space in PLAYING to clear screen." : "Then press Space in PLAYING";
+    const baseCta =
+      typeof copy.cta === "function"
+        ? copy.cta(nextStep, enterGoal)
+        : formatUiText("bombBriefingCta", "Press Enter to accept ({step}/{total})", { step: nextStep, total: enterGoal });
+    const ctaLine1 = accepted >= enterGoal ? uiText("bombBriefingAcceptedCta", "Accepted. Loading floor...") : baseCta;
+    const ctaLine2 =
+      accepted >= enterGoal
+        ? uiText("bombBriefingAcceptedHint", "Use Space in PLAYING to clear screen.")
+        : uiText("bombBriefingPendingHint", "Then press Space in PLAYING");
 
     const safeMarginX = Math.round(WIDTH * 0.06);
     const safeMarginY = Math.round(HEIGHT * 0.06);
@@ -635,7 +674,7 @@
     const steps = Array.isArray(copy.steps)
       ? copy.steps.filter((line) => typeof line === "string" && line.trim()).slice(0, enterGoal)
       : [];
-    const lessonTag = `Floor ${floor.id} power lesson`;
+    const lessonTag = formatUiText("bombBriefingLessonTag", "Floor {floor} power lesson", { floor: floor.id });
     const badgeText = copy.abilityName || "Escalation Pulse";
 
     ctx.fillStyle = TOKENS.ink;
@@ -744,11 +783,12 @@
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      const keyWordSize = fitHeadingFontSizeForBox("SPACE", keyRect.w - 24, Math.max(28, keyRect.h - 32), 54, 34, 1, 1.02);
+      const keyLabel = uiText("bombBriefingKeyLabel", "SPACE");
+      const keyWordSize = fitHeadingFontSizeForBox(keyLabel, keyRect.w - 24, Math.max(28, keyRect.h - 32), 54, 34, 1, 1.02);
       ctx.font = `700 ${keyWordSize}px "Sora", "Inter", sans-serif`;
-      ctx.fillText("SPACE", keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h * 0.45);
+      ctx.fillText(keyLabel, keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h * 0.45);
       ctx.font = '700 15px "Inter", sans-serif';
-      ctx.fillText("Use during PLAYING", keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h - 20);
+      ctx.fillText(uiText("bombBriefingUseWindow", "Use during PLAYING"), keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h - 20);
 
       ctx.fillStyle = TOKENS.white;
       fillRoundRect(actionRect.x, actionRect.y, actionRect.w, actionRect.h, 12);
@@ -758,8 +798,9 @@
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
+      const actionLine = uiText("bombBriefingActionLine", "Clears all enemies + enemy bullets");
       const actionTextSize = fitFontSizeForLine(
-        "Clears all enemies + enemy bullets",
+        actionLine,
         actionRect.w - 24,
         34,
         16,
@@ -768,7 +809,7 @@
       ctx.font = `700 ${actionTextSize}px "Inter", sans-serif`;
       const actionLineH = Math.round(actionTextSize * 1.15);
       const actionTextY = actionRect.y + Math.round((actionRect.h - actionLineH) * 0.5);
-      ctx.fillText(fitCanvasText("Clears all enemies + enemy bullets", actionRect.w - 24), actionRect.x + 12, actionTextY);
+      ctx.fillText(fitCanvasText(actionLine, actionRect.w - 24), actionRect.x + 12, actionTextY);
 
       if (chargeRect) {
         const chipGap = 12;
@@ -784,7 +825,11 @@
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
           ctx.font = '700 14px "Inter", sans-serif';
-          ctx.fillText(`SPACE #${i + 1}`, chipX + chipW * 0.5, chargeRect.y + chargeRect.h * 0.5 + 1);
+          ctx.fillText(
+            formatUiText("bombBriefingChargeChip", "SPACE #{index}", { index: i + 1 }),
+            chipX + chipW * 0.5,
+            chargeRect.y + chargeRect.h * 0.5 + 1
+          );
         }
       }
 
@@ -821,7 +866,11 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.font = '700 28px "Sora", "Inter", sans-serif';
-        ctx.fillText(`${chargeCount} CHARGES`, rightInnerX + rightInnerW * 0.5, rightInnerY + upgradeBadgeH * 0.5 + 1);
+        ctx.fillText(
+          formatUiText("bombBriefingChargeCount", "{count} CHARGES", { count: chargeCount }),
+          rightInnerX + rightInnerW * 0.5,
+          rightInnerY + upgradeBadgeH * 0.5 + 1
+        );
         stepY += upgradeBadgeH + upgradeBadgeGap;
         stepAreaH -= upgradeBadgeH + upgradeBadgeGap;
       }
@@ -830,7 +879,8 @@
 
       for (let i = 0; i < enterGoal; i += 1) {
         const isDone = i < accepted;
-        const label = steps[i] || `Step ${i + 1}`;
+        const label = steps[i] || formatUiText("bombBriefingStepFallback", "Step {step}", { step: i + 1 });
+        const stepLine = formatUiText("bombBriefingStepLine", "Enter {step}: {label}", { step: i + 1, label });
         const cardX = rightInnerX;
         const cardY = stepY;
         const cardW = rightInnerW;
@@ -847,12 +897,12 @@
         ctx.textBaseline = "top";
         let stepFont = 17;
         let stepLineH = 22;
-        let stepLines = getWrappedLines(`Enter ${i + 1}: ${label}`, cardW - markerGutter - 26, 2);
+        let stepLines = getWrappedLines(stepLine, cardW - markerGutter - 26, 2);
         const stepTextHLimit = Math.max(26, stepCardH - 24);
         while (stepFont > 14) {
           ctx.font = `700 ${stepFont}px "Inter", sans-serif`;
           stepLineH = Math.round(stepFont * 1.22);
-          stepLines = getWrappedLines(`Enter ${i + 1}: ${label}`, cardW - markerGutter - 26, 2);
+          stepLines = getWrappedLines(stepLine, cardW - markerGutter - 26, 2);
           if (stepLines.length * stepLineH <= stepTextHLimit) {
             break;
           }
@@ -907,6 +957,255 @@
     const ctaLine2Y = ctaY + ctaH - Math.round(ctaLine2Size * 1.2) - 5;
     ctx.fillText(fitCanvasText(ctaLine2, ctaInnerW), ctaX + ctaW * 0.5, ctaLine2Y);
 
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawLessonSlideOverlay(floor, accent) {
+    const card =
+      typeof getNarrativeTeachCard === "function"
+        ? getNarrativeTeachCard(floor && floor.id ? floor.id : 1)
+        : {
+            title: `Floor ${(floor && floor.id) || 1}: Neural-net concept`,
+            oneLiner: "A neural net turns numbers into one guess.",
+            bullets: ["Inputs are numbers.", "Weights set importance."],
+            tryThis: "Say: inputs -> weights -> neurons -> output.",
+            visualMode: "network_basic"
+          };
+    const bullets = Array.isArray(card.bullets)
+      ? card.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 2)
+      : [];
+    const panelW = 920;
+    const panelH = 520;
+    const panelX = (WIDTH - panelW) * 0.5;
+    const panelY = (HEIGHT - panelH) * 0.5;
+
+    ctx.fillStyle = rgba(accent, 0.2);
+    fillRoundRect(panelX + 10, panelY + 12, panelW, panelH, 24);
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 24);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 24);
+
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 24, panelY + 24, panelW - 48, 10, 999);
+
+    const innerX = panelX + 28;
+    const innerY = panelY + 50;
+    const innerW = panelW - 56;
+    const innerH = panelH - 96;
+    const rightW = 360;
+    const gap = 18;
+    const leftW = innerW - rightW - gap;
+    const rightX = innerX + leftW + gap;
+
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(rightX, innerY, rightW, innerH, 16);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(rightX, innerY, rightW, innerH, 16);
+
+    withClipRect(innerX, innerY, leftW - 6, innerH, () => {
+      let y = innerY + 4;
+      const titleSize = fitHeadingFontSize(card.title, leftW - 16, 34, 24, 2);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
+      y = drawWrappedText(card.title, innerX, y, leftW - 16, Math.round(titleSize * 1.15), { maxLines: 2 });
+      y += 10;
+
+      ctx.font = '600 20px "Inter", sans-serif';
+      y = drawWrappedText(card.oneLiner, innerX, y, leftW - 16, 28, { maxLines: 2 });
+      y += 10;
+
+      ctx.font = '600 17px "Inter", sans-serif';
+      for (let i = 0; i < bullets.length; i += 1) {
+        y = drawWrappedText(`• ${bullets[i]}`, innerX, y, leftW - 16, 24, { maxLines: 2 });
+      }
+
+      y += 12;
+      ctx.fillStyle = rgba(accent, 0.2);
+      fillRoundRect(innerX, y, leftW - 20, 64, 12);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(innerX, y, leftW - 20, 64, 12);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 17px "Inter", sans-serif';
+      drawWrappedText(card.tryThis, innerX + 12, y + 12, leftW - 44, 22, { maxLines: 2 });
+    });
+
+    drawLessonSlideDiagram(
+      { x: rightX + 12, y: innerY + 12, w: rightW - 24, h: innerH - 24 },
+      accent,
+      card.visualMode
+    );
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillText(uiText("lessonSlideContinue", "Enter: continue"), WIDTH * 0.5, panelY + panelH - 32);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+
+  function drawLessonSlideDiagram(rect, accent, visualMode) {
+    const reducedMotion = !!AIPU.input.prefersReducedMotion;
+    const pulse = reducedMotion ? 0 : Math.sin(game.globalTime * 2.2) * 0.5 + 0.5;
+    const mode = typeof visualMode === "string" ? visualMode : "network_basic";
+    const highlightLayer =
+      mode === "inputs_nodes" || mode === "weights_knobs"
+        ? 0
+        : mode === "sum_bias" || mode === "activation_gate" || mode === "layers_stack"
+          ? 1
+          : 2;
+
+    ctx.save();
+    withClipRect(rect.x, rect.y, rect.w, rect.h, () => {
+      const brainCx = rect.x + rect.w * 0.28;
+      const brainCy = rect.y + rect.h * 0.45;
+      const brainOffset = reducedMotion ? 0 : Math.sin(game.globalTime * 1.8) * 2;
+
+      ctx.fillStyle = rgba(accent, 0.18);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(brainCx - 24, brainCy + brainOffset, 46, 54, 0, 0, Math.PI * 2);
+      ctx.ellipse(brainCx + 24, brainCy - brainOffset, 46, 54, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(brainCx, brainCy - 56);
+      ctx.lineTo(brainCx, brainCy + 56);
+      ctx.stroke();
+
+      const layerX = [rect.x + rect.w * 0.58, rect.x + rect.w * 0.72, rect.x + rect.w * 0.86];
+      const layerY = [
+        [rect.y + 58, rect.y + rect.h * 0.5, rect.y + rect.h - 58],
+        [rect.y + 78, rect.y + rect.h * 0.5, rect.y + rect.h - 78],
+        [rect.y + rect.h * 0.5]
+      ];
+
+      ctx.strokeStyle = rgba(TOKENS.ink, 0.45);
+      ctx.lineWidth = 2;
+      for (let li = 0; li < layerY.length - 1; li += 1) {
+        for (let i = 0; i < layerY[li].length; i += 1) {
+          for (let j = 0; j < layerY[li + 1].length; j += 1) {
+            ctx.beginPath();
+            ctx.moveTo(layerX[li], layerY[li][i]);
+            ctx.lineTo(layerX[li + 1], layerY[li + 1][j]);
+            ctx.stroke();
+          }
+        }
+      }
+
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      for (let li = 0; li < layerY.length; li += 1) {
+        for (let i = 0; i < layerY[li].length; i += 1) {
+          const x = layerX[li];
+          const y = layerY[li][i];
+          const radius = 11 + (!reducedMotion && li === highlightLayer ? pulse * 2 : 0);
+          ctx.fillStyle = li === highlightLayer ? rgba(accent, 0.45) : TOKENS.white;
+          ctx.beginPath();
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(brainCx + 58, brainCy);
+      ctx.lineTo(layerX[0] - 18, layerY[0][1]);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawDeathLessonOverlay(floor, accent) {
+    const floorId = floor && Number.isFinite(floor.id) ? floor.id : Math.max(1, game.currentFloorIndex + 1);
+    const card =
+      typeof getDeathLessonCard === "function"
+        ? getDeathLessonCard(floorId, game.deathLessonIndex)
+        : {
+            title: "Neural-net lesson",
+            oneLiner: "Use numbers to make one guess.",
+            bullets: ["Inputs feed the model.", "Weights set influence."],
+            tryThis: "Say: inputs -> weights -> output.",
+            visualMode: "network_basic"
+          };
+    const bullets = Array.isArray(card.bullets)
+      ? card.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 2)
+      : [];
+    const reducedMotion = !!AIPU.input.prefersReducedMotion;
+    const phase = reducedMotion ? 0 : game.globalTime;
+
+    for (let i = 0; i < 12; i += 1) {
+      const y = 86 + i * 48;
+      const wave = Math.sin(phase * 1.4 + i * 0.9) * (reducedMotion ? 0 : 10);
+      ctx.strokeStyle = rgba(TOKENS.ink, 0.08);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(90, y + wave);
+      ctx.lineTo(WIDTH - 90, y - wave);
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 18; i += 1) {
+      const x = 110 + i * 60;
+      const wobble = Math.cos(phase * 1.8 + i * 0.6) * (reducedMotion ? 0 : 8);
+      ctx.fillStyle = rgba(accent, 0.14);
+      fillRoundRect(x, 76 + wobble, 30, 8, 999);
+      fillRoundRect(WIDTH - x - 30, HEIGHT - 86 - wobble, 30, 8, 999);
+    }
+
+    const panelW = 860;
+    const panelH = 430;
+    const panelX = (WIDTH - panelW) * 0.5;
+    const panelY = (HEIGHT - panelH) * 0.5;
+    ctx.fillStyle = rgba(TOKENS.white, 0.92);
+    fillRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 22, panelY + 20, panelW - 44, 10, 999);
+
+    const contentX = panelX + 30;
+    const contentY = panelY + 46;
+    const contentW = panelW - 60;
+    const titleSize = fitHeadingFontSize(card.title, contentW - 8, 34, 24, 2);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
+    let y = drawWrappedText(card.title, contentX, contentY, contentW, Math.round(titleSize * 1.14), { maxLines: 2 });
+    y += 8;
+    ctx.font = '600 20px "Inter", sans-serif';
+    y = drawWrappedText(card.oneLiner, contentX, y, contentW, 28, { maxLines: 2 });
+    y += 10;
+    ctx.font = '600 17px "Inter", sans-serif';
+    for (let i = 0; i < bullets.length; i += 1) {
+      y = drawWrappedText(`• ${bullets[i]}`, contentX, y, contentW, 24, { maxLines: 2 });
+    }
+
+    y += 14;
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(contentX, y, contentW, 70, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(contentX, y, contentW, 70, 14);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 17px "Inter", sans-serif';
+    drawWrappedText(card.tryThis, contentX + 12, y + 14, contentW - 24, 22, { maxLines: 2 });
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '700 16px "Inter", sans-serif';
+    ctx.fillText(uiText("deathLessonContinue", "Enter: continue"), WIDTH * 0.5, panelY + panelH - 28);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
@@ -978,7 +1277,7 @@
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 12px "Inter", sans-serif';
       ctx.textBaseline = "top";
-      ctx.fillText("SELECTED", badgeX + 7, badgeY + 2);
+      ctx.fillText(uiText("upgradeCardSelected", "SELECTED"), badgeX + 7, badgeY + 2);
     }
 
     ctx.fillStyle = rgba(accent, 0.18);
@@ -989,13 +1288,17 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 14px "Inter", sans-serif';
-    ctx.fillText(`Tags: ${tags}`, rect.x + 26, rect.y + rect.h - 76);
+    ctx.fillText(formatUiText("upgradeCardTags", "Tags: {tags}", { tags }), rect.x + 26, rect.y + rect.h - 76);
 
     ctx.font = '600 16px "Inter", sans-serif';
     if (isStackless) {
-      ctx.fillText("Instant effect (no stacks)", rect.x + 16, rect.y + rect.h - 42);
+      ctx.fillText(uiText("upgradeCardInstantEffect", "Instant effect (no stacks)"), rect.x + 16, rect.y + rect.h - 42);
     } else {
-      ctx.fillText(`Stacks: ${stack} -> ${nextStack}`, rect.x + 16, rect.y + rect.h - 42);
+      ctx.fillText(
+        formatUiText("upgradeCardStacks", "Stacks: {stack} -> {nextStack}", { stack, nextStack }),
+        rect.x + 16,
+        rect.y + rect.h - 42
+      );
     }
   }
 
@@ -1145,7 +1448,9 @@
     const footerGap = 8;
     const footerBottomPadding = 22;
     const checkpointFloor = typeof systems.getCheckpointFloor === "function" ? systems.getCheckpointFloor() : 1;
-    const footerHint = `Start floor: ${checkpointFloor} • R: reset to Floor 1`;
+    const footerHint = formatUiText("titleStartFloorHint", "Start floor: {floor} • R: reset to Floor 1", {
+      floor: checkpointFloor
+    });
     const footerHintSize = fitFontSizeForLine(
       footerHint,
       panelW - 120,
@@ -1433,7 +1738,7 @@
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '600 11px "Sora", "Inter", sans-serif';
     for (let x = WORLD.x + 40; x < WORLD.x + WORLD.w - 100; x += step) {
-      ctx.fillText("AI", x, WORLD.y + 54);
+      ctx.fillText(uiText("worldMotifWord", "AI"), x, WORLD.y + 54);
     }
   }
 
@@ -1993,7 +2298,7 @@
     }
 
     ctx.font = '600 14px "Inter", sans-serif';
-    ctx.fillText("HP", 92, 52);
+    ctx.fillText(uiText("hudHpLabel", "HP"), 92, 52);
 
     if (player.shieldCharges > 0) {
       const shieldX = 252;
@@ -2006,7 +2311,7 @@
 
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 14px "Inter", sans-serif';
-      ctx.fillText(`Shield ${player.shieldCharges}`, shieldX + 14, shieldY + 18);
+      ctx.fillText(formatUiText("hudShieldLabel", "Shield {count}", { count: player.shieldCharges }), shieldX + 14, shieldY + 18);
     }
 
     const timerText = `${Math.ceil(game.floorTimer)}s`;
@@ -2016,7 +2321,7 @@
     const timerH = 30;
 
     ctx.font = '700 14px "Inter", sans-serif';
-    ctx.fillText("Survive", timerBoxX, 27);
+    ctx.fillText(uiText("hudSurviveLabel", "Survive"), timerBoxX, 27);
 
     ctx.fillStyle = TOKENS.fog;
     fillRoundRect(timerBoxX, timerBoxY, timerW, timerH, 999);
@@ -2039,14 +2344,21 @@
       0,
       totalCharges
     );
-    const bombText = `Space: ${bombAbilityName} ${remainingCharges}/${totalCharges}`;
+    const bombText = formatUiText("hudBombLabel", "Space: {ability} {remaining}/{total}", {
+      ability: bombAbilityName,
+      remaining: remainingCharges,
+      total: totalCharges
+    });
     ctx.font = '700 12px "Inter", sans-serif';
     let bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 140, 286);
     const bombBoxH = 30;
     let bombBoxX = timerBoxX - bombBoxW - 18;
     const bombBoxY = timerBoxY;
 
-    const floorLabel = `Floor ${floor.id} / 9`;
+    const floorLabel = formatUiText("hudFloorLabel", "Floor {floor} / {maxFloors}", {
+      floor: floor.id,
+      maxFloors: FLOORS.length
+    });
     ctx.font = '700 20px "Sora", "Inter", sans-serif';
     const floorLabelWidth = ctx.measureText(floorLabel).width;
     let floorBoxW = clamp(floorLabelWidth + 28, 104, 200);
@@ -2153,14 +2465,17 @@
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
     ctx.font = '700 14px "Sora", "Inter", sans-serif';
-    ctx.fillText(`Burst: ${burst.label}`, panelX + 12, panelY + 18);
+    ctx.fillText(formatUiText("hudBurstLabel", "Burst: {label}", { label: burst.label }), panelX + 12, panelY + 18);
 
     const detail =
       typeof burst.detailOverride === "string" && burst.detailOverride.trim()
         ? burst.detailOverride
         : burst.mode === "omni"
-          ? "All directions active"
-          : `Next ${burst.nextLabel} in ${burst.secondsToNext.toFixed(1)}s`;
+          ? uiText("hudBurstAllDirections", "All directions active")
+          : formatUiText("hudBurstNext", "Next {nextLabel} in {seconds}s", {
+              nextLabel: burst.nextLabel,
+              seconds: burst.secondsToNext.toFixed(1)
+            });
     ctx.font = '600 12px "Inter", sans-serif';
     ctx.fillText(detail, panelX + 12, panelY + 35);
 
@@ -2183,11 +2498,14 @@
     }
 
     const hintMode = game.rearShotHintMode === "omni" ? "omni" : "dual";
-    const heading = hintMode === "omni" ? "Omni burst unlocked" : "Dual burst unlocked";
+    const heading =
+      hintMode === "omni"
+        ? uiText("rearHintOmniTitle", "Omni burst unlocked")
+        : uiText("rearHintDualTitle", "Dual burst unlocked");
     const body =
       hintMode === "omni"
-        ? "10s hold: shots fire in all 4 directions."
-        : "2s hold: shots fire forward and backward.";
+        ? uiText("rearHintOmniBody", "10s hold: shots fire in all 4 directions.")
+        : uiText("rearHintDualBody", "2s hold: shots fire forward and backward.");
 
     const hintDuration = Math.max(0.001, AIPU.constants.REAR_SHOT_NOTICE_DURATION || 4.2);
     const visibility = clamp(game.rearShotHintTimer / hintDuration, 0, 1);
@@ -2235,7 +2553,7 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 14px "Sora", "Inter", sans-serif';
-    ctx.fillText("Upgrades", panelX + 14, panelY + 20);
+    ctx.fillText(uiText("hudUpgradesTitle", "Upgrades"), panelX + 14, panelY + 20);
 
     ctx.font = '600 13px "Inter", sans-serif';
     for (let i = 0; i < rows.length; i += 1) {
@@ -2301,11 +2619,11 @@
     if (game.state === GameState.FLOOR_INTRO) {
       title = floorCopy.title;
       body = floorCopy.subtitle;
-      footer = "Press Enter to skip intro";
+      footer = uiText("introSkipFooter", "Press Enter to skip intro");
     } else if (game.state === GameState.FLOOR_CLEAR) {
-      title = getNarrativeUiText("floorClearTitle", "Floor cleared");
-      body = getNarrativeUiText("floorClearSubtitle", "Raw data -> weights -> concepts -> prediction.");
-      footer = floor.id < 9 ? "Transitioning..." : "";
+      title = uiText("floorClearTitle", "Floor cleared");
+      body = uiText("floorClearSubtitle", "Raw data -> weights -> concepts -> prediction.");
+      footer = floor.id < 9 ? uiText("floorTransitioningFooter", "Transitioning...") : "";
     }
 
     const panelW = 760;
@@ -2352,7 +2670,7 @@
     const outcomeCopy = getNarrativeOutcomeCopy(isVictory);
     const title = outcomeCopy.title;
     const body = outcomeCopy.subtitle;
-    const footer = "Press R to restart";
+    const footer = uiText("runSummaryRestartFooter", "Press R to restart");
     const floorsCleared = upgrades.getFloorsClearedCount();
     const totalTaken = upgrades.upgradeState.history.length;
     const buildEntries = upgrades.getRunBuildEntries();
@@ -2401,8 +2719,16 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 17px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(`Floors cleared: ${floorsCleared}`, pillW - 26), panelX + 68, pillY + 11);
-    ctx.fillText(fitCanvasText(`Upgrades taken: ${totalTaken}`, pillW - 26), panelX + 305, pillY + 11);
+    ctx.fillText(
+      fitCanvasText(formatUiText("runSummaryFloorsCleared", "Floors cleared: {count}", { count: floorsCleared }), pillW - 26),
+      panelX + 68,
+      pillY + 11
+    );
+    ctx.fillText(
+      fitCanvasText(formatUiText("runSummaryUpgradesTaken", "Upgrades taken: {count}", { count: totalTaken }), pillW - 26),
+      panelX + 305,
+      pillY + 11
+    );
 
     const learnedX = panelX + 48;
     const learnedY = pillY + 54;
@@ -2416,7 +2742,7 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 18px "Sora", "Inter", sans-serif';
-    ctx.fillText("What you learned", learnedX + 14, learnedY + 10);
+    ctx.fillText(uiText("runSummaryWhatLearned", "What you learned"), learnedX + 14, learnedY + 10);
     ctx.font = '600 14px "Inter", sans-serif';
     for (let i = 0; i < learnedBullets.length; i += 1) {
       const y = learnedY + 38 + i * 16;
@@ -2448,12 +2774,16 @@
 
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 20px "Sora", "Inter", sans-serif';
-      ctx.fillText(fitCanvasText("Run build", sectionW), runSectionX, contentTop);
-      ctx.fillText(fitCanvasText("Threat glossary", sectionW), glossarySectionX, contentTop);
+      ctx.fillText(fitCanvasText(uiText("runSummaryRunBuild", "Run build"), sectionW), runSectionX, contentTop);
+      ctx.fillText(
+        fitCanvasText(uiText("runSummaryThreatGlossary", "Threat glossary"), sectionW),
+        glossarySectionX,
+        contentTop
+      );
 
       ctx.font = '600 15px "Inter", sans-serif';
       if (buildEntries.length === 0) {
-        ctx.fillText("No upgrades collected.", runSectionX, rowsTop);
+        ctx.fillText(uiText("runSummaryNoUpgrades", "No upgrades collected."), runSectionX, rowsTop);
       } else {
         const visibleBuildRows = Math.min(buildEntries.length, maxRows);
         for (let i = 0; i < visibleBuildRows; i += 1) {
@@ -2465,12 +2795,16 @@
         if (buildEntries.length > visibleBuildRows) {
           const remaining = buildEntries.length - visibleBuildRows;
           const overflowY = rowsTop + (visibleBuildRows - 1) * rowH;
-          ctx.fillText(`+${remaining} more`, runSectionX, overflowY);
+          ctx.fillText(formatUiText("runSummaryMore", "+{count} more", { count: remaining }), runSectionX, overflowY);
         }
       }
 
       if (glossaryRows.length === 0) {
-        ctx.fillText("Threat glossary unavailable.", glossarySectionX, rowsTop);
+        ctx.fillText(
+          uiText("runSummaryThreatGlossaryUnavailable", "Threat glossary unavailable."),
+          glossarySectionX,
+          rowsTop
+        );
       } else {
         const visibleGlossaryRows = Math.min(glossaryRows.length, maxRows);
         for (let i = 0; i < visibleGlossaryRows; i += 1) {

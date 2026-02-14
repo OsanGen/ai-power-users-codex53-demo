@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AI Power Users - Codex 5.3 Tech Demo</title>
+    <title>Neural Nets: Learn the Loop</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,15 +13,15 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="app-shell" aria-label="AI Power Users game container">
+    <main id="appShell" class="app-shell" aria-label="Neural net learning game container">
       <header class="app-header">
-        <h1>AI Power Users - Codex 5.3 Tech Demo</h1>
-        <p>Top-down corridor survival shooter. Move: WASD. Shoot: Arrow Keys.</p>
+        <h1 id="appTitle">Neural Nets: Learn the Loop</h1>
+        <p id="appSubtitle">Move with WASD. Shoot with Arrow Keys. Learn one concept per floor.</p>
       </header>
 
       <section id="gameFrame" class="game-frame" tabindex="-1">
-        <canvas id="game" width="1280" height="720" aria-label="AI Power Users game canvas"></canvas>
-        <button id="overlayRestartBtn" type="button" class="overlay-restart hidden">Restart</button>
+        <canvas id="game" width="1280" height="720" aria-label="Neural net game canvas"></canvas>
+        <button id="overlayRestartBtn" type="button" class="overlay-restart hidden">Restart lesson</button>
         <div
           id="textModal"
           class="modal hidden"
@@ -32,13 +32,13 @@
         >
           <div class="modal-panel">
             <div class="modal-accent" aria-hidden="true"></div>
-            <h2 id="textModalTitle">Source text</h2>
-            <p class="modal-note">This text will be used as the example input for neural-net lessons.</p>
-            <label class="sr-only" for="lessonTextInput">Lesson source text</label>
+            <h2 id="textModalTitle">Lesson source text</h2>
+            <p id="textModalNote" class="modal-note">Edit the source text used in lesson cards.</p>
+            <label id="lessonTextLabel" class="sr-only" for="lessonTextInput">Lesson source text</label>
             <textarea id="lessonTextInput" class="share-text" aria-label="Lesson source text"></textarea>
             <div class="modal-actions">
-              <button id="lessonTextSaveBtn" type="button" class="btn btn-primary">Save</button>
-              <button id="lessonTextSampleBtn" type="button" class="btn">Use sample text</button>
+              <button id="lessonTextSaveBtn" type="button" class="btn btn-primary">Save text</button>
+              <button id="lessonTextSampleBtn" type="button" class="btn">Use sample</button>
               <button id="lessonTextCloseBtn" type="button" class="btn">Close</button>
             </div>
           </div>
@@ -46,12 +46,12 @@
         <div id="shareModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="shareTitle" aria-hidden="true">
           <div class="modal-panel">
             <div class="modal-accent" aria-hidden="true"></div>
-            <h2 id="shareTitle">Share your run</h2>
-            <p class="modal-summary">You reached <span id="shareFloor">Floor 1</span>.</p>
+            <h2 id="shareTitle">Share what you learned</h2>
+            <p class="modal-summary">Post your floor and the neural net loop. (<span id="shareFloor">Floor 1</span>)</p>
             <div class="share-card-wrap">
-              <img id="shareCardPreview" class="share-card-preview" alt="Run card preview" />
+              <img id="shareCardPreview" class="share-card-preview" alt="Neural net run card preview" />
             </div>
-            <label class="sr-only" for="shareText">Suggested post copy</label>
+            <label id="shareTextLabel" class="sr-only" for="shareText">Suggested post copy</label>
             <textarea id="shareText" class="share-text" readonly></textarea>
             <div class="modal-actions">
               <button id="shareCopyBtn" type="button" class="btn btn-primary">Copy text</button>
@@ -61,16 +61,16 @@
             </div>
             <label class="modal-check">
               <input id="shareDontAsk" type="checkbox" />
-              Don&apos;t ask again
+              <span id="shareDontAskText">Don&apos;t ask again</span>
             </label>
-            <p class="modal-note">You can re-enable in settings.</p>
+            <p id="shareModalNote" class="modal-note">You can re-enable in settings.</p>
           </div>
         </div>
       </section>
 
       <footer class="app-footer">
-        <span>Survive each timer to advance floors 1-9.</span>
-        <span>Restart run: <strong>R</strong></span>
+        <span id="appFooterGoal">Survive each timer and learn the loop.</span>
+        <span id="appFooterRestart">Restart run: R</span>
       </footer>
     </main>
 

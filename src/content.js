@@ -373,6 +373,70 @@
     };
   }
 
+  function getNarrativeTeachCard(floorId) {
+    const cards = Array.isArray(N && N.teachCards) ? N.teachCards : [];
+    const safeFloor = Math.max(1, Number.parseInt(String(floorId), 10) || 1);
+    const entry = cards.find((card) => card && Number(card.floor) === safeFloor) || null;
+    const fallbackBullets = ["Inputs are numbers.", "Weights set importance.", "A forward pass makes a guess."];
+    const rawBullets = Array.isArray(entry && entry.bullets)
+      ? entry.bullets.filter((line) => typeof line === "string" && line.trim())
+      : [];
+
+    return {
+      title: pickNarrativeText(entry && entry.title, `Floor ${safeFloor}: Neural-net concept`),
+      oneLiner: pickNarrativeText(entry && entry.oneLiner, "A neural net turns numbers into one guess."),
+      bullets: (rawBullets.length > 0 ? rawBullets : fallbackBullets).slice(0, 3),
+      tryThis: pickNarrativeText(
+        entry && (entry.tryThis || entry.microChallenge),
+        "Say: inputs -> weights -> neurons -> output."
+      ),
+      visualMode: pickNarrativeText(entry && entry.visualMode, "network_basic")
+    };
+  }
+
+  function resolveDeathLessonBucket(floorId) {
+    const safeFloor = Math.max(1, Number.parseInt(String(floorId), 10) || 1);
+    if (safeFloor <= 3) {
+      return "early";
+    }
+    if (safeFloor <= 6) {
+      return "mid";
+    }
+    return "late";
+  }
+
+  function getDeathLessonCard(floorId, seed = 0) {
+    const bucket = resolveDeathLessonBucket(floorId);
+    const deathCards = N && N.deathCards && typeof N.deathCards === "object" ? N.deathCards : null;
+    const bucketCards = Array.isArray(deathCards && deathCards[bucket]) ? deathCards[bucket] : [];
+    const safeSeed = Math.abs(Number.parseInt(String(seed), 10) || 0);
+    const fallbackCard = {
+      title: "Neural-net lesson",
+      oneLiner: "Use numbers to make one guess.",
+      bullets: ["Inputs feed the model.", "Weights set influence."],
+      tryThis: "Say: inputs -> weights -> output.",
+      visualMode: "network_basic"
+    };
+
+    if (bucketCards.length === 0) {
+      return { bucket, ...fallbackCard };
+    }
+
+    const entry = bucketCards[safeSeed % bucketCards.length] || fallbackCard;
+    const bullets = Array.isArray(entry.bullets)
+      ? entry.bullets.filter((line) => typeof line === "string" && line.trim())
+      : [];
+
+    return {
+      bucket,
+      title: pickNarrativeText(entry.title, fallbackCard.title),
+      oneLiner: pickNarrativeText(entry.oneLiner, fallbackCard.oneLiner),
+      bullets: (bullets.length > 0 ? bullets : fallbackCard.bullets).slice(0, 3),
+      tryThis: pickNarrativeText(entry.tryThis, fallbackCard.tryThis),
+      visualMode: pickNarrativeText(entry.visualMode, fallbackCard.visualMode)
+    };
+  }
+
   function getNarrativeOutcomeCopy(isVictory) {
     const ui = N && N.ui && typeof N.ui === "object" ? N.ui : null;
     if (isVictory) {
@@ -684,6 +748,8 @@
     getLessonSnippet,
     extractKeywords,
     buildTeachCardForUpgrade,
+    getNarrativeTeachCard,
+    getDeathLessonCard,
     getNarrativeTitleCard,
     getNarrativeFloorCopy,
     getNarrativeOutcomeCopy,

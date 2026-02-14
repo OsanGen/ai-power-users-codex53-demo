@@ -31,7 +31,7 @@
   } = AIPU.constants;
   const { game, player } = AIPU.state;
   const { keys } = AIPU.input;
-  const { FLOORS, ENEMY_DEFS } = AIPU.content;
+  const { FLOORS, ENEMY_DEFS, getNarrativeUiText } = AIPU.content;
   const upgrades = AIPU.upgrades;
   const { shareUI, resolveShareUrl, buildShareCopy, buildRunCardDataUrl } = AIPU.share;
   const {
@@ -83,6 +83,17 @@
         keys[key] = false;
       }
     }
+  }
+
+  function formatUiText(key, fallback, values = null) {
+    let text = typeof getNarrativeUiText === "function" ? getNarrativeUiText(key, fallback) : fallback;
+    if (!values || typeof values !== "object") {
+      return text;
+    }
+    for (const [name, value] of Object.entries(values)) {
+      text = text.replaceAll(`{${name}}`, String(value));
+    }
+    return text;
   }
 
   function isSpaceKey(event) {
@@ -285,7 +296,83 @@
     }
   }
 
+  function applyNarrativeStaticUiLabels() {
+    const appShellEl = document.getElementById("appShell");
+    if (appShellEl) {
+      appShellEl.setAttribute(
+        "aria-label",
+        formatUiText("appShellAriaLabel", "Neural net learning game container")
+      );
+    }
+
+    const appTitleEl = document.getElementById("appTitle");
+    if (appTitleEl) {
+      appTitleEl.textContent = formatUiText("appTitle", "Neural Nets: Learn the Loop");
+    }
+
+    const appSubtitleEl = document.getElementById("appSubtitle");
+    if (appSubtitleEl) {
+      appSubtitleEl.textContent = formatUiText(
+        "appSubtitle",
+        "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor."
+      );
+    }
+
+    if (canvas) {
+      canvas.setAttribute("aria-label", formatUiText("gameCanvasAriaLabel", "Neural net game canvas"));
+    }
+
+    if (overlayRestartBtn) {
+      overlayRestartBtn.textContent = formatUiText("overlayRestartButton", "Restart lesson");
+    }
+
+    const appFooterGoalEl = document.getElementById("appFooterGoal");
+    if (appFooterGoalEl) {
+      appFooterGoalEl.textContent = formatUiText("appFooterGoal", "Survive each timer and learn the loop.");
+    }
+
+    const appFooterRestartEl = document.getElementById("appFooterRestart");
+    if (appFooterRestartEl) {
+      appFooterRestartEl.textContent = formatUiText("appFooterRestart", "Restart run: R");
+    }
+
+    const textModalTitleEl = document.getElementById("textModalTitle");
+    if (textModalTitleEl) {
+      textModalTitleEl.textContent = formatUiText("textModalTitle", "Lesson source text");
+    }
+
+    const textModalNoteEl = document.getElementById("textModalNote");
+    if (textModalNoteEl) {
+      textModalNoteEl.textContent = formatUiText("textModalNote", "Edit the source text used in lesson cards.");
+    }
+
+    const lessonTextLabelEl = document.getElementById("lessonTextLabel");
+    if (lessonTextLabelEl) {
+      lessonTextLabelEl.textContent = formatUiText("textModalInputLabel", "Lesson source text");
+    }
+
+    if (lessonTextInputEl) {
+      lessonTextInputEl.setAttribute(
+        "aria-label",
+        formatUiText("textModalInputLabel", "Lesson source text")
+      );
+    }
+
+    if (lessonTextSaveBtn) {
+      lessonTextSaveBtn.textContent = formatUiText("textModalSaveButton", "Save text");
+    }
+
+    if (lessonTextSampleBtn) {
+      lessonTextSampleBtn.textContent = formatUiText("textModalSampleButton", "Use sample");
+    }
+
+    if (lessonTextCloseBtn) {
+      lessonTextCloseBtn.textContent = formatUiText("textModalCloseButton", "Close");
+    }
+  }
+
   initializeLessonTextModal();
+  applyNarrativeStaticUiLabels();
 
   window.addEventListener("keydown", (event) => {
     if (isTextModalOpen()) {
@@ -357,9 +444,15 @@
             game.bombBriefingSeenIntroThisRun = true;
           }
           game.bombBriefingMode = "";
-          beginCurrentFloor();
+          enterLessonSlide();
         }
       }
+    } else if (game.state === GameState.LESSON_SLIDE && (isSpaceKey(event) || isEnterKey(event)) && isSinglePress(event)) {
+      game.lessonSlideEnterCount += 1;
+      beginCurrentFloor();
+    } else if (game.state === GameState.DEATH_LESSON && (isSpaceKey(event) || isEnterKey(event)) && isSinglePress(event)) {
+      game.gameOverEntryHandled = false;
+      enterGameOver(currentFloor());
     } else if (game.state === GameState.UPGRADE_SELECT) {
       if (key === "1") {
         confirmUpgradeSelection(0);
@@ -515,7 +608,7 @@
       ? { id: death.floorId, name: death.floorName, accent: death.floorAccent }
       : null;
     if (!death) {
-      enterGameOver(floorSnapshot);
+      enterDeathLesson(floorSnapshot);
       return;
     }
 
@@ -524,7 +617,7 @@
 
     if (death.t >= death.duration) {
       death.shake = 0;
-      enterGameOver(floorSnapshot);
+      enterDeathLesson(floorSnapshot);
     }
   }
 
@@ -544,7 +637,10 @@
     const floor = floorOverride || currentFloor() || FLOORS[Math.max(0, Math.min(game.currentFloorIndex, FLOORS.length - 1))];
     const floorId = floor ? floor.id : game.currentFloorIndex + 1;
     const maxFloors = FLOORS.length;
-    const floorLabel = `Floor ${floorId} of ${maxFloors}`;
+    const floorLabel = formatUiText("shareFloorLabel", "Floor {floor} of {maxFloors}", {
+      floor: floorId,
+      maxFloors
+    });
     const buildEntries = upgrades.getRunBuildEntries();
     const upgradeLines = buildEntries.slice(0, 3).map((entry) => `${entry.def.name} x${entry.stack}`);
     const upgradesSummary = upgradeLines.join(", ");
@@ -585,6 +681,31 @@
 
     game.gameOverEntryHandled = true;
     shareUI.open(getShareRunData(floorOverride));
+  }
+
+  function resolveDeathLessonBucket(floorId) {
+    const safeFloor = Math.max(1, Number.parseInt(String(floorId), 10) || 1);
+    if (safeFloor <= 3) {
+      return "early";
+    }
+    if (safeFloor <= 6) {
+      return "mid";
+    }
+    return "late";
+  }
+
+  function enterDeathLesson(floorOverride = null) {
+    const floor =
+      floorOverride ||
+      currentFloor() ||
+      FLOORS[Math.max(0, Math.min(game.currentFloorIndex, FLOORS.length - 1))] ||
+      { id: Math.max(1, game.currentFloorIndex + 1), accent: "blue" };
+    game.state = GameState.DEATH_LESSON;
+    game.deathLessonBucket = resolveDeathLessonBucket(floor.id);
+    game.deathLessonIndex = Math.abs(Math.floor(game.globalTime * 1000) + game.kills + floor.id * 31);
+    game.gameOverEntryHandled = false;
+    resetDeathAnim();
+    clearInputState();
   }
 
   function requestRestart() {
@@ -629,6 +750,10 @@
     game.bombBriefingSeenFinalUpgradeThisRun = false;
     game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
+    game.lessonSlideSeenThisFloor = false;
+    game.lessonSlideEnterCount = 0;
+    game.deathLessonBucket = "";
+    game.deathLessonIndex = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
     game.rearShotHintMode = "";
@@ -657,6 +782,10 @@
     game.bombBriefingSeenFinalUpgradeThisRun = false;
     game.bombBriefingMode = "intro";
     game.bombBriefingEnterCount = 0;
+    game.lessonSlideSeenThisFloor = false;
+    game.lessonSlideEnterCount = 0;
+    game.deathLessonBucket = "";
+    game.deathLessonIndex = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
     game.rearShotHintMode = "";
@@ -696,6 +825,10 @@
     game.bombChargesRemaining = BOMB_CHARGES_BASE;
     game.bombFlashTimer = 0;
     game.bombBriefingEnterCount = 0;
+    game.lessonSlideSeenThisFloor = false;
+    game.lessonSlideEnterCount = 0;
+    game.deathLessonBucket = "";
+    game.deathLessonIndex = 0;
     game.rearShotDirectionKey = "";
     game.rearShotHoldTime = 0;
     game.rearShotHintMode = "";
@@ -756,6 +889,13 @@
     resetPlayerPosition();
 
     spawnInitialHearts(floor);
+  }
+
+  function enterLessonSlide() {
+    game.state = GameState.LESSON_SLIDE;
+    game.lessonSlideSeenThisFloor = true;
+    game.lessonSlideEnterCount = 0;
+    clearInputState();
   }
 
   function resetPlayerPosition() {
@@ -835,6 +975,14 @@
     }
 
     if (game.state === GameState.BOMB_BRIEFING) {
+      return;
+    }
+
+    if (game.state === GameState.LESSON_SLIDE) {
+      return;
+    }
+
+    if (game.state === GameState.DEATH_LESSON) {
       return;
     }
 
@@ -1052,10 +1200,12 @@
         dualThreshold,
         omniThreshold,
         nextLabel: "Dual",
-        secondsToNext: 0,
-        progressToNext: 0,
-        detailOverride: `Unlocks on Floor ${DUAL_SHOT_UNLOCK_FLOOR}`
-      };
+          secondsToNext: 0,
+          progressToNext: 0,
+          detailOverride: formatUiText("burstUnlockFloor", "Unlocks on Floor {floor}", {
+            floor: DUAL_SHOT_UNLOCK_FLOOR
+          })
+        };
     }
 
     if (mode === "normal") {
@@ -1082,7 +1232,9 @@
           nextLabel: "Omni",
           secondsToNext: 0,
           progressToNext: 1,
-          detailOverride: `Omni unlocks on Floor ${OMNI_SHOT_UNLOCK_FLOOR}`
+          detailOverride: formatUiText("burstOmniUnlockFloor", "Omni unlocks on Floor {floor}", {
+            floor: OMNI_SHOT_UNLOCK_FLOOR
+          })
         };
       }
 
@@ -1772,7 +1924,7 @@
       game.bombBriefingEnterCount = 0;
       return;
     }
-    beginCurrentFloor();
+    enterLessonSlide();
   }
 
   AIPU.systems = {
