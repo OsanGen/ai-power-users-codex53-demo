@@ -1,1 +1,2 @@
-- src/render.js | fixed | Validate floor intro/death/lesson overlays at multiple resolutions and close if any remaining clipping appears.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | in_progress | Re-check floor intro/lesson/death overlay clipping on 16:9 and 16:10 canvases and tighten if any glyph edge clipping remains.
+- DEPLOY | fixed | Push main to origin/main completed for live site refresh check.
