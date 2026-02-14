@@ -1,0 +1,33 @@
+Render Component
+
+Purpose:
+- Draw all game visuals from canonical state in AIPU.state.
+- Render gameplay objects, HUD, and state overlays.
+
+Inputs:
+- AIPU.state.game state and player/enemy/projectile collections.
+- AIPU.state.currentFloorIndex, floor data, constants, and content helpers.
+- Canvas 2D context and dimensions.
+
+Outputs:
+- Visual frame each animation tick.
+- Overlay-specific canvas cards for lesson/death transitions and other UI overlays.
+
+State/Flags:
+- Relies on state.state (TITLE, UPGRADE_SELECT, BOMB_BRIEFING, LESSON_SLIDE, FLOOR_INTRO, PLAYING, DEATH_ANIM, DEATH_LESSON, FLOOR_CLEAR, GAME_OVER, VICTORY).
+- Uses global visual theme from resolveFloorVisualTheme when in gameplay.
+
+Edge Cases:
+- Text clipping and baseline alignment for overlay blocks.
+- Reduced-motion fallback for decorative motion.
+- Safe no-op when draw callbacks missing.
+
+Dependencies:
+- src/content.js narrative helpers (ui titles, lesson cards, floor copy).
+- src/systems.js helpers exposed by AIPU.systems.
+- src/core.js constants for dimensions and colors.
+
+Acceptance checks:
+- No clipping/raster artifacts on lesson and death overlays.
+- Transition states render and remain readable at default/resized canvas dimensions.
+- Existing gameplay rendering behavior unchanged.

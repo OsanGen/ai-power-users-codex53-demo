@@ -1,0 +1,1 @@
+- src/render.js | any remaining text clipping edge-case in overlay blocks not tied to lesson/death states | open | Review future overlay additions and add focused visual QA checks for clipping.

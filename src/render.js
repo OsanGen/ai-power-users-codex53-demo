@@ -1014,33 +1014,41 @@
     ctx.lineWidth = 2;
     strokeRoundRect(rightX, innerY, rightW, innerH, 16);
 
-    withClipRect(innerX, innerY, Math.max(120, leftW - 6), innerH, () => {
-      let y = innerY + 4;
-      const titleSize = fitHeadingFontSize(title, leftW - 16, 34, 24, 2);
+    const lessonTextPad = 10;
+    const lessonPanelW = Math.max(120, leftW - 6);
+    const lessonTextX = innerX + lessonTextPad;
+    const lessonTextY = innerY + lessonTextPad;
+    const lessonTextW = lessonPanelW - lessonTextPad * 2;
+    withRectClip(lessonTextX, lessonTextY, lessonTextW, innerH - lessonTextPad * 2, () => {
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+
+      let y = lessonTextY;
+      const titleSize = fitHeadingFontSize(title, lessonTextW, 34, 24, 2);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
-      y = drawWrappedText(title, innerX, y, leftW - 16, Math.round(titleSize * 1.15), { maxLines: 2 });
+      y = drawWrappedText(title, lessonTextX, y, lessonTextW, Math.round(titleSize * 1.15), { maxLines: 2 });
       y += 10;
 
       ctx.font = '600 20px "Inter", sans-serif';
-      y = drawWrappedText(oneLiner, innerX, y, leftW - 16, 28, { maxLines: 2 });
+      y = drawWrappedText(oneLiner, lessonTextX, y, lessonTextW, 28, { maxLines: 2 });
       y += 10;
 
       ctx.font = '600 17px "Inter", sans-serif';
       for (let i = 0; i < bullets.length; i += 1) {
-        y = drawWrappedText(`• ${bullets[i]}`, innerX, y, leftW - 16, 24, { maxLines: 2 });
+        y = drawWrappedText(`• ${bullets[i]}`, lessonTextX, y, lessonTextW, 24, { maxLines: 2 });
       }
 
       y += 12;
       const tryThisY = Math.min(y, innerY + innerH - 74);
       ctx.fillStyle = rgba(accent, 0.2);
-      fillRoundRect(innerX, tryThisY, leftW - 20, 64, 12);
+      fillRoundRect(lessonTextX, tryThisY, lessonTextW, 64, 12);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
-      strokeRoundRect(innerX, tryThisY, leftW - 20, 64, 12);
+      strokeRoundRect(lessonTextX, tryThisY, lessonTextW, 64, 12);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 17px "Inter", sans-serif';
-      drawWrappedText(tryThis, innerX + 12, tryThisY + 12, leftW - 44, 22, { maxLines: 2 });
+      drawWrappedText(tryThis, lessonTextX + 12, tryThisY + 12, lessonTextW - 24, 22, { maxLines: 2 });
     });
 
     drawLessonSlideDiagram(
@@ -1194,20 +1202,25 @@
     const contentY = panelY + 46;
     const contentW = panelW - 60;
     const contentH = panelH - 86;
-    withClipRect(contentX, contentY, contentW, contentH, () => {
-      const titleSize = fitHeadingFontSize(title, contentW - 8, 34, 24, 2);
+    const contentTextPad = 10;
+    const contentTextX = contentX + contentTextPad;
+    const contentTextY = contentY + contentTextPad;
+    const contentTextW = contentW - contentTextPad * 2;
+    const contentTextH = contentH - contentTextPad * 2;
+    withRectClip(contentTextX, contentTextY, contentTextW, contentTextH, () => {
+      const titleSize = fitHeadingFontSize(title, contentTextW, 34, 24, 2);
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
-      let y = drawWrappedText(title, contentX, contentY, contentW, Math.round(titleSize * 1.14), { maxLines: 2 });
+      let y = drawWrappedText(title, contentTextX, contentTextY, contentTextW, Math.round(titleSize * 1.14), { maxLines: 2 });
       y += 8;
       ctx.font = '600 20px "Inter", sans-serif';
-      y = drawWrappedText(oneLiner, contentX, y, contentW, 28, { maxLines: 2 });
+      y = drawWrappedText(oneLiner, contentTextX, y, contentTextW, 28, { maxLines: 2 });
       y += 10;
       ctx.font = '600 17px "Inter", sans-serif';
       for (let i = 0; i < bullets.length; i += 1) {
-        y = drawWrappedText(`• ${bullets[i]}`, contentX, y, contentW, 24, { maxLines: 2 });
+        y = drawWrappedText(`• ${bullets[i]}`, contentTextX, y, contentTextW, 24, { maxLines: 2 });
       }
 
       y += 14;
@@ -1219,7 +1232,7 @@
       strokeRoundRect(contentX, tryThisY, contentW, 70, 14);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 17px "Inter", sans-serif';
-      drawWrappedText(tryThis, contentX + 12, tryThisY + 14, contentW - 24, 22, { maxLines: 2 });
+      drawWrappedText(tryThis, contentTextX + 12, tryThisY + 14, contentTextW - 24, 22, { maxLines: 2 });
     });
 
     ctx.textAlign = "center";
@@ -3015,6 +3028,19 @@
 
     ctx.save();
     roundRectPath(x, y, w, h, 12);
+    ctx.clip();
+    drawFn();
+    ctx.restore();
+  }
+
+  function withRectClip(x, y, w, h, drawFn) {
+    if (typeof drawFn !== "function" || w <= 0 || h <= 0) {
+      return;
+    }
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
     ctx.clip();
     drawFn();
     ctx.restore();
