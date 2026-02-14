@@ -62,7 +62,7 @@
   const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
   const LESSON_TEXT_MAX_CHARS = 4000;
   const LESSON_TEXT_SAMPLE =
-    "A churn model takes product activity and support history as inputs. Weights scale each input, then hidden concepts like loyalty or frustration activate. The output is one churn-risk score. Small input changes can flip the dominant concept and change that prediction.";
+    "Inputs are numbers like counts and signals. Weights scale each input, then gates combine them to produce one guess. A tiny input change can flip a prediction.";
   const COGSEC_BULLET_COLORS = [TOKENS.yellow, TOKENS.blue, TOKENS.mint, TOKENS.pink];
   let bulletColorCycleIndex = 0;
   let lessonSlideAdvanceLockUntil = 0;

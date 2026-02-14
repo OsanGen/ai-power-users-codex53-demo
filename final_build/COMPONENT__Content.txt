@@ -1,0 +1,39 @@
+Content Component
+
+Purpose:
+- Centralize all narrative and UI fallback copy used by title, floor overlays, lesson cards, death lessons, HUD labels, and share text.
+- Gate gameplay-facing copy through `pickNarrativeText`, defaulting safely when narrative is unavailable.
+- Provide content helpers for upgrades, floor wave definitions, enemy lore, and narrative-aware overlays.
+
+Inputs:
+- `window.AI_POWER_USER_NARRATIVE` (optional) as the canonical copy source.
+- Runtime state in `AIPU.state` and `AIPU.upgrades` for dynamic copy composition.
+- Upgrade and narrative helpers from callers in `systems.js` and `render.js`.
+
+Outputs:
+- Helper APIs on `AIPU.content`:
+  - `getNarrativeTeachCard(floorId)`
+  - `getDeathLessonCard(floorId, seed)`
+  - `getNarrativeTitleCard()`
+  - `getNarrativeFloorCopy(floor)`
+  - `getNarrativeOutcomeCopy(isVictory)`
+  - `getNarrativeUiText(key, fallback)`
+  - `getBombBriefingCopy(mode)`
+  - `getWhatYouLearnedBullets()`
+  - Content constants (`FLOORS`, `TITLE_SEQUENCE`, `ENEMY_DEFS`, etc.)
+
+State/Edges:
+- Fallbacks are narrative-aligned and safe when `N` is missing.
+- Lesson text editing values are normalized before storage and truncated to `LESSON_TEXT_MAX_CHARS`.
+- Floor signatures and threat lore are exposed without mutating gameplay constants.
+- `getWhatYouLearnedBullets()` deduplicates upgrade-derived lesson concepts and pads with generic fallback lines.
+
+Dependencies:
+- `AIPU.utils.clamp`
+- `AIPU.state` for upgrade history.
+- Narrative object in `window.AI_POWER_USER_NARRATIVE`.
+
+Acceptance Checks:
+- Nonexistent narrative fields never crash UI (fallbacks always return strings/arrays).
+- Floor, lesson, and death overlays receive consistent narrative data even when upgrades have duplicates.
+- Share/build card paths are unaffected by copy changes.

@@ -103,7 +103,7 @@
               floor: floorReached,
               maxFloors
             }),
-            uiText("shareFallbackLine2", "Neural nets: inputs -> weights -> concepts -> prediction.")
+            uiText("shareFallbackLine2", "Loop: inputs → weights → neuron gates → output.")
           ];
 
     if (upgradesSummary) {

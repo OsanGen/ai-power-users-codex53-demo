@@ -2655,7 +2655,7 @@
       footer = uiText("introSkipFooter", "Press Enter or Space to skip intro");
     } else if (game.state === GameState.FLOOR_CLEAR) {
       title = uiText("floorClearTitle", "Floor cleared");
-      body = uiText("floorClearSubtitle", "Raw data -> weights -> concepts -> prediction.");
+      body = uiText("floorClearSubtitle", "Inputs → weights → neurons → layers → guess.");
       footer = floor.id < 9 ? uiText("floorTransitioningFooter", "Transitioning...") : "";
     }
 

@@ -1,34 +1,33 @@
 Render Component
 
 Purpose:
-- Draw all game visuals from canonical state in AIPU.state.
-- Render gameplay objects, HUD, and state overlays.
+- Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
+- Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 
 Inputs:
-- AIPU.state.game state and player/enemy/projectile collections.
-- AIPU.state.currentFloorIndex, floor data, constants, and content helpers.
-- Canvas 2D context and dimensions.
+- Render state (`AIPU.state.game`, `AIPU.state.player`, entity collections).
+- Constants and helpers from `AIPU.constants` and `AIPU.utils`.
+- Narrative content helpers from `AIPU.content` for all overlay labels.
+- Optional systems callbacks from `AIPU.systems` for collections and state transitions.
 
 Outputs:
-- Visual frame each animation tick.
-- Overlay-specific canvas cards for lesson/death transitions and other UI overlays.
+- A single frame on `canvas`.
+- Overlay content for title, upgrade cards, bomb briefing, lesson/death lesson, floor intro/clear, and run summary.
+- Background and world layers with per-floor visual theme data.
 
-State/Flags:
-- Relies on state.state (TITLE, UPGRADE_SELECT, BOMB_BRIEFING, LESSON_SLIDE, FLOOR_INTRO, PLAYING, DEATH_ANIM, DEATH_LESSON, FLOOR_CLEAR, GAME_OVER, VICTORY).
-- Uses global visual theme from resolveFloorVisualTheme when in gameplay.
-
-Edge Cases:
-- Text clipping and baseline alignment for overlay blocks (especially lesson/death/intro overlays) with bounded clipping regions.
-- Reduced-motion fallback for decorative motion.
-- Safe no-op when draw callbacks missing.
+State/Edges:
+- Uses `ctx.textAlign`/`textBaseline` state carefully and resets at block exits.
+- Uses `withRectClip` for lesson/death text clipping and `withClipRect` for rounded-panel masking.
+- Keeps overlay text readable by top-aligned clipping paths with insets.
+- Supports reduced-motion by removing motion terms.
+- No gameplay mechanics are changed in render path.
 
 Dependencies:
-- src/content.js narrative helpers (ui titles, lesson cards, floor copy).
-- src/systems.js helpers exposed by AIPU.systems.
-- src/core.js constants for dimensions and colors.
+- `AIPU.content` narrative helper methods for labels.
+- `AIPU.systems` collections and state helpers.
+- `AIPU.utils` for color/geometry/font helpers.
 
-Acceptance checks:
-- No clipping/raster artifacts on lesson, death, and floor-intro overlays.
-- Overlay backdrops reuse resolved visual theme for all non-gameplay screens.
-- Transition states render and remain readable at default/resized canvas dimensions.
-- Existing gameplay rendering behavior unchanged.
+Acceptance Checks:
+- No state transitions altered by rendering.
+- Lesson/death overlays remain legible with stable baseline/clipping.
+- Floor themes resolve consistently by floor id.

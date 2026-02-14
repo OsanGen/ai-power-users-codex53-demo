@@ -5,11 +5,10 @@
   const { clamp } = AIPU.utils;
 
   const N = window.AI_POWER_USER_NARRATIVE || null;
-  console.log("[narrative] loaded:", !!window.AI_POWER_USER_NARRATIVE);
   const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
   const LESSON_TEXT_MAX_CHARS = 4000;
   const LESSON_TEXT_FALLBACK =
-    "A churn model starts with input numbers like logins and tickets. Weights scale each input. Hidden concepts combine those weighted signals. The model outputs one churn-risk score.";
+    "Inputs are numbers. Weights set importance. A network turns those signals into one guess.";
   const LESSON_STOPWORDS = new Set([
     "a",
     "an",
@@ -329,9 +328,13 @@
 
   function getNarrativeTitleCard() {
     const titleScreen = N && typeof N.titleScreen === "object" ? N.titleScreen : null;
-    const gameTitle = pickNarrativeText(titleScreen && titleScreen.title, "Neural Glass: Neural Nets");
-    const tagline = pickNarrativeText(titleScreen && titleScreen.subtitle, "Drag inputs. Watch concepts. Predict churn.");
-    const fallbackBlurb = ["Neural nets learn signal vs noise.", "They learn weights from data.", "They output one prediction."];
+    const gameTitle = pickNarrativeText(titleScreen && titleScreen.title, "Neural Nets: Learn the Loop");
+    const tagline = pickNarrativeText(titleScreen && titleScreen.subtitle, "Numbers in. Guess out. Learn why.");
+    const fallbackBlurb = [
+      "Inputs are numbers.",
+      "Weights set importance.",
+      "A forward pass makes a guess."
+    ];
     const lines = Array.isArray(titleScreen && titleScreen.bullets)
       ? titleScreen.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3).map((line) => line.trim())
       : [];
@@ -350,7 +353,7 @@
     const floorId = floor && Number.isFinite(floor.id) ? floor.id : 1;
     const entry = cards.find((card) => card && Number(card.floor) === floorId) || null;
     const floorFallbackTitle = `Floor ${floorId}`;
-    const floorFallbackSubtitle = "Input -> weight -> concept -> output.";
+    const floorFallbackSubtitle = "Inputs are numbers. Weights set importance.";
     const lessonUpgradeId =
       AIPU.state &&
       AIPU.state.game &&
@@ -413,8 +416,8 @@
     const fallbackCard = {
       title: "Neural-net lesson",
       oneLiner: "Use numbers to make one guess.",
-      bullets: ["Inputs feed the model.", "Weights set influence."],
-      tryThis: "Say: inputs -> weights -> output.",
+      bullets: ["Inputs are numbers.", "Weights set importance."],
+      tryThis: "Say: inputs -> weights -> neurons -> output.",
       visualMode: "network_basic"
     };
 
@@ -463,7 +466,7 @@
   }
 
   function getWhatYouLearnedBullets() {
-    const generic = ["Inputs are numbers.", "Weights set importance.", "Concepts drive the score."];
+    const generic = ["Inputs are numbers.", "Weights set importance.", "Neural nets are one chain."];
     const upgradeState = AIPU.upgrades && AIPU.upgrades.upgradeState ? AIPU.upgrades.upgradeState : null;
     const history = upgradeState && Array.isArray(upgradeState.history) ? upgradeState.history : [];
     if (history.length === 0) {
