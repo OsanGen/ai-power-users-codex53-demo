@@ -1224,12 +1224,12 @@
       }
 
       y += 14;
-      const tryThisY = Math.min(y, contentY + contentH - 74);
+      const tryThisY = Math.min(y, contentTextY + contentTextH - 74);
       ctx.fillStyle = TOKENS.fog;
-      fillRoundRect(contentX, tryThisY, contentW, 70, 14);
+      fillRoundRect(contentTextX, tryThisY, contentTextW, 70, 14);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
-      strokeRoundRect(contentX, tryThisY, contentW, 70, 14);
+      strokeRoundRect(contentTextX, tryThisY, contentTextW, 70, 14);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 17px "Inter", sans-serif';
       drawWrappedText(tryThis, contentTextX + 12, tryThisY + 14, contentTextW - 24, 22, { maxLines: 2 });
