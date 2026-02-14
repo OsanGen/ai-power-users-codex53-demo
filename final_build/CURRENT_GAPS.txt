@@ -6,4 +6,4 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Add Floors 10–15 content entries and ensure floor sequence is 1–15 only.
 - /Users/abelsanchez/CODEX/WONDERLAND/narrative.js | completed | Add teachCards floors 10–15 (new concept entries only).
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Add late-floor archetype pressure (10–15) with two new ENEMY_DEFS types phased in 12–15.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | in_progress | Validate late-floor 10–15 tuning pass/fail: difficulty ramp and pacing feel good at high floors.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Validate late-floor 10–15 tuning pass/fail: spawn-score metric is monotonically increasing 10→15 and wave endTime constraints hold.

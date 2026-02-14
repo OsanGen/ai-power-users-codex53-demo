@@ -694,7 +694,8 @@
         wave("apex_rabbit", 10, 108, 0.1, 0.36, 1.0, 1.32),
         wave("flank_drone", 28, 86, 0.1, 0.34, 1.0, 1.22),
         wave("double", 46, 108, 0.08, 0.3, 1.0, 1.28),
-        wave("loop_ghost", 64, 108, 0.22, 0.78, 1.1, 1.45, ["spawnsBehindPlayer"])
+        wave("loop_ghost", 64, 108, 0.22, 0.78, 1.1, 1.45, ["spawnsBehindPlayer"]),
+        wave("notification_swarm", 24, 108, 0.12, 1.4, 1.08, 1.48)
       ]
     },
     {
@@ -707,8 +708,8 @@
       heartType: "table",
       heartSpawn: { initialCount: 1, baseRate: 0.058, clutchBoostStart: 24 },
       enemyWaves: [
-        wave("notification_swarm", 0, 116, 1.05, 2.65, 1.05, 1.45),
-        wave("decay_mote", 18, 116, 0.7, 2.05, 1.1, 1.55),
+        wave("notification_swarm", 0, 116, 0.55, 1.65, 1.05, 1.38),
+        wave("decay_mote", 18, 116, 0.45, 1.35, 1.02, 1.4),
         wave("chair_knight", 8, 116, 0.2, 0.68, 1.0, 1.32),
         wave("flank_drone", 40, 116, 0.18, 0.52, 1.0, 1.26, ["spawnsBehindPlayer"]),
         wave("cell_blob", 64, 116, 0.22, 0.72, 1.0, 1.25, ["canSplit"]),
@@ -730,7 +731,8 @@
         wave("flank_drone", 18, 124, 0.2, 0.62, 1.0, 1.34, ["spawnsBehindPlayer"]),
         wave("name_glitch_shade", 24, 124, 0.22, 0.88, 1.05, 1.38),
         wave("apex_rabbit", 72, 124, 0.1, 0.32, 1.1, 1.45),
-        wave("arc_turret", 48, 124, 0.16, 0.62, 1.02, 1.34)
+        wave("arc_turret", 48, 124, 0.16, 0.62, 1.02, 1.34),
+        wave("notification_swarm", 20, 124, 0.7, 2.55, 1.1, 1.55)
       ]
     },
     {
@@ -748,7 +750,10 @@
         wave("cell_blob", 20, 132, 0.34, 0.95, 1.0, 1.26, ["canSplit"]),
         wave("decay_mote", 30, 96, 0.52, 1.72, 1.12, 1.52),
         wave("reach_shadow", 60, 132, 0.16, 0.5, 1.0, 1.0),
-        wave("drift_hound", 60, 132, 0.2, 1.02, 1.04, 1.62, ["spawnsBehindPlayer"])
+        wave("drift_hound", 60, 132, 0.2, 1.02, 1.04, 1.62, ["spawnsBehindPlayer"]),
+        wave("notification_swarm", 28, 132, 0.55, 1.75, 1.08, 1.48),
+        wave("drift_hound", 72, 132, 0.06, 0.26, 1.02, 1.24, ["spawnsBehindPlayer"]),
+        wave("reach_shadow", 120, 132, 0.16, 0.24, 1.0, 1.0)
       ]
     },
     {
@@ -770,7 +775,8 @@
         wave("apex_rabbit", 84, 140, 0.1, 0.32, 1.18, 1.55),
         wave("decay_mote", 96, 140, 0.7, 2.05, 1.2, 1.6),
         wave("drift_hound", 76, 140, 0.16, 1.28, 1.06, 1.72, ["spawnsBehindPlayer"]),
-        wave("arc_turret", 84, 140, 0.14, 0.5, 1.12, 1.64)
+        wave("arc_turret", 84, 140, 0.2, 1.0, 1.12, 1.64),
+        wave("notification_swarm", 66, 140, 0.5, 2.1, 1.18, 1.58)
       ]
     }
   ];
