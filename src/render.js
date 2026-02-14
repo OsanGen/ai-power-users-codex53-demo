@@ -324,25 +324,25 @@
     }
 
     if (game.state === GameState.UPGRADE_SELECT) {
-      drawBackdrop(accent);
+      drawBackdrop(accent, visualTheme);
       drawUpgradeSelect(floor, accent);
       return;
     }
 
     if (game.state === GameState.BOMB_BRIEFING) {
-      drawBackdrop(accent);
+      drawBackdrop(accent, visualTheme);
       drawBombBriefing(floor, accent);
       return;
     }
 
     if (game.state === GameState.LESSON_SLIDE) {
-      drawBackdrop(accent);
+      drawBackdrop(accent, visualTheme);
       drawLessonSlideOverlay(floor, accent);
       return;
     }
 
     if (game.state === GameState.DEATH_LESSON) {
-      drawBackdrop(accent);
+      drawBackdrop(accent, visualTheme);
       drawDeathLessonOverlay(floor, accent);
       return;
     }
@@ -2663,6 +2663,10 @@
     const panelH = 220;
     const panelX = (WIDTH - panelW) * 0.5;
     const panelY = (HEIGHT - panelH) * 0.5;
+    const contentPadX = 45;
+    const contentPadY = 44;
+    const contentW = panelW - contentPadX * 2;
+    const contentH = panelH - (footer ? 70 : 50);
 
     ctx.fillStyle = rgba(TOKENS.white, 0.94);
     fillRoundRect(panelX, panelY, panelW, panelH, 20);
@@ -2673,25 +2677,29 @@
     ctx.fillStyle = rgba(accent, 0.2);
     fillRoundRect(panelX + 18, panelY + 18, panelW - 36, 10, 999);
 
-    ctx.fillStyle = TOKENS.ink;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
+    withRectClip(panelX + contentPadX, panelY + 12, contentW, contentH, () => {
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
 
-    const titleFont = fitHeadingFontSize(title, panelW - 90, 30, 24, 2);
-    ctx.font = `700 ${titleFont}px "Sora", "Inter", sans-serif`;
-    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + 44, panelW - 90, Math.round(titleFont * 1.15), {
-      maxLines: 2
+      const titleFont = fitHeadingFontSize(title, contentW, 30, 24, 2);
+      ctx.font = `700 ${titleFont}px "Sora", "Inter", sans-serif`;
+      const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + contentPadY, contentW, Math.round(titleFont * 1.15), {
+        maxLines: 2
+      });
+
+      ctx.font = '500 20px "Inter", sans-serif';
+      const bodyStartY = titleBottom + 10;
+      const bodyLineHeight = 30;
+      const bodyBottomLimit = footer ? panelY + panelH - 48 : panelY + panelH - 26;
+      const bodyMaxLines = Math.max(1, Math.floor((bodyBottomLimit - bodyStartY) / bodyLineHeight));
+      drawWrappedText(body, WIDTH * 0.5, bodyStartY, contentW, bodyLineHeight, { maxLines: Math.min(3, bodyMaxLines) });
     });
-
-    ctx.font = '500 20px "Inter", sans-serif';
-    const bodyStartY = titleBottom + 10;
-    const bodyLineHeight = 30;
-    const bodyBottomLimit = footer ? panelY + panelH - 48 : panelY + panelH - 26;
-    const bodyMaxLines = Math.max(1, Math.floor((bodyBottomLimit - bodyStartY) / bodyLineHeight));
-    drawWrappedText(body, WIDTH * 0.5, bodyStartY, panelW - 80, bodyLineHeight, { maxLines: Math.min(3, bodyMaxLines) });
 
     if (footer) {
       ctx.font = '700 16px "Inter", sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
       ctx.fillText(footer, WIDTH * 0.5, panelY + panelH - 38);
     }
 

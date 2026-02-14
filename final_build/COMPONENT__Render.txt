@@ -18,7 +18,7 @@ State/Flags:
 - Uses global visual theme from resolveFloorVisualTheme when in gameplay.
 
 Edge Cases:
-- Text clipping and baseline alignment for overlay blocks.
+- Text clipping and baseline alignment for overlay blocks (especially lesson/death/intro overlays) with bounded clipping regions.
 - Reduced-motion fallback for decorative motion.
 - Safe no-op when draw callbacks missing.
 
@@ -28,6 +28,7 @@ Dependencies:
 - src/core.js constants for dimensions and colors.
 
 Acceptance checks:
-- No clipping/raster artifacts on lesson and death overlays.
+- No clipping/raster artifacts on lesson, death, and floor-intro overlays.
+- Overlay backdrops reuse resolved visual theme for all non-gameplay screens.
 - Transition states render and remain readable at default/resized canvas dimensions.
 - Existing gameplay rendering behavior unchanged.
