@@ -58,6 +58,14 @@
   const MAX_ACCUMULATED_TIME = 0.25;
   const BOMB_FLASH_DURATION = 0.22;
   const OVERLAY_ADVANCE_LOCK_MS = 120;
+  const ENTITY_POOL_CONFIG = {
+    bullets: 96,
+    enemyBullets: 192,
+    enemies: 96,
+    pickups: 24,
+    particles: 260
+  };
+  let collisionEpochCounter = 1;
   const CHECKPOINT_FLOOR_KEY = "checkpoint_floor_v1";
   const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
   const LESSON_TEXT_MAX_CHARS = 4000;
@@ -67,6 +75,328 @@
   let bulletColorCycleIndex = 0;
   let lessonSlideAdvanceLockUntil = 0;
   let deathLessonAdvanceLockUntil = 0;
+
+  function nextCollisionEpoch() {
+    const epoch = collisionEpochCounter;
+    collisionEpochCounter += 1;
+    if (collisionEpochCounter > 1000000000) {
+      collisionEpochCounter = 1;
+    }
+    return epoch;
+  }
+
+  function resetCollisionEpoch() {
+    collisionEpochCounter = 1;
+  }
+
+  function createPool(createFn, resetFn, initialCapacity) {
+    const items = [];
+    const warm = Math.max(0, Math.floor(Number.isFinite(initialCapacity) ? initialCapacity : 0));
+    while (items.length < warm) {
+      items.push(createFn());
+    }
+
+    function acquire(payload) {
+      const item = items.pop() || createFn();
+      resetFn(item, payload || null);
+      return item;
+    }
+
+    function release(item) {
+      if (!item) {
+        return;
+      }
+      resetFn(item, null);
+      items.push(item);
+    }
+
+    return { acquire, release, getAvailable: () => items.length };
+  }
+
+  function clearCollection(collection, releaseFn) {
+    for (let i = 0; i < collection.length; i += 1) {
+      releaseFn(collection[i]);
+    }
+    collection.length = 0;
+  }
+
+  const bulletPool = createPool(
+    () => ({
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      radius: 0,
+      pierce: 0,
+      life: 0,
+      color: TOKENS.yellow,
+      hitEpoch: 0
+    }),
+    (bullet, payload) => {
+      if (!payload) {
+        bullet.x = 0;
+        bullet.y = 0;
+        bullet.vx = 0;
+        bullet.vy = 0;
+        bullet.radius = 0;
+        bullet.pierce = 0;
+        bullet.life = 0;
+        bullet.color = TOKENS.yellow;
+        bullet.hitEpoch = 0;
+        return;
+      }
+
+      bullet.x = payload.x;
+      bullet.y = payload.y;
+      bullet.vx = payload.vx;
+      bullet.vy = payload.vy;
+      bullet.radius = payload.radius;
+      bullet.pierce = payload.pierce;
+      bullet.life = payload.life;
+      bullet.color = payload.color || TOKENS.yellow;
+      bullet.hitEpoch = payload.hitEpoch;
+    },
+    ENTITY_POOL_CONFIG.bullets
+  );
+
+  const enemyBulletPool = createPool(
+    () => ({
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      damage: 0,
+      radius: 0,
+      life: 0,
+      color: TOKENS.yellow
+    }),
+    (bullet, payload) => {
+      if (!payload) {
+        bullet.x = 0;
+        bullet.y = 0;
+        bullet.vx = 0;
+        bullet.vy = 0;
+        bullet.damage = 0;
+        bullet.radius = 0;
+        bullet.life = 0;
+        bullet.color = TOKENS.yellow;
+        return;
+      }
+
+      bullet.x = payload.x;
+      bullet.y = payload.y;
+      bullet.vx = payload.vx;
+      bullet.vy = payload.vy;
+      bullet.damage = payload.damage;
+      bullet.radius = payload.radius;
+      bullet.life = payload.life;
+      bullet.color = payload.color || TOKENS.yellow;
+    },
+    ENTITY_POOL_CONFIG.enemyBullets
+  );
+
+  const enemyPool = createPool(
+    () => ({
+      id: 0,
+      type: "",
+      behavior: "",
+      x: 0,
+      y: 0,
+      side: 0,
+      radius: 0,
+      hp: 0,
+      maxHp: 0,
+      speed: 0,
+      touchDamage: 0,
+      vx: 0,
+      vy: 0,
+      age: 0,
+      hurtFlash: 0,
+      canSplit: false,
+      spawnsBehindPlayer: false,
+      shootCooldown: 0,
+      shootCooldownMin: 0,
+      shootCooldownMax: 0,
+      firstShotDelay: 0,
+      chargeState: "idle",
+      chargeTimer: 0,
+      chargeDirX: 0,
+      chargeDirY: 0,
+      splitRemaining: 0,
+      localSeed: 0,
+      lastHitEpoch: 0
+    }),
+    (enemy, payload) => {
+      if (!payload) {
+        enemy.id = 0;
+        enemy.type = "";
+        enemy.behavior = "";
+        enemy.x = 0;
+        enemy.y = 0;
+        enemy.side = 0;
+        enemy.radius = 0;
+        enemy.hp = 0;
+        enemy.maxHp = 0;
+        enemy.speed = 0;
+        enemy.touchDamage = 0;
+        enemy.vx = 0;
+        enemy.vy = 0;
+        enemy.age = 0;
+        enemy.hurtFlash = 0;
+        enemy.canSplit = false;
+        enemy.spawnsBehindPlayer = false;
+        enemy.shootCooldown = 0;
+        enemy.shootCooldownMin = 0;
+        enemy.shootCooldownMax = 0;
+        enemy.firstShotDelay = 0;
+        enemy.chargeState = "idle";
+        enemy.chargeTimer = 0;
+        enemy.chargeDirX = 0;
+        enemy.chargeDirY = 0;
+        enemy.splitRemaining = 0;
+        enemy.localSeed = 0;
+        enemy.lastHitEpoch = 0;
+        return;
+      }
+
+      enemy.id = payload.id;
+      enemy.type = payload.type;
+      enemy.behavior = payload.behavior;
+      enemy.x = payload.x;
+      enemy.y = payload.y;
+      enemy.side = payload.side;
+      enemy.radius = payload.radius;
+      enemy.hp = payload.hp;
+      enemy.maxHp = payload.maxHp;
+      enemy.speed = payload.speed;
+      enemy.touchDamage = payload.touchDamage;
+      enemy.vx = payload.vx;
+      enemy.vy = payload.vy;
+      enemy.age = payload.age;
+      enemy.hurtFlash = payload.hurtFlash;
+      enemy.canSplit = !!payload.canSplit;
+      enemy.spawnsBehindPlayer = !!payload.spawnsBehindPlayer;
+      enemy.shootCooldown = payload.shootCooldown;
+      enemy.shootCooldownMin = payload.shootCooldownMin;
+      enemy.shootCooldownMax = payload.shootCooldownMax;
+      enemy.firstShotDelay = payload.firstShotDelay;
+      enemy.chargeState = payload.chargeState;
+      enemy.chargeTimer = payload.chargeTimer;
+      enemy.chargeDirX = payload.chargeDirX;
+      enemy.chargeDirY = payload.chargeDirY;
+      enemy.splitRemaining = payload.splitRemaining;
+      enemy.localSeed = payload.localSeed;
+      enemy.lastHitEpoch = payload.lastHitEpoch || 0;
+    },
+    ENTITY_POOL_CONFIG.enemies
+  );
+
+  const pickupPool = createPool(
+    () => ({
+      x: 0,
+      y: 0,
+      radius: 0,
+      type: "",
+      wobble: 0
+    }),
+    (pickup, payload) => {
+      if (!payload) {
+        pickup.x = 0;
+        pickup.y = 0;
+        pickup.radius = 0;
+        pickup.type = "";
+        pickup.wobble = 0;
+        return;
+      }
+
+      pickup.x = payload.x;
+      pickup.y = payload.y;
+      pickup.radius = payload.radius;
+      pickup.type = payload.type;
+      pickup.wobble = payload.wobble;
+    },
+    ENTITY_POOL_CONFIG.pickups
+  );
+
+  const particlePool = createPool(
+    () => ({
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      life: 0,
+      maxLife: 0,
+      size: 0,
+      color: TOKENS.yellow
+    }),
+    (particle, payload) => {
+      if (!payload) {
+        particle.x = 0;
+        particle.y = 0;
+        particle.vx = 0;
+        particle.vy = 0;
+        particle.life = 0;
+        particle.maxLife = 0;
+        particle.size = 0;
+        particle.color = TOKENS.yellow;
+        return;
+      }
+
+      particle.x = payload.x;
+      particle.y = payload.y;
+      particle.vx = payload.vx;
+      particle.vy = payload.vy;
+      particle.life = payload.life;
+      particle.maxLife = payload.maxLife;
+      particle.size = payload.size;
+      particle.color = payload.color || TOKENS.yellow;
+    },
+    ENTITY_POOL_CONFIG.particles
+  );
+
+  function acquirePlayerBullet(payload) {
+    return bulletPool.acquire(payload);
+  }
+
+  function releasePlayerBullet(bullet) {
+    bulletPool.release(bullet);
+  }
+
+  function acquireEnemyBullet(payload) {
+    return enemyBulletPool.acquire(payload);
+  }
+
+  function releaseEnemyBullet(bullet) {
+    enemyBulletPool.release(bullet);
+  }
+
+  function acquireEnemy(payload) {
+    return enemyPool.acquire(payload);
+  }
+
+  function releaseEnemy(enemy) {
+    enemyPool.release(enemy);
+  }
+
+  function acquirePickup(payload) {
+    return pickupPool.acquire(payload);
+  }
+
+  function releasePickup(pickup) {
+    pickupPool.release(pickup);
+  }
+
+  function acquireParticle(payload) {
+    return particlePool.acquire(payload);
+  }
+
+  function releaseParticle(particle) {
+    particlePool.release(particle);
+  }
+
+  function hasFlag(flags, name) {
+    return Array.isArray(flags) && flags.indexOf(name) !== -1;
+  }
 
   function isShareModalOpen() {
     return !!shareUI && shareUI.isOpen();
@@ -572,11 +902,12 @@
   }
 
   function resetCollections() {
-    bullets = [];
-    enemyBullets = [];
-    enemies = [];
-    pickups = [];
-    particles = [];
+    clearCollection(bullets, releasePlayerBullet);
+    clearCollection(enemyBullets, releaseEnemyBullet);
+    clearCollection(enemies, releaseEnemy);
+    clearCollection(pickups, releasePickup);
+    clearCollection(particles, releaseParticle);
+    resetCollisionEpoch();
   }
 
   function getCollections() {
@@ -948,13 +1279,15 @@
     for (let i = 0; i < count; i += 1) {
       const px = rand(WORLD.x + 48, WORLD.x + WORLD.w - 48);
       const py = rand(WORLD.y + 54, WORLD.y + WORLD.h - 120);
-      pickups.push({
-        x: px,
-        y: py,
-        radius: 11,
-        type: floor.heartType,
-        wobble: rand(0, Math.PI * 2)
-      });
+      pickups.push(
+        acquirePickup({
+          x: px,
+          y: py,
+          radius: 11,
+          type: floor.heartType,
+          wobble: rand(0, Math.PI * 2)
+        })
+      );
     }
   }
 
@@ -1116,8 +1449,8 @@
     emitBurst(WORLD.x + WORLD.w * 0.5, WORLD.y + WORLD.h * 0.5, flashAccent, 16, 180);
     emitBurst(player.x, player.y, flashAccent, 10, 210);
 
-    enemies = [];
-    enemyBullets = [];
+    clearCollection(enemies, releaseEnemy);
+    clearCollection(enemyBullets, releaseEnemyBullet);
   }
 
   function updatePlayerMovement(dt) {
@@ -1356,17 +1689,19 @@
 
   function spawnPlayerBullet(dir, bulletSpeed, bulletRadius, bulletPierce, colorOverride = "") {
     const spawnDistance = player.radius + 9;
-    bullets.push({
-      x: player.x + dir.x * spawnDistance,
-      y: player.y + dir.y * spawnDistance,
-      vx: dir.x * bulletSpeed,
-      vy: dir.y * bulletSpeed,
-      radius: bulletRadius,
-      pierce: bulletPierce,
-      life: 0.95,
-      color: colorOverride || nextCogsecBulletColor(),
-      hitEnemyIds: new Set()
-    });
+    bullets.push(
+      acquirePlayerBullet({
+        x: player.x + dir.x * spawnDistance,
+        y: player.y + dir.y * spawnDistance,
+        vx: dir.x * bulletSpeed,
+        vy: dir.y * bulletSpeed,
+        radius: bulletRadius,
+        pierce: bulletPierce,
+        life: 0.95,
+        color: colorOverride || nextCogsecBulletColor(),
+        hitEpoch: nextCollisionEpoch()
+      })
+    );
   }
 
   function getShootDirection() {
@@ -1411,7 +1746,9 @@
       return;
     }
 
-    const flags = new Set(waveCfg.specialFlags || []);
+    const specialFlags = waveCfg.specialFlags || [];
+    const canSplit = hasFlag(specialFlags, "canSplit");
+    const spawnsBehindPlayer = hasFlag(specialFlags, "spawnsBehindPlayer");
     const speedMultiplier = lerp(waveCfg.speedMultiplierStart, waveCfg.speedMultiplierEnd, phase);
     const shootCooldownOpenMin = Number.isFinite(def.shootCooldownOpenMin) ? def.shootCooldownOpenMin : 0.55;
     const shootCooldownOpenMax = Number.isFinite(def.shootCooldownOpenMax) ? def.shootCooldownOpenMax : 1.45;
@@ -1419,39 +1756,43 @@
     const shootCooldownMax = Number.isFinite(def.shootCooldownMax) ? def.shootCooldownMax : 1.55;
     const firstShotDelay = Number.isFinite(def.firstShotDelay) ? def.firstShotDelay : 0;
 
-    const spawnPoint = findSpawnPoint(flags, waveCfg.enemyType);
+    const spawnPoint = findSpawnPoint(spawnsBehindPlayer, waveCfg.enemyType);
 
-    enemies.push({
-      id: ++AIPU.state.enemyIdCounter,
-      type: waveCfg.enemyType,
-      behavior: def.behavior,
-      x: spawnPoint.x,
-      y: spawnPoint.y,
-      side: spawnPoint.side,
-      radius: def.size,
-      hp: def.hp,
-      maxHp: def.hp,
-      speed: def.speed * speedMultiplier,
-      touchDamage: def.touchDamage,
-      vx: 0,
-      vy: 0,
-      age: 0,
-      hurtFlash: 0,
-      flags,
-      shootCooldown: rand(shootCooldownOpenMin, shootCooldownOpenMax),
-      shootCooldownMin,
-      shootCooldownMax,
-      firstShotDelay,
-      chargeState: "idle",
-      chargeTimer: rand(0.3, 1.1),
-      chargeDirX: 0,
-      chargeDirY: 0,
-      splitRemaining: flags.has("canSplit") || waveCfg.enemyType === "cell_blob" ? 1 : 0,
-      localSeed: rand(0, 999)
-    });
+    enemies.push(
+      acquireEnemy({
+        id: ++AIPU.state.enemyIdCounter,
+        type: waveCfg.enemyType,
+        behavior: def.behavior,
+        x: spawnPoint.x,
+        y: spawnPoint.y,
+        side: spawnPoint.side,
+        radius: def.size,
+        hp: def.hp,
+        maxHp: def.hp,
+        speed: def.speed * speedMultiplier,
+        touchDamage: def.touchDamage,
+        vx: 0,
+        vy: 0,
+        age: 0,
+        hurtFlash: 0,
+        canSplit,
+        spawnsBehindPlayer,
+        shootCooldown: rand(shootCooldownOpenMin, shootCooldownOpenMax),
+        shootCooldownMin,
+        shootCooldownMax,
+        firstShotDelay,
+        chargeState: "idle",
+        chargeTimer: rand(0.3, 1.1),
+        chargeDirX: 0,
+        chargeDirY: 0,
+        splitRemaining: canSplit || waveCfg.enemyType === "cell_blob" ? 1 : 0,
+        localSeed: rand(0, 999),
+        lastHitEpoch: 0
+      })
+    );
   }
 
-  function findSpawnPoint(flags, enemyType) {
+  function findSpawnPoint(spawnsBehindPlayer, enemyType) {
     if (enemyType === "reach_shadow") {
       const side = Math.random() < 0.5 ? -1 : 1;
       return {
@@ -1461,7 +1802,7 @@
       };
     }
 
-    if (flags.has("spawnsBehindPlayer") && Math.random() < 0.42) {
+    if (spawnsBehindPlayer && Math.random() < 0.42) {
       const px = clamp(player.x + rand(-210, 210), WORLD.x + 24, WORLD.x + WORLD.w - 24);
       const py = clamp(player.y + rand(140, 250), WORLD.y + 24, WORLD.y + WORLD.h - 24);
       return { x: px, y: py, side: 0 };
@@ -1494,6 +1835,7 @@
         bullet.y > WORLD.y - 30 &&
         bullet.y < WORLD.y + WORLD.h + 30;
       if (!alive) {
+        releasePlayerBullet(bullet);
         continue;
       }
       bullets[write] = bullet;
@@ -1516,6 +1858,7 @@
         bullet.y > WORLD.y - 40 &&
         bullet.y < WORLD.y + WORLD.h + 40;
       if (!alive) {
+        releaseEnemyBullet(bullet);
         continue;
       }
       enemyBullets[write] = bullet;
@@ -1645,16 +1988,18 @@
   function spawnEnemyBullet(x, y, dirX, dirY, speed, damage) {
     const speedMultiplier = upgrades.getEnemyBulletSpeedMultiplier();
     const adjustedSpeed = speed * speedMultiplier;
-    enemyBullets.push({
-      x,
-      y,
-      vx: dirX * adjustedSpeed,
-      vy: dirY * adjustedSpeed,
-      damage,
-      radius: 6,
-      life: 2.3,
-      color: nextCogsecBulletColor()
-    });
+    enemyBullets.push(
+      acquireEnemyBullet({
+        x,
+        y,
+        vx: dirX * adjustedSpeed,
+        vy: dirY * adjustedSpeed,
+        damage,
+        radius: 6,
+        life: 2.3,
+        color: nextCogsecBulletColor()
+      })
+    );
   }
 
   function updatePickups(dt) {
@@ -1690,7 +2035,7 @@
       let hitIndex = -1;
 
       for (let j = 0; j < enemies.length; j += 1) {
-        if (bullet.hitEnemyIds && bullet.hitEnemyIds.has(enemies[j].id)) {
+        if (enemies[j].lastHitEpoch === bullet.hitEpoch) {
           continue;
         }
         if (circleHit(bullet.x, bullet.y, bullet.radius, enemies[j].x, enemies[j].y, enemies[j].radius)) {
@@ -1703,19 +2048,19 @@
         const enemy = enemies[hitIndex];
         enemy.hp -= 1;
         enemy.hurtFlash = 1;
-        if (bullet.hitEnemyIds) {
-          bullet.hitEnemyIds.add(enemy.id);
-        }
+        enemy.lastHitEpoch = bullet.hitEpoch;
         emitBurst(enemy.x, enemy.y, currentAccent(), 7, 145);
 
         if (enemy.hp <= 0) {
           onEnemyDefeated(enemy);
+          releaseEnemy(enemy);
           enemies.splice(hitIndex, 1);
         }
 
         if (bullet.pierce > 0) {
           bullet.pierce -= 1;
         } else {
+          releasePlayerBullet(bullet);
           bullets.splice(i, 1);
         }
       }
@@ -1724,6 +2069,7 @@
     for (let i = enemyBullets.length - 1; i >= 0; i -= 1) {
       const bullet = enemyBullets[i];
       if (circleHit(player.x, player.y, player.radius, bullet.x, bullet.y, bullet.radius)) {
+        releaseEnemyBullet(bullet);
         enemyBullets.splice(i, 1);
         applyPlayerDamage(bullet.damage, bullet.x, bullet.y);
       }
@@ -1738,6 +2084,7 @@
     for (let i = pickups.length - 1; i >= 0; i -= 1) {
       const pickup = pickups[i];
       if (circleHit(player.x, player.y, player.radius + 2, pickup.x, pickup.y, pickup.radius + 2)) {
+        releasePickup(pickup);
         pickups.splice(i, 1);
         player.hearts = clamp(player.hearts + 1, 0, player.maxHearts);
         emitBurst(player.x, player.y, TOKENS.white, 10, 170);
@@ -1750,46 +2097,54 @@
 
     const floor = currentFloor();
 
-    if ((enemy.flags.has("canSplit") || enemy.type === "cell_blob") && enemy.splitRemaining > 0 && enemy.radius > 7) {
+    if ((enemy.canSplit || enemy.type === "cell_blob") && enemy.splitRemaining > 0 && enemy.radius > 7) {
       for (let i = 0; i < 2; i += 1) {
         const angle = rand(0, Math.PI * 2);
-        enemies.push({
-          id: ++AIPU.state.enemyIdCounter,
-          type: "cell_blob",
-          behavior: "blob",
-          x: enemy.x + Math.cos(angle) * 12,
-          y: enemy.y + Math.sin(angle) * 12,
-          side: 0,
-          radius: Math.max(7, enemy.radius - 2),
-          hp: 1,
-          maxHp: 1,
-          speed: ENEMY_DEFS.cell_blob.speed * 1.25,
-          touchDamage: 1,
-          vx: Math.cos(angle) * 120,
-          vy: Math.sin(angle) * 120,
-          age: 0,
-          hurtFlash: 0,
-          flags: new Set(),
-          shootCooldown: rand(0.9, 1.5),
-          chargeState: "idle",
-          chargeTimer: rand(0.45, 1.2),
-          chargeDirX: 0,
-          chargeDirY: 0,
-          splitRemaining: 0,
-          localSeed: rand(0, 999)
-        });
+        enemies.push(
+          acquireEnemy({
+            id: ++AIPU.state.enemyIdCounter,
+            type: "cell_blob",
+            behavior: "blob",
+            x: enemy.x + Math.cos(angle) * 12,
+            y: enemy.y + Math.sin(angle) * 12,
+            side: 0,
+            radius: Math.max(7, enemy.radius - 2),
+            hp: 1,
+            maxHp: 1,
+            speed: ENEMY_DEFS.cell_blob.speed * 1.25,
+            touchDamage: 1,
+            vx: Math.cos(angle) * 120,
+            vy: Math.sin(angle) * 120,
+            age: 0,
+            hurtFlash: 0,
+            canSplit: false,
+            spawnsBehindPlayer: false,
+            shootCooldown: rand(0.9, 1.5),
+            shootCooldownMin: 0.9,
+            shootCooldownMax: 1.5,
+            chargeState: "idle",
+            chargeTimer: rand(0.45, 1.2),
+            chargeDirX: 0,
+            chargeDirY: 0,
+            splitRemaining: 0,
+            localSeed: rand(0, 999),
+            lastHitEpoch: 0
+          })
+        );
       }
     }
 
     const chance = heartDropChance(floor);
     if (Math.random() < chance && player.hearts < player.maxHearts) {
-      pickups.push({
-        x: enemy.x,
-        y: enemy.y,
-        radius: 11,
-        type: floor.heartType,
-        wobble: rand(0, Math.PI * 2)
-      });
+      pickups.push(
+        acquirePickup({
+          x: enemy.x,
+          y: enemy.y,
+          radius: 11,
+          type: floor.heartType,
+          wobble: rand(0, Math.PI * 2)
+        })
+      );
     }
   }
 
@@ -1845,16 +2200,18 @@
     for (let i = 0; i < count; i += 1) {
       const angle = rand(0, Math.PI * 2);
       const velocity = rand(speed * 0.35, speed);
-      particles.push({
-        x,
-        y,
-        vx: Math.cos(angle) * velocity,
-        vy: Math.sin(angle) * velocity,
-        life: rand(0.12, 0.32),
-        maxLife: rand(0.12, 0.32),
-        size: rand(2, 4),
-        color
-      });
+      particles.push(
+        acquireParticle({
+          x,
+          y,
+          vx: Math.cos(angle) * velocity,
+          vy: Math.sin(angle) * velocity,
+          life: rand(0.12, 0.32),
+          maxLife: rand(0.12, 0.32),
+          size: rand(2, 4),
+          color
+        })
+      );
     }
   }
 
@@ -1868,6 +2225,7 @@
       particle.vx *= 0.9;
       particle.vy *= 0.9;
       if (particle.life <= 0) {
+        releaseParticle(particle);
         continue;
       }
       particles[write] = particle;

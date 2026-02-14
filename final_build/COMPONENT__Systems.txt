@@ -4,6 +4,7 @@ Purpose:
 - Own input handling, simulation loop, state transitions, and combat lifecycle.
 - Enforce floor/chapter flow between title, upgrade, briefings, lesson slides, play, clear, death, and end states.
 - Coordinate world entity lifecycle for player, bullets, enemies, pickups, particles, and death state.
+- Minimize runtime allocation in hot simulation paths via pooled entity objects and collision-epoch gating.
 
 Inputs:
 - `AIPU.dom` for canvas and overlay button references.
@@ -13,6 +14,7 @@ Inputs:
 - `AIPU.upgrades` for derived stats, upgrades, and max HP tuning.
 - `AIPU.share` for share modal entry.
 - `AIPU.utils` for math/utility helpers.
+- `AIPU.utils` random helpers as high-frequency spawner and burst emitters.
 
 Outputs:
 - Mutates `AIPU.state` across all game states:
@@ -25,6 +27,7 @@ Outputs:
   - `enterGameOver`, `requestRestart`, `startRun`, `startFloor`, `beginCurrentFloor`
   - `resolveDirectionalBurstMode`, `getDirectionalBurstStatus`
   - `getCollections`
+- Internal pools are not exported but remain stable during state transitions.
 
 State/Edges:
 - Input model:
@@ -37,6 +40,10 @@ State/Edges:
 - Burst system:
   - Tracks hold time only while directional shoot key is held in PLAYING.
   - Enforces floor unlock rules for dual/omni modes.
+- Entity performance:
+  - Uses reusable pools for bullets, enemy bullets, enemies, pickups, and particles.
+  - Releases pooled objects on all collection exits (death, collisions, pickups, timeouts, and bomb clear).
+  - Collision gating uses bullet hit epoch tokens instead of per-bullet `Set` allocations.
 - Death and lesson flow:
   - Death animation transitions to DEATH_LESSON and then GAME_OVER on confirmation.
   - Lesson slides interposed between upgrade acceptance and floor start.
@@ -51,3 +58,4 @@ Acceptance Checks:
 - Resume from overlays returns to intended states without stale key-repeat artifacts.
 - Upgrades, checkpoint handling, and bomb briefing transitions remain deterministic per state.
 - Death flow continues to DEATH_LESSON first and then GAME_OVER on explicit confirm input.
+- All pooled objects are fully reset before reuse; render-facing fields remain unchanged (`x`, `y`, `vx`, `vy`, `radius`, `hp`, `hp` etc.) and no gameplay tuning or UI copy changes.

@@ -1,5 +1,5 @@
-- /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Prevent shooting in non-combat states (floor intro/clear/briefing/overlays) to avoid overlay-state input bleed.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Re-check floor intro/lesson/death overlay clipping and baseline alignment; keep withRectClip + top baseline and verify glyph edges at default viewport.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Reconcile fallback UI literals in content/share/render with narrative.js and remove debug/config text drift.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/live-site | completed | Live page loads at updated HEAD on GitHub Pages; visual runtime check still needed to confirm overlays.
-- DEPLOY | completed | Push latest fixes and verify live site HTTP refresh from HEAD.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | in_progress | Complete full gameplay smoke validation for pooled entity lifecycle + epoch collision after release/cleanup.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Replace per-frame/per-spawn object allocations with reusable object pools and epoch-based collision gating.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Re-check floor intro/lesson/death overlay clipping and baseline alignment.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Keep narrative copy and gameplay content consistent with latest overlays.
+- DEPLOY | completed | Push latest fixset and verify live site refresh from HEAD.
