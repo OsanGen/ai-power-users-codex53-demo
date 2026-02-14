@@ -1,0 +1,53 @@
+Systems Component
+
+Purpose:
+- Own input handling, simulation loop, state transitions, and combat lifecycle.
+- Enforce floor/chapter flow between title, upgrade, briefings, lesson slides, play, clear, death, and end states.
+- Coordinate world entity lifecycle for player, bullets, enemies, pickups, particles, and death state.
+
+Inputs:
+- `AIPU.dom` for canvas and overlay button references.
+- `AIPU.state` shared mutable state for game and player.
+- `AIPU.constants` for gameplay and pacing constants.
+- `AIPU.content` for floor data, narrative content, enemy definitions, and UI copy.
+- `AIPU.upgrades` for derived stats, upgrades, and max HP tuning.
+- `AIPU.share` for share modal entry.
+- `AIPU.utils` for math/utility helpers.
+
+Outputs:
+- Mutates `AIPU.state` across all game states:
+  - `TITLE`, `UPGRADE_SELECT`, `BOMB_BRIEFING`, `LESSON_SLIDE`, `FLOOR_INTRO`, `PLAYING`, `DEATH_ANIM`, `DEATH_LESSON`, `FLOOR_CLEAR`, `GAME_OVER`, `VICTORY`.
+- Exposes `AIPU.systems` APIs:
+  - `currentFloor`
+  - `update`, `updateGameplay`
+  - movement/shooting/update helpers
+  - `triggerBomb`, `getDeathShakeOffset`, `startDeathAnim`
+  - `enterGameOver`, `requestRestart`, `startRun`, `startFloor`, `beginCurrentFloor`
+  - `resolveDirectionalBurstMode`, `getDirectionalBurstStatus`
+  - `getCollections`
+
+State/Edges:
+- Input model:
+  - Tracks movement and action keys in `AIPU.input.keys`.
+  - Normalizes movement key handling by `event.code` and supports single-press guards.
+- State gates:
+  - BOMB_BRIEFING, LESSON_SLIDE, DEATH_LESSON, UPGRADE_SELECT, FLOOR_INTRO, and FLOOR_CLEAR are non-combat overlay/input-break states for shooting.
+  - `updatePlayerShooting` exits early unless `game.state === PLAYING`.
+  - `updatePlayerMovement` and camera-independent gameplay updates continue as designed in noncombat states already using explicit state checks.
+- Burst system:
+  - Tracks hold time only while directional shoot key is held in PLAYING.
+  - Enforces floor unlock rules for dual/omni modes.
+- Death and lesson flow:
+  - Death animation transitions to DEATH_LESSON and then GAME_OVER on confirmation.
+  - Lesson slides interposed between upgrade acceptance and floor start.
+
+Dependencies:
+- `AIPU.upgrades` for stat aggregation and upgrade selection.
+- `AIPU.share.shareUI` for modal lifecycle.
+- `AIPU.renderCache` for cache invalidation in floor/state resets.
+
+Acceptance Checks:
+- No combat actions occur during lesson/briefing intro/clear overlays.
+- Resume from overlays returns to intended states without stale key-repeat artifacts.
+- Upgrades, checkpoint handling, and bomb briefing transitions remain deterministic per state.
+- Death flow continues to DEATH_LESSON first and then GAME_OVER on explicit confirm input.

@@ -11,6 +11,7 @@ System Architecture Map
 - systems.js
   - Owns input handling, state machine, spawn/kill/update simulation.
   - Drives transitions into UPGRADE_SELECT, LESSON_SLIDE, DEATH_LESSON.
+  - Controls combat gating for non-playback overlay states.
 
 - render.js
   - Owns all canvas rendering, including environment and overlays.

@@ -1135,6 +1135,10 @@
   }
 
   function updatePlayerShooting(dt) {
+    if (game.state !== GameState.PLAYING) {
+      return;
+    }
+
     const dir = getShootDirection();
     updateRearShotTracking(dir, dt);
     if (!dir) {
