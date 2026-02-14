@@ -1,3 +1,4 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Re-check floor intro/lesson/death overlay clipping and baseline alignment; keep withRectClip + top baseline and verify glyph edges at default viewport.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | in_progress | Reconcile all fallback UI literals in content/share/render with narrative.js and remove non-deterministic UI text drift.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Reconcile fallback UI literals in content/share/render with narrative.js and remove debug/config text drift.
+- /Users/abelsanchez/CODEX/WONDERLAND/live-site | in_progress | Validate deployed state on live link and confirm lesson/death overlays render correctly at runtime.
 - DEPLOY | fixed | Push main to origin/main completed for live site refresh check.
