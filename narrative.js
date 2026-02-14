@@ -43,6 +43,30 @@ window.AI_POWER_USER_NARRATIVE = {
     { floor: 9, title: "9) Generalize + explain", oneLiner: "A good net works on new cases and can be explained.",
       bullets: ["Test on data it never saw.", "Explain by strongest inputs and activations."],
       tryThis: "Explain one guess in one sentence.", visualMode: "generalize_explain"
+    },
+    { floor: 10, title: "10) Regularization", oneLiner: "Regularization stops memorizing noise.",
+      bullets: ["Penalize extreme weights.", "Prefer generalize over memorize."],
+      tryThis: "Say: generalize > memorize.", visualMode: "generalize_explain"
+    },
+    { floor: 11, title: "11) Optimizers", oneLiner: "Optimizers decide how weights move.",
+      bullets: ["Learning rate sets step size.", "Momentum smooths the path."],
+      tryThis: "Ask: step size too big?", visualMode: "backprop_arrows"
+    },
+    { floor: 12, title: "12) Batches", oneLiner: "Batches trade speed and stability.",
+      bullets: ["Big batch = smoother updates.", "Small batch = noisier updates."],
+      tryThis: "Say: batch is a mini dataset.", visualMode: "inputs_nodes"
+    },
+    { floor: 13, title: "13) Attention", oneLiner: "Attention learns what to focus on.",
+      bullets: ["It weights inputs by relevance.", "It is a learned lookup."],
+      tryThis: "Say: learn what to look at.", visualMode: "layers_stack"
+    },
+    { floor: 14, title: "14) Gradient stability", oneLiner: "Unstable gradients break learning.",
+      bullets: ["Clip or normalize to stay stable.", "Good init reduces chaos."],
+      tryThis: "Say: stability first.", visualMode: "loss_meter"
+    },
+    { floor: 15, title: "15) Evaluate + ship", oneLiner: "You ship when results hold up.",
+      bullets: ["Test on data it never saw.", "Track failures and iterate."],
+      tryThis: "Explain the win in 1 sentence.", visualMode: "generalize_explain"
     }
   ],
 
