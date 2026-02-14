@@ -972,11 +972,19 @@
             tryThis: "Say: inputs -> weights -> neurons -> output.",
             visualMode: "network_basic"
           };
+    const title = typeof card.title === "string" && card.title.trim() ? card.title.trim() : "Neural-net concept";
+    const oneLiner = typeof card.oneLiner === "string" && card.oneLiner.trim()
+      ? card.oneLiner.trim()
+      : "A neural net turns numbers into one guess.";
+    const tryThis = typeof card.tryThis === "string" && card.tryThis.trim()
+      ? card.tryThis.trim()
+      : "Say: inputs -> weights -> neurons -> output.";
+    const visualMode = typeof card.visualMode === "string" && card.visualMode.trim() ? card.visualMode.trim() : "network_basic";
     const bullets = Array.isArray(card.bullets)
       ? card.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 2)
-      : [];
-    const panelW = 920;
-    const panelH = 520;
+      : ["Inputs are numbers.", "Weights set importance."];
+    const panelW = Math.min(920, WIDTH - 52);
+    const panelH = Math.min(520, HEIGHT - 52);
     const panelX = (WIDTH - panelW) * 0.5;
     const panelY = (HEIGHT - panelH) * 0.5;
 
@@ -995,7 +1003,7 @@
     const innerY = panelY + 50;
     const innerW = panelW - 56;
     const innerH = panelH - 96;
-    const rightW = 360;
+    const rightW = Math.max(286, Math.min(360, Math.floor(innerW * 0.42)));
     const gap = 18;
     const leftW = innerW - rightW - gap;
     const rightX = innerX + leftW + gap;
@@ -1006,16 +1014,16 @@
     ctx.lineWidth = 2;
     strokeRoundRect(rightX, innerY, rightW, innerH, 16);
 
-    withClipRect(innerX, innerY, leftW - 6, innerH, () => {
+    withClipRect(innerX, innerY, Math.max(120, leftW - 6), innerH, () => {
       let y = innerY + 4;
-      const titleSize = fitHeadingFontSize(card.title, leftW - 16, 34, 24, 2);
+      const titleSize = fitHeadingFontSize(title, leftW - 16, 34, 24, 2);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
-      y = drawWrappedText(card.title, innerX, y, leftW - 16, Math.round(titleSize * 1.15), { maxLines: 2 });
+      y = drawWrappedText(title, innerX, y, leftW - 16, Math.round(titleSize * 1.15), { maxLines: 2 });
       y += 10;
 
       ctx.font = '600 20px "Inter", sans-serif';
-      y = drawWrappedText(card.oneLiner, innerX, y, leftW - 16, 28, { maxLines: 2 });
+      y = drawWrappedText(oneLiner, innerX, y, leftW - 16, 28, { maxLines: 2 });
       y += 10;
 
       ctx.font = '600 17px "Inter", sans-serif';
@@ -1024,27 +1032,28 @@
       }
 
       y += 12;
+      const tryThisY = Math.min(y, innerY + innerH - 74);
       ctx.fillStyle = rgba(accent, 0.2);
-      fillRoundRect(innerX, y, leftW - 20, 64, 12);
+      fillRoundRect(innerX, tryThisY, leftW - 20, 64, 12);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
-      strokeRoundRect(innerX, y, leftW - 20, 64, 12);
+      strokeRoundRect(innerX, tryThisY, leftW - 20, 64, 12);
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 17px "Inter", sans-serif';
-      drawWrappedText(card.tryThis, innerX + 12, y + 12, leftW - 44, 22, { maxLines: 2 });
+      drawWrappedText(tryThis, innerX + 12, tryThisY + 12, leftW - 44, 22, { maxLines: 2 });
     });
 
     drawLessonSlideDiagram(
       { x: rightX + 12, y: innerY + 12, w: rightW - 24, h: innerH - 24 },
       accent,
-      card.visualMode
+      visualMode
     );
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = '700 16px "Inter", sans-serif';
-    ctx.fillText(uiText("lessonSlideContinue", "Enter: continue"), WIDTH * 0.5, panelY + panelH - 32);
+    ctx.fillText(uiText("lessonSlideContinue", "Enter or Space: continue"), WIDTH * 0.5, panelY + panelH - 32);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
@@ -1137,9 +1146,16 @@
             tryThis: "Say: inputs -> weights -> output.",
             visualMode: "network_basic"
           };
+    const title = typeof card.title === "string" && card.title.trim() ? card.title.trim() : "Neural-net lesson";
+    const oneLiner = typeof card.oneLiner === "string" && card.oneLiner.trim()
+      ? card.oneLiner.trim()
+      : "Use numbers to make one guess.";
+    const tryThis = typeof card.tryThis === "string" && card.tryThis.trim()
+      ? card.tryThis.trim()
+      : "Say: inputs -> weights -> output.";
     const bullets = Array.isArray(card.bullets)
       ? card.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 2)
-      : [];
+      : ["Inputs feed the model.", "Weights set influence."];
     const reducedMotion = !!AIPU.input.prefersReducedMotion;
     const phase = reducedMotion ? 0 : game.globalTime;
 
@@ -1162,8 +1178,8 @@
       fillRoundRect(WIDTH - x - 30, HEIGHT - 86 - wobble, 30, 8, 999);
     }
 
-    const panelW = 860;
-    const panelH = 430;
+    const panelW = Math.min(860, WIDTH - 52);
+    const panelH = Math.min(430, HEIGHT - 52);
     const panelX = (WIDTH - panelW) * 0.5;
     const panelY = (HEIGHT - panelH) * 0.5;
     ctx.fillStyle = rgba(TOKENS.white, 0.92);
@@ -1177,35 +1193,39 @@
     const contentX = panelX + 30;
     const contentY = panelY + 46;
     const contentW = panelW - 60;
-    const titleSize = fitHeadingFontSize(card.title, contentW - 8, 34, 24, 2);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
-    let y = drawWrappedText(card.title, contentX, contentY, contentW, Math.round(titleSize * 1.14), { maxLines: 2 });
-    y += 8;
-    ctx.font = '600 20px "Inter", sans-serif';
-    y = drawWrappedText(card.oneLiner, contentX, y, contentW, 28, { maxLines: 2 });
-    y += 10;
-    ctx.font = '600 17px "Inter", sans-serif';
-    for (let i = 0; i < bullets.length; i += 1) {
-      y = drawWrappedText(`• ${bullets[i]}`, contentX, y, contentW, 24, { maxLines: 2 });
-    }
+    const contentH = panelH - 86;
+    withClipRect(contentX, contentY, contentW, contentH, () => {
+      const titleSize = fitHeadingFontSize(title, contentW - 8, 34, 24, 2);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
+      let y = drawWrappedText(title, contentX, contentY, contentW, Math.round(titleSize * 1.14), { maxLines: 2 });
+      y += 8;
+      ctx.font = '600 20px "Inter", sans-serif';
+      y = drawWrappedText(oneLiner, contentX, y, contentW, 28, { maxLines: 2 });
+      y += 10;
+      ctx.font = '600 17px "Inter", sans-serif';
+      for (let i = 0; i < bullets.length; i += 1) {
+        y = drawWrappedText(`• ${bullets[i]}`, contentX, y, contentW, 24, { maxLines: 2 });
+      }
 
-    y += 14;
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(contentX, y, contentW, 70, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(contentX, y, contentW, 70, 14);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 17px "Inter", sans-serif';
-    drawWrappedText(card.tryThis, contentX + 12, y + 14, contentW - 24, 22, { maxLines: 2 });
+      y += 14;
+      const tryThisY = Math.min(y, contentY + contentH - 74);
+      ctx.fillStyle = TOKENS.fog;
+      fillRoundRect(contentX, tryThisY, contentW, 70, 14);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(contentX, tryThisY, contentW, 70, 14);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 17px "Inter", sans-serif';
+      drawWrappedText(tryThis, contentX + 12, tryThisY + 14, contentW - 24, 22, { maxLines: 2 });
+    });
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = '700 16px "Inter", sans-serif';
-    ctx.fillText(uiText("deathLessonContinue", "Enter: continue"), WIDTH * 0.5, panelY + panelH - 28);
+    ctx.fillText(uiText("deathLessonContinue", "Enter or Space: continue"), WIDTH * 0.5, panelY + panelH - 28);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }
@@ -2619,7 +2639,7 @@
     if (game.state === GameState.FLOOR_INTRO) {
       title = floorCopy.title;
       body = floorCopy.subtitle;
-      footer = uiText("introSkipFooter", "Press Enter to skip intro");
+      footer = uiText("introSkipFooter", "Press Enter or Space to skip intro");
     } else if (game.state === GameState.FLOOR_CLEAR) {
       title = uiText("floorClearTitle", "Floor cleared");
       body = uiText("floorClearSubtitle", "Raw data -> weights -> concepts -> prediction.");

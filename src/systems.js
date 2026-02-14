@@ -57,6 +57,7 @@
   const SIM_STEP = 1 / 60;
   const MAX_ACCUMULATED_TIME = 0.25;
   const BOMB_FLASH_DURATION = 0.22;
+  const OVERLAY_ADVANCE_LOCK_MS = 120;
   const CHECKPOINT_FLOOR_KEY = "checkpoint_floor_v1";
   const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
   const LESSON_TEXT_MAX_CHARS = 4000;
@@ -64,6 +65,8 @@
     "A churn model takes product activity and support history as inputs. Weights scale each input, then hidden concepts like loyalty or frustration activate. The output is one churn-risk score. Small input changes can flip the dominant concept and change that prediction.";
   const COGSEC_BULLET_COLORS = [TOKENS.yellow, TOKENS.blue, TOKENS.mint, TOKENS.pink];
   let bulletColorCycleIndex = 0;
+  let lessonSlideAdvanceLockUntil = 0;
+  let deathLessonAdvanceLockUntil = 0;
 
   function isShareModalOpen() {
     return !!shareUI && shareUI.isOpen();
@@ -94,6 +97,13 @@
       text = text.replaceAll(`{${name}}`, String(value));
     }
     return text;
+  }
+
+  function nowMs() {
+    if (typeof performance !== "undefined" && typeof performance.now === "function") {
+      return performance.now();
+    }
+    return Date.now();
   }
 
   function isSpaceKey(event) {
@@ -447,10 +457,20 @@
           enterLessonSlide();
         }
       }
-    } else if (game.state === GameState.LESSON_SLIDE && (isSpaceKey(event) || isEnterKey(event)) && isSinglePress(event)) {
+    } else if (
+      game.state === GameState.LESSON_SLIDE &&
+      (isSpaceKey(event) || isEnterKey(event)) &&
+      isSinglePress(event) &&
+      nowMs() >= lessonSlideAdvanceLockUntil
+    ) {
       game.lessonSlideEnterCount += 1;
       beginCurrentFloor();
-    } else if (game.state === GameState.DEATH_LESSON && (isSpaceKey(event) || isEnterKey(event)) && isSinglePress(event)) {
+    } else if (
+      game.state === GameState.DEATH_LESSON &&
+      (isSpaceKey(event) || isEnterKey(event)) &&
+      isSinglePress(event) &&
+      nowMs() >= deathLessonAdvanceLockUntil
+    ) {
       game.gameOverEntryHandled = false;
       enterGameOver(currentFloor());
     } else if (game.state === GameState.UPGRADE_SELECT) {
@@ -704,6 +724,7 @@
     game.deathLessonBucket = resolveDeathLessonBucket(floor.id);
     game.deathLessonIndex = Math.abs(Math.floor(game.globalTime * 1000) + game.kills + floor.id * 31);
     game.gameOverEntryHandled = false;
+    deathLessonAdvanceLockUntil = nowMs() + OVERLAY_ADVANCE_LOCK_MS;
     resetDeathAnim();
     clearInputState();
   }
@@ -761,6 +782,8 @@
     game.rearShotOmniHintSeen = false;
     game.rearShotHintTimer = 0;
     bulletColorCycleIndex = 0;
+    lessonSlideAdvanceLockUntil = 0;
+    deathLessonAdvanceLockUntil = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -793,6 +816,8 @@
     game.rearShotOmniHintSeen = false;
     game.rearShotHintTimer = 0;
     bulletColorCycleIndex = 0;
+    lessonSlideAdvanceLockUntil = 0;
+    deathLessonAdvanceLockUntil = 0;
     upgrades.resetUpgradeRun();
     const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
     startFloor(checkpointFloor - 1);
@@ -833,6 +858,8 @@
     game.rearShotHoldTime = 0;
     game.rearShotHintMode = "";
     game.rearShotHintTimer = 0;
+    lessonSlideAdvanceLockUntil = 0;
+    deathLessonAdvanceLockUntil = 0;
     game.gameOverEntryHandled = false;
     upgrades.invalidateDerivedStats();
     shareUI.close({ persistChoice: false, restoreFocus: false });
@@ -895,6 +922,7 @@
     game.state = GameState.LESSON_SLIDE;
     game.lessonSlideSeenThisFloor = true;
     game.lessonSlideEnterCount = 0;
+    lessonSlideAdvanceLockUntil = nowMs() + OVERLAY_ADVANCE_LOCK_MS;
     clearInputState();
   }
 
