@@ -153,7 +153,9 @@
     sourceCtx: null,
     lastWidth: 0,
     lastHeight: 0,
-    failed: false
+    failed: false,
+    lastStatus: "idle",
+    lastError: ""
   };
   const fxPreviousEnemyIds = new Set();
   const fxEnemyPositions = new Map();
@@ -208,7 +210,7 @@
     const clampedIntensity = clamp(Number(intensity) || 0, 0, 1);
     const trippyScale = clamp(Number(trippy) || 0, 0, 1);
     const reduced = isReducedMotion();
-    const intensityScale = reduced ? 0.16 : 1;
+    const intensityScale = reduced ? 0.08 : 1;
     const centerX = WORLD.x + WORLD.w * 0.5;
     const centerY = WORLD.y + WORLD.h * 0.5;
     const localRadius = Math.min(WORLD.w, WORLD.h) * (0.46 + trippyScale * 0.08);
@@ -223,7 +225,7 @@
       }
     }
 
-    if (quality === "high") {
+    if (quality === "high" && !reduced) {
       if (typeof next.noise === "function") {
         next = next.noise(clamp(0.01 + clampedIntensity * 0.05 + trippyScale * 0.03, 0, 0.08));
       }
@@ -240,15 +242,18 @@
     const intensity = clamp(fxState.intensity || 0, 0, 1);
     const reduced = isReducedMotion();
     const reducedIntensity = reduced ? intensity * 0.09 : intensity;
-    if (!reduced && reducedIntensity <= 0.002) {
+    if (reducedIntensity <= 0.002) {
+      glfxWorldFxState.lastStatus = "idle";
       return;
     }
     if (quality === "low" && reducedIntensity <= 0.01) {
+      glfxWorldFxState.lastStatus = "idle";
       return;
     }
 
     const glfx = initGlfxWorldFx();
     if (!glfx || !glfx.fxCanvas || !glfx.sourceCanvas || !glfx.sourceCtx) {
+      glfxWorldFxState.lastStatus = isFxToggleEnabled("distortion") ? "fallback" : "disabled";
       return;
     }
 
@@ -272,6 +277,8 @@
         texture = glfx.api.texture(sourceCanvas);
       }
       if (!texture) {
+        glfxWorldFxState.lastStatus = "error";
+        glfxWorldFxState.lastError = "glfx texture unavailable";
         return;
       }
       glfx.texture = texture;
@@ -279,6 +286,8 @@
       let pipeline = glfx.fxCanvas.draw(texture);
       pipeline = applyGlfxPassForTier(pipeline, quality, reducedIntensity, trippy, performance.now() / 1000);
       if (!pipeline || typeof pipeline.update !== "function") {
+        glfxWorldFxState.lastStatus = "error";
+        glfxWorldFxState.lastError = "glfx pipeline build failed";
         return;
       }
       pipeline.update();
@@ -299,7 +308,11 @@
         WORLD.h
       );
       ctx.restore();
+
+      glfxWorldFxState.lastStatus = "applied";
     } catch (err) {
+      glfxWorldFxState.lastStatus = "error";
+      glfxWorldFxState.lastError = err && err.message ? String(err.message) : "glfx runtime error";
       if (glfx.texture && typeof glfx.texture.destroy === "function") {
         glfx.texture.destroy();
       }
@@ -454,15 +467,20 @@
 
   function tryCreateGlfxWorldFx() {
     if (!isFxEnabled() || !isFxToggleEnabled("distortion")) {
+      glfxWorldFxState.lastStatus = "disabled";
+      glfxWorldFxState.lastError = "";
       return null;
     }
     if (glfxWorldFxState.failed) {
+      glfxWorldFxState.lastStatus = "fallback";
       return null;
     }
     if (!glfxWorldFxState.api) {
       glfxWorldFxState.api = getGlfxLibrary();
     }
     if (!glfxWorldFxState.api || typeof glfxWorldFxState.api.canvas !== "function") {
+      glfxWorldFxState.lastStatus = "unavailable";
+      glfxWorldFxState.lastError = "glfx library unavailable";
       return null;
     }
 
@@ -479,6 +497,8 @@
         glfxWorldFxState.fxCanvas = null;
         glfxWorldFxState.sourceCanvas = null;
         glfxWorldFxState.sourceCtx = null;
+        glfxWorldFxState.lastStatus = "unavailable";
+        glfxWorldFxState.lastError = "glfx layer init failure";
         return null;
       }
 
@@ -492,6 +512,9 @@
         glfxWorldFxState.texture = null;
       }
 
+      glfxWorldFxState.lastStatus = "ready";
+      glfxWorldFxState.lastError = "";
+
       return glfxWorldFxState;
     } catch (err) {
       glfxWorldFxState.failed = true;
@@ -499,6 +522,8 @@
       glfxWorldFxState.texture = null;
       glfxWorldFxState.sourceCanvas = null;
       glfxWorldFxState.sourceCtx = null;
+      glfxWorldFxState.lastStatus = "error";
+      glfxWorldFxState.lastError = err && err.message ? String(err.message) : "glfx init error";
       return null;
     }
   }
@@ -4083,12 +4108,13 @@
 
     const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
     const cacheStats = renderCacheState && renderCacheState.stats ? renderCacheState.stats : null;
+    const fxStatus = glfxWorldFxState && typeof glfxWorldFxState.lastStatus === "string" ? glfxWorldFxState.lastStatus : "idle";
     const particleCount = particles ? particles.length : 0;
     const fxParticleCount = fxParticles ? fxParticles.length : 0;
     const cacheHits = cacheStats ? cacheStats.hits : 0;
     const cacheMisses = cacheStats ? cacheStats.misses : 0;
     const debugText =
-      "dbg fx " + quality + " | particles " + particleCount + "+" + fxParticleCount + " | cache " + cacheHits + "/" + cacheMisses;
+      "dbg fx " + quality + " | glfx " + fxStatus + " | particles " + particleCount + "+" + fxParticleCount + " | cache " + cacheHits + "/" + cacheMisses;
 
     const panelX = 70;
     const panelY = 98;

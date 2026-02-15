@@ -56,6 +56,7 @@ State/Edges:
   - Honors reduced-motion by scaling effect down aggressively and avoiding abrupt color-heavy operations.
   - Catches runtime exceptions and falls back to existing native distortions when GLFX fails.
   - Invoked from `draw()` after world rendering and world-camera restore, before HUD and state overlay draws.
+- GLFX status/error state is tracked in-process (`ready`, `applied`, `fallback`, `error`, `disabled`, `idle`), with debug surfacing in `drawDebugStatsLine`.
 - Added world-layer-only character head variant in `drawPlayer()`:
   - Head now renders as a rotating cog motif with subtle per-frame color shift using floor support/accent mix.
   - Keeps lead accent dominance and avoids gameplay state changes.
