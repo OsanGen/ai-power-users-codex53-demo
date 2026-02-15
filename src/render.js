@@ -37,12 +37,28 @@
   const { clamp, easeOutCubic, easeInOutSine, rgba, accentColor } = AIPU.utils;
   const renderCacheState = game.renderCache || null;
 
+  // FX PIPELINE INSERTION POINTS:
+  // - draw()
+  // - drawEnvironment()
+  // - drawFloorSkinStatic()
+  // - drawFloorSkinDynamic()
+  // - drawBullets()
+  // - drawEnemies()
+  // - drawParticles()
+
   let activeWaves = [];
   let bullets = [];
   let enemyBullets = [];
   let enemies = [];
   let pickups = [];
   let particles = [];
+  const bulletTrailHistory = new Map();
+  const enemyBulletTrailHistory = new Map();
+  const fxActiveEnemyIds = new Set();
+  const activeBulletTrailKeys = new Set();
+  const activeEnemyTrailKeys = new Set();
+  let fxDistortionCanvas = null;
+  let fxDistortionCtx = null;
 
   const BOMB_BRIEFING_FALLBACK = {
     abilityName: "Escalation Pulse",
@@ -57,6 +73,488 @@
     steps: ["Key: Space", "Effect: Clear screen", "Limit: Once per floor"],
     cta: (step, total) => `Press Enter to accept (${step}/${total})`
   };
+
+  const FX_QUALITY_CAPS = Object.freeze({
+    low: Object.freeze({
+      particleDensity: 0.55,
+      trailLength: 0.55,
+      vignetteStrength: 0.75,
+      distortionAmount: 0.55,
+      cameraShake: 0.7,
+      parallax: 0.75
+    }),
+    medium: Object.freeze({
+      particleDensity: 1,
+      trailLength: 1,
+      vignetteStrength: 1,
+      distortionAmount: 1,
+      cameraShake: 1,
+      parallax: 1
+    }),
+    high: Object.freeze({
+      particleDensity: 1.25,
+      trailLength: 1.15,
+      vignetteStrength: 1.1,
+      distortionAmount: 1.1,
+      cameraShake: 1.2,
+      parallax: 1.15
+    })
+  });
+
+  const FX_CONFIG = {
+    enabled: true,
+    quality: "medium",
+    respectReducedMotion: true,
+    toggles: {
+      parallax: true,
+      distortion: true,
+      trails: true,
+      chroma: false,
+      particles: true,
+      camera: true,
+      vignette: true,
+      grain: false,
+      audioReactive: false
+    }
+  };
+  const REDUCED_MOTION_BACKGROUND_SCALE = 0.4;
+
+  const fxState = {
+    shotPulse: 0,
+    hitPulse: 0,
+    bombPulse: 0,
+    danger: 0,
+    progress: 0,
+    intensity: 0,
+    cameraShakeX: 0,
+    cameraShakeY: 0,
+    cameraZoom: 1,
+    lastFireCooldown: 0,
+    lastKills: 0,
+    lastEnemyHurt: new Map()
+  };
+
+  function getFxQualityCaps() {
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    return FX_QUALITY_CAPS[quality] || FX_QUALITY_CAPS.medium;
+  }
+
+  function isReducedMotion() {
+    return !!(FX_CONFIG.respectReducedMotion && AIPU.input && AIPU.input.prefersReducedMotion);
+  }
+
+  function isFxEnabled() {
+    return !!FX_CONFIG.enabled;
+  }
+
+  function isFxToggleEnabled(toggleName) {
+    if (!isFxEnabled()) {
+      return false;
+    }
+    if (!FX_CONFIG.toggles || !Object.prototype.hasOwnProperty.call(FX_CONFIG.toggles, toggleName)) {
+      return false;
+    }
+    if (isReducedMotion() && (toggleName === "trails" || toggleName === "chroma" || toggleName === "grain")) {
+      return false;
+    }
+    return !!FX_CONFIG.toggles[toggleName];
+  }
+
+  function getReducedMotionScale() {
+    return isReducedMotion() ? 0.25 : 1;
+  }
+
+  function getReducedMotionBackgroundScale() {
+    return isReducedMotion() ? REDUCED_MOTION_BACKGROUND_SCALE : 1;
+  }
+
+  function approach(current, target, step) {
+    if (current < target) return Math.min(current + step, target);
+    if (current > target) return Math.max(current - step, target);
+    return target;
+  }
+
+  function updateFxState() {
+    const floorProgress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
+    const threat = (enemies && enemies.length ? enemies.length : 0) + (enemyBullets && enemyBullets.length ? enemyBullets.length : 0);
+    fxState.progress = floorProgress;
+    fxState.danger = clamp(threat / 12, 0, 1);
+
+    if (player && fxState.lastFireCooldown <= 0 && player.fireCooldown > 0) {
+      fxState.shotPulse = 1;
+    }
+    fxState.lastFireCooldown = player && Number.isFinite(player.fireCooldown) ? player.fireCooldown : 0;
+
+    fxState.bombPulse = game.bombFlashTimer > 0 ? 1 : fxState.bombPulse * 0.85;
+
+    const hitThreshold = 0.15;
+    fxActiveEnemyIds.clear();
+    for (let i = 0; i < enemies.length; i += 1) {
+      const enemy = enemies[i];
+      if (!enemy) {
+        continue;
+      }
+
+      const enemyId = enemy.id;
+      if (!enemyId && enemyId !== 0) {
+        continue;
+      }
+      const key = String(enemyId);
+      fxActiveEnemyIds.add(key);
+
+      const previousHurt = fxState.lastEnemyHurt.get(key) || 0;
+      const currentHurt = Number.isFinite(enemy.hurtFlash) ? enemy.hurtFlash : 0;
+      if (currentHurt > hitThreshold && currentHurt > previousHurt) {
+        fxState.hitPulse = 1;
+      }
+      fxState.lastEnemyHurt.set(key, currentHurt);
+    }
+
+    for (const key of fxState.lastEnemyHurt.keys()) {
+      if (!fxActiveEnemyIds.has(key)) {
+        fxState.lastEnemyHurt.delete(key);
+      }
+    }
+
+    fxState.hitPulse *= 0.85;
+    fxState.shotPulse *= 0.85;
+    const intensityMix = (fxState.progress + fxState.danger) * 0.5;
+    fxState.intensity = clamp(intensityMix + 0.4 * fxState.hitPulse + 0.25 * fxState.shotPulse + 0.6 * fxState.bombPulse, 0, 1);
+  }
+
+  function getTrailSegmentCount() {
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    if (quality === "low") {
+      return 1;
+    }
+    if (quality === "high") {
+      return 3;
+    }
+    return 2;
+  }
+
+  function getTrailKey(bullet, fallbackIndex) {
+    if (!bullet || typeof bullet !== "object") {
+      return `fallback:${fallbackIndex}:${Number(bullet && bullet.x) || 0}:${Number(bullet && bullet.y) || 0}`;
+    }
+    if (bullet.id !== undefined && bullet.id !== null) {
+      return bullet.id;
+    }
+    return bullet;
+  }
+
+  function renderBulletTrailFor(bullet, index, trailMap, accentColorValue, isEnemyBullet) {
+    if (!bullet) {
+      return;
+    }
+    const key = getTrailKey(bullet, index);
+    if (!isFxToggleEnabled("trails")) {
+      trailMap.delete(key);
+      return;
+    }
+    if (isReducedMotion()) {
+      trailMap.delete(key);
+      return;
+    }
+
+    const maxSegments = getTrailSegmentCount();
+    const now = {
+      x: bullet.x,
+      y: bullet.y
+    };
+    const history = trailMap.get(key) || [];
+
+    history.push(now);
+    if (history.length > maxSegments + 1) {
+      history.shift();
+    }
+
+    if (history.length <= 1) {
+      trailMap.set(key, history);
+      return;
+    }
+
+    for (let i = 1; i < history.length; i += 1) {
+      const from = history[i - 1];
+      const to = history[i];
+      const alpha = clamp(isEnemyBullet ? 0.08 * (i / history.length) : 0.12 * (i / history.length), 0, 0.12);
+      if (alpha <= 0) {
+        continue;
+      }
+
+      if (isEnemyBullet) {
+        ctx.strokeStyle = rgba(TOKENS.ink, clamp(alpha * 1.1, 0.01, 0.12));
+        ctx.fillStyle = rgba(TOKENS.white, clamp(alpha * 0.6, 0.01, 0.06));
+        ctx.lineWidth = 1.6;
+      } else {
+        ctx.strokeStyle = rgba(accentColorValue, alpha * 0.9);
+        ctx.lineWidth = 2;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(from.x, from.y);
+      ctx.lineTo(to.x, to.y);
+      ctx.stroke();
+
+      if (!isEnemyBullet) {
+        ctx.strokeStyle = rgba(TOKENS.ink, clamp(alpha * 0.45, 0.01, 0.12));
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.arc(to.x, to.y, Math.max(1, (bullet.radius || 2) * 0.5), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    trailMap.set(key, history);
+  }
+
+  function pruneBulletTrails(bulletsCollection, trailMap, activeKeys) {
+    const active = activeKeys || new Set();
+    if (activeKeys) {
+      active.clear();
+    }
+    for (let i = 0; i < bulletsCollection.length; i += 1) {
+      const bullet = bulletsCollection[i];
+      if (!bullet) {
+        continue;
+      }
+      const key = getTrailKey(bullet, i);
+      active.add(key);
+    }
+    for (const key of trailMap.keys()) {
+      if (!active.has(key)) {
+        trailMap.delete(key);
+      }
+    }
+  }
+
+  function ensureFxDistortionCanvas() {
+    if (fxDistortionCanvas && fxDistortionCtx && fxDistortionCanvas.width === WIDTH && fxDistortionCanvas.height === HEIGHT) {
+      return true;
+    }
+
+    const built = createLayerCanvasWithContext();
+    if (!built.canvas || !built.layerCtx) {
+      fxDistortionCanvas = null;
+      fxDistortionCtx = null;
+      return false;
+    }
+
+    fxDistortionCanvas = built.canvas;
+    fxDistortionCtx = built.layerCtx;
+    return true;
+  }
+
+  function applyStripWarpDistortion(visualTheme, floor) {
+    if (!renderCacheState || !renderCacheState.dynamicCtx || !ensureFxDistortionCanvas()) {
+      return;
+    }
+
+    if (!isFxEnabled() || !FX_CONFIG.toggles.distortion) {
+      return;
+    }
+
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    if (quality === "low") {
+      return;
+    }
+
+    const fxPack = resolveFloorFxPack(floor);
+    const distortionMode = fxPack && fxPack.distortionMode ? fxPack.distortionMode : "horizontal";
+    const reducedMotionScale = getReducedMotionScale();
+    const backgroundMotionScale = getReducedMotionBackgroundScale();
+    const qualityCaps = getFxQualityCaps();
+    const distScale = Number(qualityCaps.distortionAmount) || 1;
+    const maxDistortion = isReducedMotion() ? 1 : (quality === "high" ? 6 : 3);
+    const minDistortion = isReducedMotion() ? 0.03 : 0.2;
+    const intensity = clamp(fxState.intensity || 0, 0, 1);
+    const trippy = visualTheme && Number.isFinite(visualTheme.trippyLevel) ? visualTheme.trippyLevel : 0;
+    const ampRaw = (0.3 + intensity * 2.8 + trippy * 0.22) * distScale * reducedMotionScale;
+    const amp = clamp(ampRaw, minDistortion, maxDistortion);
+    if (amp <= 0.01) {
+      return;
+    }
+
+    const floorId = floor && floor.id != null ? Number.parseInt(floor.id, 10) : 1;
+    const horizontal = distortionMode === "horizontal";
+    const useEdgeMode = distortionMode === "edge";
+    const time = typeof game.globalTime === "number" ? game.globalTime : performance.now() / 1000;
+    const freq = (1.1 + intensity * 2.4 + trippy * 0.24) * backgroundMotionScale;
+    const phase = 0.55 + trippy * 0.18;
+    const centerBias = useEdgeMode ? 0.55 : 0.25;
+    const freqBias = (floorId % 2 === 0 ? 1 : 0.92);
+    const stripHeight = clamp(Math.floor(WORLD.h / 20), 4, 20);
+    const stripWidth = clamp(Math.floor(WORLD.w / 20), 4, 20);
+
+    fxDistortionCtx.setTransform(1, 0, 0, 1, 0, 0);
+    fxDistortionCtx.clearRect(0, 0, WIDTH, HEIGHT);
+    fxDistortionCtx.drawImage(renderCacheState.dynamicCanvas, 0, 0);
+
+    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(WORLD.x, WORLD.y, WORLD.w, WORLD.h);
+    ctx.clip();
+
+    if (horizontal) {
+      const halfHeight = WORLD.h * 0.5;
+      for (let y = 0; y < WORLD.h; y += stripHeight) {
+        const drawH = Math.min(stripHeight, WORLD.h - y);
+        const localY = y + drawH * 0.5;
+        const centerScale = clamp(1 - Math.abs(localY - halfHeight) / Math.max(1, halfHeight), 0, 1);
+        const localAmp = amp * (centerBias + (1 - centerScale) * (1 - centerBias));
+        const offset = Math.sin(time * freq * freqBias + (y * 0.18) * phase) * localAmp;
+        ctx.drawImage(
+          fxDistortionCanvas,
+          WORLD.x,
+          WORLD.y + y,
+          WORLD.w,
+          drawH,
+          WORLD.x + offset,
+          WORLD.y + y,
+          WORLD.w,
+          drawH
+        );
+      }
+    } else {
+      const halfWidth = WORLD.w * 0.5;
+      for (let x = 0; x < WORLD.w; x += stripWidth) {
+        const drawW = Math.min(stripWidth, WORLD.w - x);
+        const localX = x + drawW * 0.5;
+        const centerScale = clamp(1 - Math.abs(localX - halfWidth) / Math.max(1, halfWidth), 0, 1);
+        const localAmp = amp * (centerBias + (1 - centerScale) * (1 - centerBias));
+        const offset = Math.sin(time * (freq * 0.9) * freqBias + (x * 0.18) * phase) * localAmp;
+        ctx.drawImage(
+          fxDistortionCanvas,
+          WORLD.x + x,
+          WORLD.y,
+          drawW,
+          WORLD.h,
+          WORLD.x + x,
+          WORLD.y + offset,
+          drawW,
+          WORLD.h
+        );
+      }
+    }
+
+    ctx.restore();
+  }
+
+  function applyCameraTransformBeforeWorld() {
+    const reducedMotion = isReducedMotion();
+    if (!isFxEnabled()) {
+      fxState.cameraZoom = 1;
+      fxState.cameraShakeX = 0;
+      fxState.cameraShakeY = 0;
+      return false;
+    }
+
+    const qualityCaps = getFxQualityCaps();
+    const reducedMotionBackgroundScale = getReducedMotionBackgroundScale();
+    const qualityScale = clamp(Number(qualityCaps.cameraShake) || 1, 0.5, 1.6);
+    const intensity = clamp(fxState.intensity || 0, 0, 1);
+    const strength = 0.35 + 0.65 * intensity;
+    const floorMix = intensity;
+    const backgroundMotionScale = reducedMotion ? reducedMotionBackgroundScale : 1;
+
+    const shotAmp = fxState.shotPulse * 1.2 * qualityScale * strength;
+    const hitAmp = fxState.hitPulse * 2.2 * qualityScale * strength;
+    const bombAmp = fxState.bombPulse * 4.0 * qualityScale * strength * floorMix;
+
+    const time = typeof game.globalTime === "number" ? game.globalTime : performance.now() / 1000;
+    const targetShakeX = reducedMotion
+      ? (Math.sin(time * 31) * shotAmp +
+        Math.cos(time * 23 + 1.25) * hitAmp * 0.7 +
+        Math.sin(time * 17 + 2.1) * bombAmp * 0.45) * backgroundMotionScale
+      : Math.sin(time * 31) * shotAmp +
+        Math.cos(time * 23 + 1.25) * hitAmp * 0.7 +
+        Math.sin(time * 17 + 2.1) * bombAmp * 0.45;
+    const targetShakeY = reducedMotion
+      ? (Math.cos(time * 29) * shotAmp * 0.9 +
+        Math.sin(time * 19 + 2.8) * hitAmp * 0.7 +
+        Math.cos(time * 11 + 5.4) * bombAmp * 0.45) * backgroundMotionScale
+      : Math.cos(time * 29) * shotAmp * 0.9 +
+        Math.sin(time * 19 + 2.8) * hitAmp * 0.7 +
+        Math.cos(time * 11 + 5.4) * bombAmp * 0.45;
+
+    const pulseZoom =
+      (0.004 * (fxState.shotPulse + fxState.hitPulse) + 0.006 * fxState.bombPulse) * qualityScale * floorMix;
+    const targetZoom = reducedMotion
+      ? 1 + (clamp(1 + floorMix * 0.008 * qualityScale + pulseZoom, 0.988, 1.012) - 1) * reducedMotionBackgroundScale
+      : clamp(1 + floorMix * 0.008 * qualityScale + pulseZoom, 0.988, 1.012);
+
+    const shakeLerp = easeOutCubic(0.22);
+    const zoomLerp = easeOutCubic(0.15);
+
+    fxState.cameraShakeX = approach(fxState.cameraShakeX, targetShakeX, Math.abs(targetShakeX - fxState.cameraShakeX) * shakeLerp + 0.001);
+    fxState.cameraShakeY = approach(fxState.cameraShakeY, targetShakeY, Math.abs(targetShakeY - fxState.cameraShakeY) * shakeLerp + 0.001);
+    const reducedZoom = reducedMotion ? Math.min(targetZoom, 1.004) : targetZoom;
+    fxState.cameraZoom = approach(fxState.cameraZoom, reducedZoom, Math.abs(reducedZoom - fxState.cameraZoom) * zoomLerp + 0.001);
+
+    const maxZoom = clamp(fxState.cameraZoom, 0.988, 1.012);
+    const maxShakeX = shotAmp + hitAmp + bombAmp;
+    const maxShakeY = maxShakeX;
+    fxState.cameraShakeX = clamp(fxState.cameraShakeX, -maxShakeX, maxShakeX);
+    fxState.cameraShakeY = clamp(fxState.cameraShakeY, -maxShakeY, maxShakeY);
+
+    if (fxState.cameraZoom === 1 && fxState.cameraShakeX === 0 && fxState.cameraShakeY === 0) {
+      return false;
+    }
+
+    ctx.save();
+    ctx.setTransform(maxZoom, 0, 0, maxZoom, fxState.cameraShakeX, fxState.cameraShakeY);
+    return true;
+  }
+
+  function restoreAfterWorld(applied) {
+    if (applied) {
+      ctx.restore();
+    }
+  }
+
+  function applyChromaEdgeSplit(visualTheme = null) {
+    if (!isFxToggleEnabled("chroma") || !FX_QUALITY_CAPS) {
+      return;
+    }
+
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    if (quality !== "high" || isReducedMotion()) {
+      return;
+    }
+
+    const bandWidth = 14;
+    const edgeAlpha = 0.02;
+    const supports = visualTheme && visualTheme.support && visualTheme.support.length > 0 ? visualTheme.support : [];
+    const splitColor = supports.length > 0 ? supports[0] : TOKENS.blue;
+
+    ctx.save();
+    ctx.beginPath();
+    roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
+    ctx.clip();
+
+    ctx.globalAlpha = edgeAlpha;
+    ctx.fillStyle = rgba(splitColor, 1);
+    const hOffsets = [-1, 1];
+    const vOffsets = [-1, 1];
+    for (let i = 0; i < hOffsets.length; i += 1) {
+      const dx = hOffsets[i];
+      ctx.fillRect(WORLD.x + dx, WORLD.y, bandWidth, WORLD.h);
+      ctx.fillRect(WORLD.x + WORLD.w - bandWidth + dx, WORLD.y, bandWidth, WORLD.h);
+    }
+    for (let i = 0; i < vOffsets.length; i += 1) {
+      const dy = vOffsets[i];
+      ctx.fillRect(WORLD.x, WORLD.y + dy, WORLD.w, bandWidth);
+      ctx.fillRect(WORLD.x, WORLD.y + WORLD.h - bandWidth + dy, WORLD.w, bandWidth);
+    }
+
+    ctx.restore();
+  }
 
   function uiText(key, fallback) {
     return typeof getNarrativeUiText === "function" ? getNarrativeUiText(key, fallback) : fallback;
@@ -91,6 +589,158 @@
     7: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 3 }),
     8: Object.freeze({ lead: "pink", support: Object.freeze(["yellow", "mint"]), trippyLevel: 4 }),
     9: Object.freeze({ lead: "yellow", support: Object.freeze(["pink", "blue", "mint"]), trippyLevel: 5 })
+  });
+  const FLOOR_FX_PACKS = Object.freeze({
+    1: Object.freeze({
+      id: 1,
+      lead: "yellow",
+      distortionMode: "horizontal",
+      motif: "glyphs",
+      parallaxCount: 10,
+      latticeCount: 12,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    }),
+    2: Object.freeze({
+      id: 2,
+      lead: "blue",
+      distortionMode: "vertical",
+      motif: "mesh",
+      parallaxCount: 12,
+      latticeCount: 14,
+      support: Object.freeze(["yellow"]),
+      trippyLevel: 0
+    }),
+    3: Object.freeze({
+      id: 3,
+      lead: "mint",
+      distortionMode: "horizontal",
+      motif: "circuit",
+      parallaxCount: 14,
+      latticeCount: 10,
+      support: Object.freeze(["pink"]),
+      trippyLevel: 0
+    }),
+    4: Object.freeze({
+      id: 4,
+      lead: "pink",
+      distortionMode: "vertical",
+      motif: "wave",
+      parallaxCount: 16,
+      latticeCount: 16,
+      support: Object.freeze(["blue"]),
+      trippyLevel: 0
+    }),
+    5: Object.freeze({
+      id: 5,
+      lead: "yellow",
+      distortionMode: "horizontal",
+      motif: "kitchen",
+      parallaxCount: 18,
+      latticeCount: 18,
+      support: Object.freeze(["blue"]),
+      trippyLevel: 1
+    }),
+    6: Object.freeze({
+      id: 6,
+      lead: "blue",
+      distortionMode: "vertical",
+      motif: "door",
+      parallaxCount: 20,
+      latticeCount: 12,
+      support: Object.freeze(["mint", "yellow"]),
+      trippyLevel: 2
+    }),
+    7: Object.freeze({
+      id: 7,
+      lead: "mint",
+      distortionMode: "edge",
+      motif: "fracture",
+      parallaxCount: 22,
+      latticeCount: 12,
+      support: Object.freeze(["pink", "blue"]),
+      trippyLevel: 3
+    }),
+    8: Object.freeze({
+      id: 8,
+      lead: "pink",
+      distortionMode: "horizontal",
+      motif: "threshold",
+      parallaxCount: 24,
+      latticeCount: 16,
+      support: Object.freeze(["yellow", "mint"]),
+      trippyLevel: 4
+    }),
+    9: Object.freeze({
+      id: 9,
+      lead: "yellow",
+      distortionMode: "edge",
+      motif: "evolution",
+      parallaxCount: 26,
+      latticeCount: 18,
+      support: Object.freeze(["pink", "blue", "mint"]),
+      trippyLevel: 5
+    }),
+    10: Object.freeze({
+      id: 10,
+      lead: "yellow",
+      distortionMode: "horizontal",
+      motif: "quiet",
+      parallaxCount: 8,
+      latticeCount: 8,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    }),
+    11: Object.freeze({
+      id: 11,
+      lead: "blue",
+      distortionMode: "vertical",
+      motif: "quiet",
+      parallaxCount: 8,
+      latticeCount: 8,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    }),
+    12: Object.freeze({
+      id: 12,
+      lead: "mint",
+      distortionMode: "edge",
+      motif: "quiet",
+      parallaxCount: 8,
+      latticeCount: 8,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    }),
+    13: Object.freeze({
+      id: 13,
+      lead: "pink",
+      distortionMode: "horizontal",
+      motif: "quiet",
+      parallaxCount: 8,
+      latticeCount: 8,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    }),
+    14: Object.freeze({
+      id: 14,
+      lead: "yellow",
+      distortionMode: "vertical",
+      motif: "quiet",
+      parallaxCount: 8,
+      latticeCount: 8,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    }),
+    15: Object.freeze({
+      id: 15,
+      lead: "blue",
+      distortionMode: "edge",
+      motif: "quiet",
+      parallaxCount: 8,
+      latticeCount: 8,
+      support: Object.freeze([]),
+      trippyLevel: 0
+    })
   });
 
   if (renderCacheState && !renderCacheState.stats) {
@@ -175,12 +825,29 @@
     return COG_COLORS[name] || fallback;
   }
 
+  function resolveFloorId(value) {
+    const raw = value && value.id != null ? value.id : value;
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isFinite(parsed) ? parsed : 1;
+  }
+
+  function resolveFloorFxPack(floor) {
+    const floorId = resolveFloorId(floor);
+    return FLOOR_FX_PACKS[floorId] || FLOOR_FX_PACKS[1];
+  }
+
   function resolveFloorVisualTheme(floor, accent) {
-    const id = floor && Number.isFinite(floor.id) ? floor.id : 1;
+    const id = resolveFloorId(floor);
+    const pack = resolveFloorFxPack({ id });
     const base = FLOOR_VISUAL_THEME[id] || FLOOR_VISUAL_THEME[1];
-    const leadName = typeof base.lead === "string" ? base.lead : "blue";
-    const supportNames = Array.isArray(base.support) ? base.support.filter((name) => !!COG_COLORS[name]) : [];
-    const trippyLevel = clamp(Number(base.trippyLevel) || 0, 0, 5);
+    const leadName = typeof pack.lead === "string"
+      ? pack.lead
+      : typeof base.lead === "string"
+        ? base.lead
+        : "blue";
+    const supportSource = Array.isArray(pack.support) ? pack.support : base.support;
+    const supportNames = Array.isArray(supportSource) ? supportSource.filter((name) => !!COG_COLORS[name]) : [];
+    const trippyLevel = clamp(Number(pack.trippyLevel != null ? pack.trippyLevel : base.trippyLevel) || 0, 0, 5);
     return {
       leadName,
       lead: colorByName(leadName, accent || TOKENS.blue),
@@ -215,10 +882,44 @@
     return visualTheme.support[Math.abs(index) % visualTheme.support.length];
   }
 
+  function getDynamicEscalation(progress) {
+    const p = easeInOutSine(clamp(Number(progress) || 0, 0, 1));
+    const danger = easeOutCubic(clamp(Number(fxState.danger) || 0, 0, 1));
+    const reducedMotionScale = getReducedMotionScale();
+    const backgroundMotionScale = getReducedMotionBackgroundScale();
+    const intensity = clamp(p * 0.45 + danger * 0.55, 0, 1) * reducedMotionScale;
+    return {
+      progress: p,
+      danger,
+      densityScale: 1 + 0.55 * intensity,
+      speedScale: 0.75 + 1.1 * intensity,
+      edgeScale: 0.55 + 0.45 * intensity,
+      backgroundMotionScale,
+      reducedMotionScale,
+      intensity
+    };
+  }
+
+  function getEdgePressure(axis, coord) {
+    if (!Number.isFinite(coord)) {
+      return 0;
+    }
+    if (axis === "x") {
+      const ratio = (coord - WORLD.x) / WORLD.w;
+      return clamp(Math.abs(ratio - 0.5) * 2, 0, 1);
+    }
+    const ratio = (coord - WORLD.y) / WORLD.h;
+    return clamp(Math.abs(ratio - 0.5) * 2, 0, 1);
+  }
+
+  function edgeBlend(base, axis, coord) {
+    const pressure = getEdgePressure(axis, coord);
+    return base * (0.35 + 0.65 * pressure);
+  }
+
   function hasDynamicFloorVisuals(floor) {
-    const id = floor && floor.id;
-    const safeId = Number.isFinite(id) ? id : Number.parseInt(String(id), 10);
-    return Number.isFinite(safeId) && safeId >= 1 && safeId <= 9;
+    const safeId = resolveFloorId(floor);
+    return Number.isFinite(safeId) && safeId >= 1 && safeId <= 15;
   }
 
   function drawEnvironment(floor, accent, visualTheme = null) {
@@ -294,6 +995,7 @@
       if (dynamicActive) {
         drawCorridorDynamicLayer(floor, accent, visualTheme);
       }
+      applyStripWarpDistortion(visualTheme, floor);
     });
 
     renderCacheState.dynamicDirty = false;
@@ -303,6 +1005,7 @@
 
   function draw() {
     syncCollections();
+    updateFxState();
     ctx = mainCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -353,6 +1056,8 @@
       ctx.translate(deathShake.x, deathShake.y);
     }
 
+    const worldCameraApplied = applyCameraTransformBeforeWorld();
+
     drawEnvironment(floor, accent, visualTheme);
 
     drawPickups(accent);
@@ -360,6 +1065,9 @@
     drawEnemies(accent);
     drawPlayer(accent);
     drawParticles();
+    applyChromaEdgeSplit(visualTheme);
+
+    restoreAfterWorld(worldCameraApplied);
 
     drawHud(floor, accent);
     drawStateOverlay(floor, accent);
@@ -1645,59 +2353,239 @@
   }
 
   function drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme = null) {
+    const pack = resolveFloorFxPack(floor);
     const lead = visualTheme ? visualTheme.lead : accent;
+
     ctx.save();
     ctx.beginPath();
     roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
     ctx.clip();
 
     drawWorldGridLines();
-
-    if (floor.id === 1) {
-      drawWordBlocks(lead, visualTheme);
-    } else if (floor.id === 5) {
-      drawKitchenPanels(lead, visualTheme);
-    } else if (floor.id === 6) {
-      drawDoorLoop(lead, visualTheme);
-    } else if (floor.id === 7) {
-      drawCracksAndFrames(lead, visualTheme);
+    if (pack && pack.id >= 1 && pack.id <= 9) {
+      drawFloorStaticIdentityByPack(pack, lead, visualTheme);
     }
 
     ctx.restore();
-    drawWallDecor(floor, lead, wallLeft, wallRight, visualTheme);
+
+    if (pack && pack.id >= 1 && pack.id <= 9) {
+      drawWallDecor(floor, lead, wallLeft, wallRight, visualTheme);
+    }
   }
 
   function drawFloorSkinDynamic(floor, accent, visualTheme = null) {
     const lead = visualTheme ? visualTheme.lead : accent;
     const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
+    const pack = resolveFloorFxPack(floor);
 
     ctx.save();
     ctx.beginPath();
     roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
     ctx.clip();
 
-    if (floor.id === 1) {
-      drawMotifFlicker(lead, visualTheme);
-    } else if (floor.id === 2) {
-      drawTileToWoodTransition(lead, progress, visualTheme);
-    } else if (floor.id === 3) {
-      drawLoadingBars(lead, visualTheme);
-      drawFloatingIcons(lead, visualTheme);
-    } else if (floor.id === 4) {
-      drawWaveBands(lead, visualTheme);
-    } else if (floor.id === 5) {
-      drawKitchenInterleaveOverlay(visualTheme, progress);
-    } else if (floor.id === 6) {
-      drawDoorPhaseRibbons(visualTheme, progress);
-    } else if (floor.id === 7) {
-      drawMirroredShardDrift(visualTheme, progress);
-    } else if (floor.id === 8) {
-      drawThresholdBands(lead, progress, visualTheme);
-    } else if (floor.id === 9) {
-      drawEvolutionDissolve(lead, progress, visualTheme);
+    if (pack && pack.id >= 1 && pack.id <= 9) {
+      drawFloorDynamicIdentityByPack(pack, lead, progress, visualTheme);
     }
 
     ctx.restore();
+  }
+
+  function drawFloorStaticIdentityByPack(pack, lead, visualTheme) {
+    if (!pack || typeof pack.id !== "number") {
+      return;
+    }
+    if (pack.id === 1) {
+      drawStaticGlyphField(lead, visualTheme, pack);
+    } else if (pack.id === 2) {
+      drawStaticMeshField(lead, visualTheme, pack);
+    } else if (pack.id === 3) {
+      drawStaticCircuitField(lead, visualTheme, pack);
+    } else if (pack.id === 4) {
+      drawStaticWaveField(lead, visualTheme, pack);
+    } else if (pack.id === 5) {
+      drawKitchenPanels(lead, visualTheme);
+      drawWordmarkMarkers(lead, visualTheme, pack);
+    } else if (pack.id === 6) {
+      drawDoorLoop(lead, visualTheme);
+      drawStaticDoorShell(lead, visualTheme, pack);
+    } else if (pack.id === 7) {
+      drawCracksAndFrames(lead, visualTheme);
+      drawStaticFractureField(lead, visualTheme, pack);
+    } else if (pack.id === 8) {
+      drawStaticThresholdField(lead, visualTheme, pack);
+    } else if (pack.id === 9) {
+      drawStaticEvolutionShell(lead, visualTheme, pack);
+    } else if (pack.id >= 10) {
+      drawFloorStaticNoOpPlaceholder(lead, visualTheme, pack);
+    }
+  }
+
+  function drawFloorDynamicIdentityByPack(pack, lead, progress, visualTheme = null) {
+    if (!pack || typeof pack.id !== "number") {
+      return;
+    }
+    if (pack.id === 1) {
+      drawMotifFlicker(lead, visualTheme);
+      drawWordmarkMarkers(lead, visualTheme, pack);
+      drawLoadingBars(lead, visualTheme, progress);
+    } else if (pack.id === 2) {
+      drawTileToWoodTransition(lead, progress, visualTheme);
+    } else if (pack.id === 3) {
+      drawLoadingBars(lead, visualTheme, progress);
+      drawFloatingIcons(lead, visualTheme, progress);
+    } else if (pack.id === 4) {
+      drawWaveBands(lead, visualTheme, progress);
+    } else if (pack.id === 5) {
+      drawKitchenInterleaveOverlay(visualTheme, progress);
+    } else if (pack.id === 6) {
+      drawDoorPhaseRibbons(visualTheme, progress);
+    } else if (pack.id === 7) {
+      drawMirroredShardDrift(visualTheme, progress);
+    } else if (pack.id === 8) {
+      drawThresholdBands(lead, progress, visualTheme);
+    } else if (pack.id === 9) {
+      drawEvolutionDissolve(lead, progress, visualTheme);
+    } else if (pack.id >= 10) {
+      drawFloorDynamicNoOpPlaceholder(lead, visualTheme, pack, progress);
+    }
+  }
+
+  function drawFloorStaticNoOpPlaceholder() {}
+
+  function drawFloorDynamicNoOpPlaceholder() {}
+
+  function drawStaticGlyphField(accent, visualTheme, pack) {
+    const latticeCount = Math.max(2, Number(pack.latticeCount) || 10);
+    const supportTintColor = visualTheme ? supportTint(visualTheme, 0, 0.06, accent) : rgba(accent, 0.06);
+    for (let i = 0; i < 2; i += 1) {
+      const x = WORLD.x + 28 + i * (WORLD.w - 56);
+      fillRoundRect(x, WORLD.y + 12, 20, 14, 8);
+    }
+    for (let i = 0; i < latticeCount; i += 1) {
+      const x = WORLD.x + 12 + i * (WORLD.w - 24) / Math.max(1, latticeCount - 1);
+      ctx.fillStyle = supportTintColor;
+      fillRoundRect(x, WORLD.y + WORLD.h - 16, 10, 4, 999);
+    }
+    drawWordBlocks(accent, visualTheme);
+  }
+
+  function drawStaticMeshField(accent, visualTheme, pack) {
+    const lines = Math.max(6, Number(pack.latticeCount) || 10);
+    const lineAlpha = 0.06;
+    for (let y = WORLD.y + 22; y < WORLD.y + WORLD.h - 18; y += 16) {
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.11, accent) : rgba(accent, 0.11);
+      fillRoundRect(WORLD.x + 16, y, WORLD.w - 32, 2, 999);
+    }
+    for (let i = 0; i < lines; i += 1) {
+      const x = WORLD.x + WORLD.w * 0.18 + (WORLD.w * 0.64 * i) / Math.max(1, lines - 1);
+      ctx.strokeStyle = visualTheme ? supportTint(visualTheme, i, lineAlpha, accent) : rgba(accent, lineAlpha);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, WORLD.y + 16);
+      ctx.lineTo(x, WORLD.y + WORLD.h - 16);
+      ctx.stroke();
+    }
+  }
+
+  function drawStaticCircuitField(accent, visualTheme, pack) {
+    const rails = Math.max(4, Math.floor((Number(pack.parallaxCount) || 10) * 0.75));
+    for (let i = 0; i < 3; i += 1) {
+      const y = WORLD.y + WORLD.h * 0.26 + i * 56;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.08, accent) : rgba(accent, 0.08);
+      fillRoundRect(WORLD.x + 18, y, WORLD.w - 36, 3, 999);
+    }
+    for (let i = 0; i < rails; i += 1) {
+      const x = WORLD.x + 24 + (WORLD.w - 48) * i / Math.max(1, rails - 1);
+      ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, 0.09, accent) : rgba(accent, 0.09);
+      fillRoundRect(x, WORLD.y + 18, 6, WORLD.h - 36, 3);
+      if (i % 3 === 0) {
+        fillRoundRect(x - 6, WORLD.y + WORLD.h * 0.5, 18, 4, 999);
+      }
+    }
+  }
+
+  function drawStaticWaveField(accent, visualTheme, pack) {
+    const count = Math.max(7, Math.floor((Number(pack.latticeCount) || 10) * 0.6));
+    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.16, accent) : rgba(accent, 0.16);
+    for (let i = 0; i < count; i += 1) {
+      const y = WORLD.y + 30 + i * ((WORLD.h - 60) / Math.max(1, count - 1));
+      ctx.lineWidth = i % 3 === 0 ? 2 : 1;
+      ctx.beginPath();
+      for (let x = WORLD.x + 14; x <= WORLD.x + WORLD.w - 14; x += 12) {
+        const offset = Math.sin((x * 0.018) + i * 0.5) * 3.5;
+        if (x === WORLD.x + 14) {
+          ctx.moveTo(x, y + offset);
+        } else {
+          ctx.lineTo(x, y + offset);
+        }
+      }
+      ctx.stroke();
+    }
+  }
+
+  function drawStaticDoorShell(accent, visualTheme, pack) {
+    const layers = Math.max(2, Math.floor((Number(pack.latticeCount) || 12) * 0.5));
+    for (let i = 0; i < layers; i += 1) {
+      const y = WORLD.y + 16 + i * 36;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.08, accent) : rgba(accent, 0.08);
+      fillRoundRect(WORLD.x + 28, y, WORLD.w - 56, 4, 999);
+      ctx.fillStyle = visualTheme ? supportTint(visualTheme, i + 3, 0.06, accent) : rgba(accent, 0.06);
+      fillRoundRect(WORLD.x + 28, y + 8, WORLD.w - 56, 2, 999);
+    }
+  }
+
+  function drawStaticFractureField(accent, visualTheme, pack) {
+    const count = Math.max(5, Number(pack.parallaxCount) || 12);
+    for (let i = 0; i < count; i += 1) {
+      const x = WORLD.x + 22 + ((i % 4) * 74);
+      const y = WORLD.y + 26 + (i * 55) % (WORLD.h - 60);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.11, accent) : rgba(accent, 0.11);
+      fillRoundRect(x, y, 12, 12, 2);
+      if (i % 2 === 0) {
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, 0.07, accent) : rgba(accent, 0.07);
+        fillRoundRect(x - 4, y - 4, 6, 6, 1);
+      }
+    }
+  }
+
+  function drawStaticThresholdField(accent, visualTheme, pack) {
+    const bands = Math.max(2, Math.floor((Number(pack.latticeCount) || 10) * 0.75));
+    for (let i = 0; i < bands; i += 1) {
+      const y = WORLD.y + 18 + (WORLD.h - 36) * (i / Math.max(1, bands - 1));
+      const alpha = 0.06 + (i % 2) * 0.03;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
+      fillRoundRect(WORLD.x + 2, y - 1, WORLD.w - 4, 2, 999);
+      if (i % 2 === 0) {
+        const inset = 10 + (i * 4);
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, 0.06, accent) : rgba(accent, 0.06);
+        fillRoundRect(WORLD.x + inset, y + 4, WORLD.w - inset * 2, 2, 999);
+      }
+    }
+  }
+
+  function drawStaticEvolutionShell(accent, visualTheme, pack) {
+    const ringCount = Math.max(3, Math.floor((Number(pack.latticeCount) || 10) * 0.5));
+    for (let i = 0; i < ringCount; i += 1) {
+      const y = WORLD.y + WORLD.h * (0.28 + i * 0.18);
+      const alpha = 0.06 + (i * 0.02);
+      const width = WORLD.w * (0.2 + i * 0.1);
+      const x = WORLD.x + WORLD.w * 0.5 - width / 2;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
+      fillRoundRect(x, y, width, 3, 999);
+      ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, 0.05, accent) : rgba(accent, 0.05);
+      fillRoundRect(x + 4, y + 6, Math.max(16, width - 8), 2, 999);
+    }
+  }
+
+  function drawWordmarkMarkers(accent, visualTheme, pack) {
+    const markerCount = Math.max(3, Math.floor((Number(pack.parallaxCount) || 8) * 0.7));
+    const reducedMotionScale = getReducedMotionScale();
+    for (let i = 0; i < markerCount; i += 1) {
+      const x = WORLD.x + WORLD.w * 0.18 + (WORLD.w * 0.64 * i) / Math.max(1, markerCount - 1);
+      const y = WORLD.y + WORLD.h * (0.72 + 0.08 * Math.sin(i + game.floorElapsed * 0.8 * reducedMotionScale));
+      ctx.fillStyle = visualTheme ? supportTint(visualTheme, i + 2, 0.08, accent) : rgba(accent, 0.08);
+      fillRoundRect(x, y, 8, 5, 999);
+    }
   }
 
   function drawWorldGridLines() {
@@ -1712,50 +2600,16 @@
   }
 
   function drawFloorSkin(floor, accent, wallLeft, wallRight, visualTheme = null) {
-    const lead = visualTheme ? visualTheme.lead : accent;
-    const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
-
-    ctx.save();
-    ctx.beginPath();
-    roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
-    ctx.clip();
-
-    drawWorldGridLines();
-
-    if (floor.id === 1) {
-      drawMotifFlicker(lead, visualTheme);
-      drawWordBlocks(lead, visualTheme);
-    } else if (floor.id === 2) {
-      drawTileToWoodTransition(lead, progress, visualTheme);
-    } else if (floor.id === 3) {
-      drawLoadingBars(lead, visualTheme);
-      drawFloatingIcons(lead, visualTheme);
-    } else if (floor.id === 4) {
-      drawWaveBands(lead, visualTheme);
-    } else if (floor.id === 5) {
-      drawKitchenPanels(lead, visualTheme);
-      drawKitchenInterleaveOverlay(visualTheme, progress);
-    } else if (floor.id === 6) {
-      drawDoorLoop(lead, visualTheme);
-      drawDoorPhaseRibbons(visualTheme, progress);
-    } else if (floor.id === 7) {
-      drawCracksAndFrames(lead, visualTheme);
-      drawMirroredShardDrift(visualTheme, progress);
-    } else if (floor.id === 8) {
-      drawThresholdBands(lead, progress, visualTheme);
-    } else if (floor.id === 9) {
-      drawEvolutionDissolve(lead, progress, visualTheme);
-    }
-
-    ctx.restore();
-
-    drawWallDecor(floor, lead, wallLeft, wallRight, visualTheme);
+    drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme);
+    drawFloorSkinDynamic(floor, accent, visualTheme);
   }
 
   function drawMotifFlicker(accent, visualTheme = null) {
+    const reducedMotionScale = getReducedMotionScale();
     for (let i = 0; i < 12; i += 1) {
       const y = WORLD.y + 12 + i * 40;
-      const alpha = 0.08 + 0.1 * ((i + Math.floor(game.globalTime * 5)) % 2);
+      const pulse = (Math.sin(game.globalTime * 5 * reducedMotionScale + i * 0.4) + 1) * 0.5;
+      const alpha = 0.08 + 0.04 * pulse;
       ctx.fillStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
       ctx.fillRect(WORLD.x + 12, y, 10, 3);
       ctx.fillRect(WORLD.x + WORLD.w - 22, y + 7, 10, 3);
@@ -1777,30 +2631,39 @@
   }
 
   function drawTileToWoodTransition(accent, progress, visualTheme = null) {
-    const transitionX = WORLD.x + WORLD.w * (0.35 + progress * 0.4);
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const transitionX = WORLD.x + WORLD.w * (0.31 + escalation.progress * 0.48 + escalation.danger * 0.09);
+    const rowStep = clamp(Math.floor(22 / escalation.densityScale), 8, 24);
+    const colStep = clamp(Math.floor(22 / escalation.densityScale), 8, 24);
 
-    ctx.strokeStyle = rgba(TOKENS.ink, 0.18);
-    for (let x = WORLD.x + 14; x < transitionX; x += 22) {
+    const baseAlpha = 0.14 + escalation.intensity * 0.12;
+    ctx.strokeStyle = rgba(TOKENS.ink, baseAlpha);
+    for (let x = WORLD.x + 14; x < transitionX; x += rowStep) {
       ctx.beginPath();
       ctx.moveTo(x, WORLD.y + 12);
       ctx.lineTo(x, WORLD.y + WORLD.h - 12);
       ctx.stroke();
     }
 
-    for (let y = WORLD.y + 14; y < WORLD.y + WORLD.h - 10; y += 22) {
+    for (let y = WORLD.y + 14; y < WORLD.y + WORLD.h - 10; y += colStep) {
       ctx.beginPath();
       ctx.moveTo(WORLD.x + 10, y);
       ctx.lineTo(transitionX, y);
       ctx.stroke();
     }
 
-    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.16, accent) : rgba(accent, 0.16);
+    const leadAlpha = 0.12 + escalation.intensity * 0.14;
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, leadAlpha, accent) : rgba(accent, leadAlpha);
     fillRoundRect(transitionX - 4, WORLD.y + 18, 8, WORLD.h - 36, 8);
 
-    ctx.strokeStyle = rgba(TOKENS.ink, 0.16);
-    for (let y = WORLD.y + 16; y < WORLD.y + WORLD.h - 12; y += 28) {
+    const railAlpha = baseAlpha * 0.8;
+    ctx.strokeStyle = rgba(TOKENS.ink, railAlpha);
+    for (let y = WORLD.y + 16; y < WORLD.y + WORLD.h - 12; y += Math.max(10, Math.floor(28 / escalation.densityScale))) {
       ctx.beginPath();
-      ctx.moveTo(transitionX + 8, y);
+      const edgeAmp = edgeBlend(2.4, "y", y);
+      const edgeOffset = Math.sin(game.globalTime * 2.2 * escalation.speedScale * reducedMotionScale) * edgeAmp * reducedMotionScale;
+      ctx.moveTo(transitionX + 8 + edgeOffset, y);
       ctx.lineTo(WORLD.x + WORLD.w - 12, y + 8);
       ctx.stroke();
     }
@@ -1809,42 +2672,57 @@
       const columnCount = 7;
       for (let i = 0; i < columnCount; i += 1) {
         const y = WORLD.y + 28 + i * 72;
-        ctx.fillStyle = supportTint(visualTheme, i, 0.1, accent);
+        const edgeAmp = edgeBlend(0.1 + escalation.intensity * 0.08, "y", y);
+        ctx.fillStyle = supportTint(visualTheme, i, edgeAmp, accent);
         fillRoundRect(transitionX + 10 + (i % 2) * 10, y, 10, 34, 4);
       }
     }
   }
 
-  function drawLoadingBars(accent, visualTheme = null) {
-    for (let i = 0; i < 7; i += 1) {
+  function drawLoadingBars(accent, visualTheme = null, progress = 0) {
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const bars = Math.max(5, Math.floor(7 * escalation.densityScale));
+    const baseHeight = 12;
+    const baseWidth = 74;
+    for (let i = 0; i < bars; i += 1) {
       const x = WORLD.x + 44 + i * 120;
       const y = WORLD.y + 38 + ((i % 2) * 26);
-      const width = 74;
+      const width = baseWidth + Math.floor(12 * escalation.intensity);
       ctx.fillStyle = rgba(TOKENS.ink, 0.08);
-      fillRoundRect(x, y, width, 12, 999);
-      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.35);
-      fillRoundRect(x + 1, y + 1, (width - 2) * ((Math.sin(game.globalTime * 2.4 + i) + 1) * 0.5), 10, 999);
+      fillRoundRect(x, y, width, baseHeight, 999);
+      const pulse = (Math.sin(game.globalTime * 2.4 * escalation.speedScale * reducedMotionScale + i) + 1) * 0.5;
+      const fillW = (width - 2) * (0.22 + 0.78 * pulse) * (0.75 + 0.25 * escalation.progress);
+      const edgeAlpha = edgeBlend(0.2 + escalation.intensity * 0.12, "x", x + width * 0.5);
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, edgeAlpha, accent) : rgba(accent, clamp(0.22 + escalation.intensity * 0.2, 0.22, 0.42));
+      fillRoundRect(x + 1, y + 1, fillW, baseHeight - 2, 999);
       if (visualTheme && visualTheme.support.length > 0) {
-        ctx.fillStyle = supportTint(visualTheme, i, 0.11, accent);
+        ctx.fillStyle = supportTint(visualTheme, i, 0.11 + escalation.intensity * 0.06, accent);
         fillRoundRect(x + width - 10, y + 3, 6, 6, 999);
       }
     }
   }
 
-  function drawFloatingIcons(accent, visualTheme = null) {
+  function drawFloatingIcons(accent, visualTheme = null, progress = 0) {
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
     ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.2, accent) : rgba(accent, 0.45);
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1 + escalation.intensity * 1.2;
 
-    for (let i = 0; i < 18; i += 1) {
-      const x = WORLD.x + 40 + ((i * 67) % (WORLD.w - 80));
-      const y = WORLD.y + 110 + ((i * 49 + Math.floor(game.globalTime * 10)) % (WORLD.h - 150));
+    const symbols = Math.floor(18 * escalation.densityScale);
+    for (let i = 0; i < symbols; i += 1) {
+      const x = WORLD.x + 40 + ((i * 67 * escalation.densityScale) % (WORLD.w - 80));
+      const drift = Math.sin(game.globalTime * 1.6 * escalation.speedScale * reducedMotionScale + i) * (2.5 * escalation.speedScale * reducedMotionScale);
+      const xShift = Math.sin(i * 0.21 + game.globalTime * 0.9 * escalation.speedScale * reducedMotionScale) * (6 * reducedMotionScale);
+      const y = WORLD.y + 110 + ((i * 49 + Math.floor(game.globalTime * 10 * escalation.speedScale * reducedMotionScale)) % (WORLD.h - 150));
       const size = 8 + (i % 4);
-      strokeRoundRect(x, y, size * 2, size * 2, 4);
+      const rectX = x + xShift + edgeBlend(2, "x", x);
+      strokeRoundRect(rectX, y + drift, size * 2, size * 2, 4);
       if (i % 3 === 0) {
         ctx.beginPath();
-        ctx.moveTo(x + 5, y + 5);
-        ctx.lineTo(x + size + 4, y + size);
-        ctx.lineTo(x + 5, y + size + 5);
+        ctx.moveTo(rectX + 5, y + 5);
+        ctx.lineTo(rectX + size + 4, y + size + drift);
+        ctx.lineTo(rectX + 5, y + size + 5);
         ctx.closePath();
         ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.14, accent) : rgba(accent, 0.25);
         ctx.fill();
@@ -1852,14 +2730,21 @@
     }
   }
 
-  function drawWaveBands(accent, visualTheme = null) {
-    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.22, accent) : rgba(accent, 0.34);
-    ctx.lineWidth = 2;
+  function drawWaveBands(accent, visualTheme = null, progress = 0) {
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.2 + escalation.intensity * 0.08, accent) : rgba(accent, 0.34);
+    ctx.lineWidth = 1.2 + escalation.intensity * 1.3;
 
-    for (let y = WORLD.y + 26; y < WORLD.y + WORLD.h - 20; y += 28) {
+    const rowStep = clamp(Math.floor(28 / escalation.densityScale), 18, 34);
+    for (let y = WORLD.y + 26; y < WORLD.y + WORLD.h - 20; y += rowStep) {
       ctx.beginPath();
       for (let x = WORLD.x + 8; x <= WORLD.x + WORLD.w - 8; x += 18) {
-        const offset = Math.sin(x * 0.02 + y * 0.04 + game.globalTime * 3.2) * 6;
+        const edgeAmp = edgeBlend(6, "y", y);
+        const baseAmp = (3 + 6 * escalation.intensity) * reducedMotionScale;
+        const offset =
+          Math.sin(x * 0.02 + y * 0.04 + game.globalTime * 3.2 * escalation.speedScale * reducedMotionScale) *
+          (baseAmp + edgeAmp * reducedMotionScale);
         if (x === WORLD.x + 8) {
           ctx.moveTo(x, y + offset);
         } else {
@@ -1871,10 +2756,16 @@
 
     if (visualTheme && visualTheme.support.length > 0) {
       for (let y = WORLD.y + 44; y < WORLD.y + WORLD.h - 28; y += 84) {
-        ctx.beginPath();
-        ctx.strokeStyle = supportTint(visualTheme, y, 0.11, accent);
+      ctx.beginPath();
+        const extraAlpha = 0.08 + 0.12 * escalation.intensity;
+        ctx.strokeStyle = supportTint(visualTheme, y, extraAlpha, accent);
         for (let x = WORLD.x + 8; x <= WORLD.x + WORLD.w - 8; x += 22) {
-          const offset = Math.sin(x * 0.018 + y * 0.036 + game.globalTime * 2.2) * (4 + visualTheme.trippyLevel);
+          const edgeAmp = edgeBlend(4 + visualTheme.trippyLevel, "x", x);
+          const offset =
+            Math.sin(x * 0.018 + y * 0.036 + game.globalTime * 2.2 * escalation.speedScale * reducedMotionScale) *
+            edgeAmp *
+            escalation.speedScale *
+            reducedMotionScale;
           if (x === WORLD.x + 8) {
             ctx.moveTo(x, y + offset);
           } else {
@@ -1970,14 +2861,21 @@
       return;
     }
 
-    const laneCount = Math.floor(8 + visualTheme.densityScale * 6);
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const laneCount = Math.floor(8 + (visualTheme.densityScale + escalation.intensity * 0.8) * 6 * escalation.densityScale);
     const laneStep = (WORLD.h - 64) / Math.max(1, laneCount);
     for (let i = 0; i < laneCount; i += 1) {
       const y = WORLD.y + 30 + i * laneStep;
-      const wobble = Math.sin(game.floorElapsed * visualTheme.motionScale * 2 + i * 0.7 + progress * 6) * (4 + visualTheme.trippyLevel);
+      const wobble =
+        Math.sin(
+          game.floorElapsed * visualTheme.motionScale * 2 * escalation.speedScale * reducedMotionScale + i * 0.7 + progress * 6
+        ) * (3 + escalation.intensity * 4 + visualTheme.trippyLevel * escalation.densityScale) * reducedMotionScale;
+      const edgeAmp = edgeBlend(2.5, "x", WORLD.x + 24);
       const isSupportLane = i % 2 === 0;
-      ctx.fillStyle = isSupportLane ? supportTint(visualTheme, i, 0.11, visualTheme.lead) : leadTint(visualTheme, 0.18, visualTheme.lead);
-      fillRoundRect(WORLD.x + 24 + wobble, y, WORLD.w - 48, 4, 999);
+      const alpha = isSupportLane ? 0.11 : 0.18;
+      ctx.fillStyle = isSupportLane ? supportTint(visualTheme, i, alpha * escalation.densityScale, visualTheme.lead) : leadTint(visualTheme, alpha + escalation.intensity * 0.08, visualTheme.lead);
+      fillRoundRect(WORLD.x + 24 + wobble + edgeAmp, y, WORLD.w - 48, 2 + Math.max(1, escalation.intensity * 4), 999);
     }
   }
 
@@ -1986,15 +2884,25 @@
       return;
     }
 
-    const lanes = Math.floor(5 + visualTheme.trippyLevel * 1.4);
-    const amp = 6 + visualTheme.trippyLevel * 2;
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const lanes = Math.floor(4 + visualTheme.trippyLevel * 1.4 + escalation.intensity * 4);
+    const amp = (6 + visualTheme.trippyLevel * 2) * escalation.speedScale * reducedMotionScale;
     for (let i = 0; i < lanes; i += 1) {
       const y = WORLD.y + 36 + i * ((WORLD.h - 72) / Math.max(1, lanes - 1));
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = i % 2 === 0 ? leadTint(visualTheme, 0.2, visualTheme.lead) : supportTint(visualTheme, i, 0.12, visualTheme.lead);
+      ctx.lineWidth = 1.5 + escalation.intensity * 0.8;
+      const edgeAlpha = 0.2 + edgeBlend(0.08, "y", y);
+      ctx.strokeStyle = i % 2 === 0 ? leadTint(visualTheme, edgeAlpha, visualTheme.lead) : supportTint(visualTheme, i, 0.12 + escalation.intensity * 0.1, visualTheme.lead);
       ctx.beginPath();
       for (let x = WORLD.x + 12; x <= WORLD.x + WORLD.w - 12; x += 20) {
-        const offset = Math.sin(x * 0.018 + i * 0.5 + game.floorElapsed * visualTheme.motionScale * 2.1 + progress * 5.2) * amp;
+        const edgeAmp = edgeBlend(amp, "x", x);
+        const offset =
+          Math.sin(
+            x * 0.018 +
+              i * 0.5 +
+              game.floorElapsed * visualTheme.motionScale * 2.1 * escalation.speedScale * reducedMotionScale +
+              progress * 5.2 * escalation.densityScale
+          ) * edgeAmp;
         if (x === WORLD.x + 12) {
           ctx.moveTo(x, y + offset);
         } else {
@@ -2010,14 +2918,19 @@
       return;
     }
 
-    const shardCount = Math.floor(14 + visualTheme.densityScale * 12);
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const shardCount = Math.floor((14 + visualTheme.densityScale * 12) * escalation.densityScale);
     const centerX = WORLD.x + WORLD.w * 0.5;
     const span = WORLD.w * 0.42;
     for (let i = 0; i < shardCount; i += 1) {
-      const travel = ((i * 47 + game.floorElapsed * 30 * visualTheme.motionScale) % span);
-      const y = WORLD.y + 20 + ((i * 53 + game.floorElapsed * 24) % (WORLD.h - 40));
+      const travel =
+        ((i * 47 + game.floorElapsed * 30 * visualTheme.motionScale * escalation.speedScale * reducedMotionScale) % span);
+      const y =
+        WORLD.y + 20 + ((i * 53 + game.floorElapsed * 24 * escalation.speedScale * reducedMotionScale) % (WORLD.h - 40));
       const size = 6 + (i % 4) * 2;
-      const tilt = ((i % 2 === 0 ? -1 : 1) * (0.05 + progress * 0.1));
+      const edgeAmp = edgeBlend(0.05 + escalation.intensity * 0.1, "y", y);
+      const tilt = ((i % 2 === 0 ? -1 : 1) * (edgeAmp + progress * 0.1));
       const colorStyle = i % 3 === 0 ? supportTint(visualTheme, i, 0.12, visualTheme.lead) : leadTint(visualTheme, 0.18, visualTheme.lead);
       const leftX = centerX - 24 - travel;
       const rightX = centerX + 24 + travel * 0.95;
@@ -2026,49 +2939,64 @@
       ctx.translate(leftX, y);
       ctx.rotate(tilt);
       ctx.fillStyle = colorStyle;
+      ctx.globalAlpha = clamp(0.35 + escalation.intensity * 0.5, 0.35, 0.9);
       fillRoundRect(-size * 0.5, -size * 0.5, size, size, 3);
+      ctx.globalAlpha = 1;
       ctx.restore();
 
       ctx.save();
       ctx.translate(rightX, y);
       ctx.rotate(-tilt);
       ctx.fillStyle = colorStyle;
+      ctx.globalAlpha = clamp(0.35 + escalation.intensity * 0.5, 0.35, 0.9);
       fillRoundRect(-size * 0.5, -size * 0.5, size, size, 3);
+      ctx.globalAlpha = 1;
       ctx.restore();
     }
   }
 
   function drawThresholdBands(accent, progress, visualTheme = null) {
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
     const top = WORLD.y;
     const oneThird = WORLD.h / 3;
 
     const topColor = visualTheme ? supportColorAt(visualTheme, 0, TOKENS.blue) : TOKENS.blue;
-    ctx.fillStyle = rgba(topColor, visualTheme ? clamp(0.08 + (1 - progress) * 0.06, 0, SUPPORT_TINT_ALPHA_MAX) : 0.1 + (1 - progress) * 0.08);
+    ctx.fillStyle = rgba(topColor, visualTheme ? clamp(0.08 + (1 - escalation.progress) * 0.06 + escalation.intensity * 0.08, 0.06, SUPPORT_TINT_ALPHA_MAX) : 0.1 + (1 - escalation.progress) * 0.08);
     fillRoundRect(WORLD.x + 2, top + 2, WORLD.w - 4, oneThird - 2, 10);
 
-    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.2 + progress * 0.04, accent) : rgba(accent, 0.2 + progress * 0.08);
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.2 + escalation.progress * 0.16, accent) : rgba(accent, 0.2 + escalation.progress * 0.08);
     fillRoundRect(WORLD.x + 2, top + oneThird + 2, WORLD.w - 4, oneThird - 2, 8);
 
-    ctx.fillStyle = rgba(TOKENS.ink, 0.07 + progress * 0.1);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.07 + escalation.progress * 0.1 + escalation.intensity * 0.04);
     fillRoundRect(WORLD.x + 2, top + oneThird * 2 + 2, WORLD.w - 4, oneThird - 4, 8);
 
     ctx.strokeStyle = rgba(TOKENS.ink, 0.18);
-    for (let i = 0; i < 16; i += 1) {
+    const waveCount = Math.floor(12 + escalation.intensity * 8);
+    for (let i = 0; i < waveCount; i += 1) {
       const y = WORLD.y + 16 + i * 28;
       ctx.beginPath();
+      const edgeAmp = edgeBlend(4 * escalation.intensity, "y", y);
       ctx.moveTo(WORLD.x + 10, y);
-      ctx.lineTo(WORLD.x + WORLD.w - 10, y + Math.sin(i + game.globalTime * 2) * 4);
+      const offset = Math.sin(i + game.globalTime * 2 * escalation.speedScale * reducedMotionScale) * edgeAmp * reducedMotionScale;
+      ctx.lineTo(WORLD.x + WORLD.w - 10, y + offset);
       ctx.stroke();
     }
 
     if (visualTheme && visualTheme.support.length > 0) {
-      const extraLines = 8 + visualTheme.trippyLevel;
+      const extraLines = Math.floor((8 + visualTheme.trippyLevel) * escalation.densityScale);
       for (let i = 0; i < extraLines; i += 1) {
         const y = WORLD.y + 22 + i * ((WORLD.h - 44) / Math.max(1, extraLines - 1));
-        ctx.strokeStyle = supportTint(visualTheme, i, 0.1 + progress * 0.03, accent);
+        ctx.lineWidth = 1 + escalation.intensity * 1.5;
+        const edgeAlpha = 0.1 + escalation.intensity * 0.06;
+        ctx.strokeStyle = supportTint(visualTheme, i, edgeAlpha + escalation.progress * 0.03, accent);
         ctx.beginPath();
         for (let x = WORLD.x + 10; x <= WORLD.x + WORLD.w - 10; x += 26) {
-          const offset = Math.sin(game.globalTime * 2.3 + x * 0.015 + i * 0.4) * (3 + visualTheme.trippyLevel);
+          const edgeAmp = edgeBlend(3 + visualTheme.trippyLevel, "x", x);
+          const offset =
+            Math.sin(game.globalTime * 2.3 * escalation.speedScale * reducedMotionScale + x * 0.015 + i * 0.4) *
+            (2 + edgeAmp) *
+            reducedMotionScale;
           if (x === WORLD.x + 10) {
             ctx.moveTo(x, y + offset);
           } else {
@@ -2082,16 +3010,24 @@
 
   function drawEvolutionDissolve(accent, progress, visualTheme = null) {
     const splitY = WORLD.y + WORLD.h * 0.56;
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
 
     ctx.fillStyle = rgba(TOKENS.white, 0.6);
     fillRoundRect(WORLD.x + 2, splitY, WORLD.w - 4, WORLD.h - (splitY - WORLD.y) - 2, 8);
 
-    ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.12 + progress * 0.08, accent) : rgba(accent, 0.12 + progress * 0.08);
-    for (let i = 0; i < 45; i += 1) {
-      const x = WORLD.x + ((i * 47 + game.floorElapsed * 22) % (WORLD.w - 20));
+    const microCount = Math.floor(40 * escalation.densityScale);
+    const baseAlpha = 0.12 + escalation.progress * 0.08 + escalation.intensity * 0.1;
+    ctx.fillStyle = visualTheme ? leadTint(visualTheme, baseAlpha, accent) : rgba(accent, baseAlpha);
+    for (let i = 0; i < microCount; i += 1) {
+      const x = WORLD.x + ((i * 47 + game.floorElapsed * 22 * escalation.speedScale * reducedMotionScale) % (WORLD.w - 20));
       const y = WORLD.y + ((i * 29) % Math.max(20, splitY - WORLD.y - 20));
-      const s = 6 + (i % 4) * 2;
+      const edgeAmp = edgeBlend(1 + escalation.intensity * 3, "x", x);
+      const s = (6 + (i % 4) * 2) * (0.6 + 0.4 * escalation.densityScale);
       fillRoundRect(x, y, s, s, 3);
+      if (i % 2 === 0 && edgeAmp > 0.5) {
+        ctx.fillRect(x + WORLD.w * 0.03, y + WORLD.h * 0.03, s * 0.6, s * 0.6);
+      }
     }
 
     ctx.strokeStyle = rgba(TOKENS.ink, 0.2);
@@ -2106,7 +3042,11 @@
       const latticeCount = Math.floor(5 + visualTheme.trippyLevel * 2);
       for (let i = 0; i < latticeCount; i += 1) {
         const baseX = WORLD.x + 18 + i * ((WORLD.w - 36) / Math.max(1, latticeCount - 1));
-        const sway = Math.sin(game.floorElapsed * visualTheme.motionScale + i * 0.6) * 10;
+        const edgeAmp = edgeBlend(10, "x", baseX);
+        const sway =
+          Math.sin(game.floorElapsed * visualTheme.motionScale * escalation.speedScale * reducedMotionScale + i * 0.6) *
+          edgeAmp *
+          reducedMotionScale;
         ctx.strokeStyle = i % 2 === 0 ? supportTint(visualTheme, i, 0.11, accent) : leadTint(visualTheme, 0.18, accent);
         ctx.beginPath();
         ctx.moveTo(baseX - 14 + sway, WORLD.y + 14);
@@ -2142,17 +3082,26 @@
   }
 
   function drawPickups(accent) {
+    const reducedMotionScale = getReducedMotionScale();
     for (const pickup of pickups) {
-      const bob = Math.sin(pickup.wobble) * 2;
+      const bob = Math.sin(pickup.wobble) * (2 * reducedMotionScale);
       drawHeartIcon(pickup.x, pickup.y + bob, pickup.type, accent, 1);
     }
   }
 
   function drawBullets(accent) {
+    pruneBulletTrails(bullets, bulletTrailHistory, activeBulletTrailKeys);
+    pruneBulletTrails(enemyBullets, enemyBulletTrailHistory, activeEnemyTrailKeys);
+
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
 
-    for (const bullet of bullets) {
+    for (let i = 0; i < bullets.length; i += 1) {
+      const bullet = bullets[i];
+      if (!bullet) {
+        continue;
+      }
+      renderBulletTrailFor(bullet, i, bulletTrailHistory, accent, false);
       ctx.fillStyle = bullet.color || accent;
       ctx.beginPath();
       ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
@@ -2161,7 +3110,12 @@
     }
 
     ctx.strokeStyle = TOKENS.ink;
-    for (const bullet of enemyBullets) {
+    for (let i = 0; i < enemyBullets.length; i += 1) {
+      const bullet = enemyBullets[i];
+      if (!bullet) {
+        continue;
+      }
+      renderBulletTrailFor(bullet, i, enemyBulletTrailHistory, TOKENS.white, true);
       ctx.fillStyle = bullet.color || TOKENS.white;
       ctx.beginPath();
       ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
@@ -2305,7 +3259,14 @@
   }
 
   function drawParticles() {
+    if (!isFxToggleEnabled("particles")) {
+      return;
+    }
+    const grainEnabled = isFxToggleEnabled("grain");
     for (const particle of particles) {
+      if (!grainEnabled && particle && (particle.type === "grain" || particle.type === "noise")) {
+        continue;
+      }
       const alpha = clamp(particle.life / particle.maxLife, 0, 1);
       ctx.fillStyle = rgba(particle.color, alpha);
       ctx.fillRect(particle.x, particle.y, particle.size, particle.size);
@@ -2600,15 +3561,13 @@
       return;
     }
 
-    const stats = upgrades.computeDerivedStats();
-    const speed = AIPU.constants.BASE_PLAYER_SPEED * stats.moveSpeedMult;
-    const cooldown = AIPU.constants.BASE_FIRE_COOLDOWN * stats.fireCooldownMult;
-    const bulletRadius = AIPU.constants.BASE_BULLET_RADIUS * stats.bulletRadiusMult;
-    const enemyBulletMult = stats.enemyBulletSpeedMult;
-    const invuln = upgrades.getInvulnDuration();
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const cacheStats = renderCacheState && renderCacheState.stats ? renderCacheState.stats : null;
+    const particleCount = particles ? particles.length : 0;
+    const cacheHits = cacheStats ? cacheStats.hits : 0;
+    const cacheMisses = cacheStats ? cacheStats.misses : 0;
     const debugText =
-      `dbg speed ${speed.toFixed(0)} | cooldown ${cooldown.toFixed(3)} | radius ${bulletRadius.toFixed(2)} | ` +
-      `enemyBullet ${enemyBulletMult.toFixed(2)} | iFrames ${invuln.toFixed(2)}`;
+      "dbg fx " + quality + " | particles " + particleCount + " | cache " + cacheHits + "/" + cacheMisses;
 
     const panelX = 70;
     const panelY = 98;
@@ -2626,7 +3585,7 @@
 
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '600 12px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(debugText, panelW - 24), panelX + 12, panelY + 21);
+    ctx.fillText(debugText, panelX + 12, panelY + 21);
   }
 
   function drawStateOverlay(floor, accent) {

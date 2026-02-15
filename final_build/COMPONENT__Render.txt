@@ -3,6 +3,7 @@ Render Component
 Purpose:
 - Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
+- Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
 
 Inputs:
 - Render state (`AIPU.state.game`, `AIPU.state.player`, entity collections).
@@ -20,6 +21,29 @@ State/Edges:
 - Uses `withRectClip` for lesson/death text clipping and `withClipRect` for rounded-panel masking.
 - Keeps overlay text readable by top-aligned clipping paths with insets.
 - Supports reduced-motion by removing motion terms.
+- Adds optional background strip-warp distortion in `updateDynamicLayer()` after base corridor draw.
+  - Distortion is world-only (`WORLD` clip), low tier disabled/near-flat.
+  - Uses per-floor strip orientation and sinusoidal offsets from `fxState.intensity` + `visualTheme.trippyLevel`.
+  - Enforces center fade and quality-based max amplitude bounds.
+- Adds `getDynamicEscalation(progress)` to derive composed pressure from normalized floor progress and active threat.
+  - Dynamic floor motifs (`drawFloorDynamicIdentityByPack`) receive floor progress and scale density/motion using `easeInOutSine` and `easeOutCubic`.
+  - `edgeBlend(...)` applies stronger modulation toward WORLD edges so center stays clearer under escalation.
+- Reduced-motion support is centralized:
+  - `isFxToggleEnabled` disables `trails`, `chroma`, and `grain` when `AIPU.input.prefersReducedMotion` is true.
+  - `applyStripWarpDistortion()` caps distortion at ≤1px and scales distortion frequency.
+  - Camera and background motion uses a dedicated reduced-motion background scale to keep shake/zoom and floor parallax in the 60–80% reduction band.
+  - Lesson/title/death overlays skip or zero out motion terms when reduced-motion is enabled.
+- "No hard-flash" check in visual FX paths:
+  - avoid full-intensity abrupt color toggles on reduced-motion states;
+  - keep chroma/reduce-motion effects below noticeable flash thresholds by clamping alpha and preserving WORLD clipping.
+- Added optional high-tier chroma edge split in `applyChromaEdgeSplit()`.
+  - Runs only when `FX_CONFIG.quality === "high"` and `FX_CONFIG.toggles.chroma` is true.
+  - Draws a clipped 14px WORLD border band with ±1px edge offsets in one support color at low alpha.
+  - Guarded to remain subtle and non-glowy (`edgeAlpha <= 0.02` effective per pass).
+- Added `FLOOR_FX_PACKS` visual identity matrix (`1..15`) with lead, distortion mode, motif, parallax, lattice metadata.
+- `hasDynamicFloorVisuals()` is now 1..15 and floor skins are now driven by pack selection for static + dynamic layers.
+  - Floors `1..9` render enriched layered motifs; floors `10..15` remain safe no-op placeholders.
+- Maintains one-accent rendering by keeping support colors secondary and low-alpha only.
 - No gameplay mechanics are changed in render path.
 - `hasDynamicFloorVisuals` now safely accepts numeric or numeric-string floor IDs before enabling dynamic layer effects.
 
@@ -32,3 +56,7 @@ Acceptance Checks:
 - No state transitions altered by rendering.
 - Lesson/death overlays remain legible with stable baseline/clipping.
 - Floor themes resolve consistently by floor id.
+- Prompt 12 Performance + debug
+  - `drawDebugStatsLine` shows render-only FX diagnostics when `game.showDebugStats` is active.
+  - Diagnostic text reports FX tier (`FX_CONFIG.quality`), particle count, and render cache hit/miss counters.
+  - Removed hot-path `Set` allocations by reusing render-local sets in `updateFxState` and `pruneBulletTrails`.

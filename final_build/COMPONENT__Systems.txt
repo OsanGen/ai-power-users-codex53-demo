@@ -59,3 +59,4 @@ Acceptance Checks:
 - Upgrades, checkpoint handling, and bomb briefing transitions remain deterministic per state.
 - Death flow continues to DEATH_LESSON first and then GAME_OVER on explicit confirm input.
 - All pooled objects are fully reset before reuse; render-facing fields remain unchanged (`x`, `y`, `vx`, `vy`, `radius`, `hp`, `hp` etc.) and no gameplay tuning or UI copy changes.
+- Headless floor-start smoke check: forcing startRun(10) reaches UPGRADE_SELECT → LESSON_SLIDE → FLOOR_INTRO → PLAYING with no runtime transition errors.
