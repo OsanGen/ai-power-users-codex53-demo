@@ -42,7 +42,8 @@ State/Edges:
   - Guarded to remain subtle and non-glowy (`edgeAlpha <= 0.02` effective per pass).
 - Added `FLOOR_FX_PACKS` visual identity matrix (`1..15`) with lead, distortion mode, motif, parallax, lattice metadata.
 - `hasDynamicFloorVisuals()` is now 1..15 and floor skins are now driven by pack selection for static + dynamic layers.
-  - Floors `1..9` render enriched layered motifs; floors `10..15` remain safe no-op placeholders.
+  - Floors `1..9` render enriched layered motifs; floors `10..13` add dedicated late-game overlays for stronger movement. Floors `14..15` remain no-op placeholders.
+- Added dedicated late-floor static and dynamic post-nine overlay helpers so `10..13` keep visible motion pressure through edge-driven and escalated animated motifs.
 - Maintains one-accent rendering by keeping support colors secondary and low-alpha only.
 - No gameplay mechanics are changed in render path.
 - `hasDynamicFloorVisuals` now safely accepts numeric or numeric-string floor IDs before enabling dynamic layer effects.

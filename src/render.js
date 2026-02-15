@@ -999,7 +999,11 @@
     6: Object.freeze({ lead: "blue", support: Object.freeze(["mint", "yellow"]), trippyLevel: 2 }),
     7: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 3 }),
     8: Object.freeze({ lead: "pink", support: Object.freeze(["yellow", "mint"]), trippyLevel: 4 }),
-    9: Object.freeze({ lead: "yellow", support: Object.freeze(["pink", "blue", "mint"]), trippyLevel: 5 })
+    9: Object.freeze({ lead: "yellow", support: Object.freeze(["pink", "blue", "mint"]), trippyLevel: 5 }),
+    10: Object.freeze({ lead: "blue", support: Object.freeze(["yellow"]), trippyLevel: 4 }),
+    11: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 4 }),
+    12: Object.freeze({ lead: "pink", support: Object.freeze(["mint", "yellow"]), trippyLevel: 5 }),
+    13: Object.freeze({ lead: "yellow", support: Object.freeze(["blue", "pink"]), trippyLevel: 5 })
   });
   const FLOOR_FX_PACKS = Object.freeze({
     1: Object.freeze({
@@ -2771,6 +2775,7 @@
   function drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme = null) {
     const pack = resolveFloorFxPack(floor);
     const lead = visualTheme ? visualTheme.lead : accent;
+    const isPostNine = pack && Number.isFinite(pack.id) && pack.id >= 10 && pack.id <= 13;
 
     ctx.save();
     ctx.beginPath();
@@ -2780,6 +2785,9 @@
     drawWorldGridLines();
     if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorStaticIdentityByPack(pack, lead, visualTheme);
+      if (isPostNine) {
+        drawPostNineStaticOverlays(lead, visualTheme, pack);
+      }
     }
 
     ctx.restore();
@@ -2793,6 +2801,7 @@
     const lead = visualTheme ? visualTheme.lead : accent;
     const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
     const pack = resolveFloorFxPack(floor);
+    const isPostNine = pack && Number.isFinite(pack.id) && pack.id >= 10 && pack.id <= 13;
 
     ctx.save();
     ctx.beginPath();
@@ -2801,6 +2810,9 @@
 
     if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorDynamicIdentityByPack(pack, lead, progress, visualTheme);
+      if (isPostNine) {
+        drawPostNineDynamicOverlays(lead, progress, visualTheme, pack);
+      }
     }
 
     ctx.restore();
@@ -2885,6 +2897,74 @@
   function drawFloorStaticNoOpPlaceholder() {}
 
   function drawFloorDynamicNoOpPlaceholder() {}
+
+  function drawPostNineStaticOverlays(lead, visualTheme = null, pack = null) {
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const wireDensity = Math.max(10, Math.floor((Number(pack && pack.latticeCount) || 12) * 0.8));
+    const wireAmp = clamp(1.2 + trippy * 2.8, 1.2, 3.4);
+    const segment = Math.max(18, Math.floor((WORLD.h - 24) / wireDensity));
+
+    for (let i = 0; i < wireDensity; i += 1) {
+      const y = WORLD.y + 12 + i * segment;
+      const edgeFade = edgeBlend(1.6, "y", y);
+      const x1 = WORLD.x + 16 + edgeFade * 5;
+      const x2 = WORLD.x + WORLD.w - 16 - edgeFade * 5;
+      ctx.strokeStyle = visualTheme ? supportTint(visualTheme, i, 0.06 + trippy * 0.08, lead) : rgba(lead, 0.06 + trippy * 0.08);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x1, y);
+      ctx.lineTo(x2, y);
+      ctx.stroke();
+
+      const anchor = WORLD.x + WORLD.w * (0.2 + 0.6 * (i / Math.max(1, wireDensity - 1)));
+      const jitter = ((i % 2) * 1.5 - 0.75) * wireAmp;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.08 + trippy * 0.06, lead) : rgba(lead, 0.08 + trippy * 0.06);
+      fillRoundRect(anchor, y - 1, 2, 2, 999);
+      fillRoundRect(anchor + 4 + jitter, y + jitter, 1.4, 1.4, 999);
+    }
+  }
+
+  function drawPostNineDynamicOverlays(lead, progress, visualTheme = null, pack = null) {
+    const escalation = getDynamicEscalation(progress);
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const waveDensity = Math.max(5, Math.floor((12 + trippy * 8) * escalation.densityScale));
+    const pulseBase = 2 + trippy * 2.2 + escalation.intensity * 1.8;
+    const time = (typeof game.globalTime === "number" ? game.globalTime : performance.now() / 1000) * escalation.speedScale;
+    const sweep = game.floorElapsed * 0.3 * reducedMotionScale;
+
+    for (let i = 0; i < waveDensity; i += 1) {
+      const y = WORLD.y + 14 + ((i + 0.5) * WORLD.h) / waveDensity;
+      const laneAmp = 1.6 + edgeBlend(2, "y", y) * 2.2;
+      const phase = time + i * 0.9 + progress * Math.PI * 0.4;
+      const alpha = 0.07 + 0.11 * escalation.intensity + 0.06 * trippy;
+
+      ctx.strokeStyle = visualTheme ? leadTint(visualTheme, alpha, lead) : rgba(lead, alpha);
+      ctx.lineWidth = 1 + escalation.intensity * 1.1;
+      ctx.beginPath();
+      for (let x = WORLD.x + 12; x <= WORLD.x + WORLD.w - 12; x += 10) {
+        const wave = Math.sin((x * 0.024) + phase + (i % 2 ? 1 : -1) * 0.7) * (pulseBase + laneAmp * escalation.densityScale) * reducedMotionScale;
+        const drift = Math.sin(sweep * 1.9 + x * 0.01 + i) * 0.5 * reducedMotionScale;
+        if (x === WORLD.x + 12) {
+          ctx.moveTo(x, y + wave + drift);
+        } else {
+          ctx.lineTo(x, y + wave + drift);
+        }
+      }
+      ctx.stroke();
+
+      if (i % 2 === 0 && visualTheme && visualTheme.support.length > 0) {
+        for (let p = 0; p < 2; p += 1) {
+          const travel = (sweep * 1.4 + i * 20 + p * 8) % (WORLD.w - 20);
+          const x = WORLD.x + 18 + travel;
+          const edge = edgeBlend(1.8, "x", x);
+          const shardAlpha = clamp(0.03 + 0.09 * escalation.intensity + 0.03 * trippy, 0.03, 0.09);
+          ctx.fillStyle = supportTint(visualTheme, i + p, shardAlpha, lead);
+          fillRoundRect(x, y + (p ? -1.5 : 1.5), 1.4 + edge * 0.08, 1.4, 999);
+        }
+      }
+    }
+  }
 
   function drawStaticGlyphField(accent, visualTheme, pack) {
     const latticeCount = Math.max(2, Number(pack.latticeCount) || 10);
