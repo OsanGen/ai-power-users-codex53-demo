@@ -1,5 +1,7 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Completed gameplay bootstrap and content integrity smoke checks: script loads successfully, floor IDs 1..13 valid, wave enemy IDs and timing constraints validated.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Replace per-frame/per-spawn object allocations with reusable object pools and epoch-based collision gating.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | in_progress | Add reproducible no-damage diagnostics around `applyPlayerDamage` and `handleCollisions`, then validate a live collision repro in debug mode.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | pending | Re-run local interactive repro with `game.showDebugStats = true` to confirm blocked-hit reason captures invuln/state/shield conditions and no gameplay regressions.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Re-check floor intro/lesson/death overlay clipping and baseline alignment.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Keep narrative copy and gameplay content consistent with latest overlays.
 - DEPLOY | completed | Push latest fixset and verify live site refresh from HEAD.

@@ -1094,43 +1094,43 @@
     }),
     10: Object.freeze({
       id: 10,
-      lead: "yellow",
+      lead: "blue",
       distortionMode: "horizontal",
-      motif: "quiet",
-      parallaxCount: 8,
-      latticeCount: 8,
-      support: Object.freeze([]),
-      trippyLevel: 0
+      motif: "wireline_reactor",
+      parallaxCount: 20,
+      latticeCount: 24,
+      support: Object.freeze(["yellow"]),
+      trippyLevel: 3
     }),
     11: Object.freeze({
       id: 11,
-      lead: "blue",
+      lead: "mint",
       distortionMode: "vertical",
-      motif: "quiet",
-      parallaxCount: 8,
-      latticeCount: 8,
-      support: Object.freeze([]),
-      trippyLevel: 0
+      motif: "bloom_lattice",
+      parallaxCount: 22,
+      latticeCount: 26,
+      support: Object.freeze(["mint", "blue"]),
+      trippyLevel: 4
     }),
     12: Object.freeze({
       id: 12,
-      lead: "mint",
+      lead: "pink",
       distortionMode: "edge",
-      motif: "quiet",
-      parallaxCount: 8,
-      latticeCount: 8,
-      support: Object.freeze([]),
-      trippyLevel: 0
+      motif: "orbital_truss",
+      parallaxCount: 24,
+      latticeCount: 28,
+      support: Object.freeze(["pink", "mint"]),
+      trippyLevel: 4
     }),
     13: Object.freeze({
       id: 13,
-      lead: "pink",
+      lead: "yellow",
       distortionMode: "horizontal",
-      motif: "quiet",
-      parallaxCount: 8,
-      latticeCount: 8,
-      support: Object.freeze([]),
-      trippyLevel: 0
+      motif: "singularity_chorale",
+      parallaxCount: 30,
+      latticeCount: 32,
+      support: Object.freeze(["mint", "yellow"]),
+      trippyLevel: 5
     }),
     14: Object.freeze({
       id: 14,
@@ -2778,13 +2778,13 @@
     ctx.clip();
 
     drawWorldGridLines();
-    if (pack && pack.id >= 1 && pack.id <= 9) {
+    if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorStaticIdentityByPack(pack, lead, visualTheme);
     }
 
     ctx.restore();
 
-    if (pack && pack.id >= 1 && pack.id <= 9) {
+    if (pack && pack.id >= 1 && pack.id <= 13) {
       drawWallDecor(floor, lead, wallLeft, wallRight, visualTheme);
     }
   }
@@ -2799,7 +2799,7 @@
     roundRectPath(WORLD.x + 1, WORLD.y + 1, WORLD.w - 2, WORLD.h - 2, 16);
     ctx.clip();
 
-    if (pack && pack.id >= 1 && pack.id <= 9) {
+    if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorDynamicIdentityByPack(pack, lead, progress, visualTheme);
     }
 
@@ -2831,7 +2831,15 @@
       drawStaticThresholdField(lead, visualTheme, pack);
     } else if (pack.id === 9) {
       drawStaticEvolutionShell(lead, visualTheme, pack);
-    } else if (pack.id >= 10) {
+    } else if (pack.id === 10) {
+      drawStaticWirelineReactor(lead, visualTheme, pack);
+    } else if (pack.id === 11) {
+      drawStaticBloomLattice(lead, visualTheme, pack);
+    } else if (pack.id === 12) {
+      drawStaticOrbitalTruss(lead, visualTheme, pack);
+    } else if (pack.id === 13) {
+      drawStaticSingularityEdgeField(lead, visualTheme, pack);
+    } else if (pack.id >= 14) {
       drawFloorStaticNoOpPlaceholder(lead, visualTheme, pack);
     }
   }
@@ -2861,7 +2869,15 @@
       drawThresholdBands(lead, progress, visualTheme);
     } else if (pack.id === 9) {
       drawEvolutionDissolve(lead, progress, visualTheme);
-    } else if (pack.id >= 10) {
+    } else if (pack.id === 10) {
+      drawDynamicWirelineReactor(lead, progress, visualTheme, pack);
+    } else if (pack.id === 11) {
+      drawDynamicBloomLattice(lead, progress, visualTheme, pack);
+    } else if (pack.id === 12) {
+      drawDynamicOrbitalTruss(lead, progress, visualTheme, pack);
+    } else if (pack.id === 13) {
+      drawDynamicSingularityChoir(lead, progress, visualTheme, pack);
+    } else if (pack.id >= 14) {
       drawFloorDynamicNoOpPlaceholder(lead, visualTheme, pack, progress);
     }
   }
@@ -2991,6 +3007,271 @@
       ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, 0.05, accent) : rgba(accent, 0.05);
       fillRoundRect(x + 4, y + 6, Math.max(16, width - 8), 2, 999);
     }
+  }
+
+  function drawStaticWirelineReactor(accent, visualTheme, pack) {
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const railLeftOuter = WORLD.x + 22;
+    const railLeftMid = WORLD.x + WORLD.w * 0.24;
+    const railRightMid = WORLD.x + WORLD.w * 0.76;
+    const railRightOuter = WORLD.x + WORLD.w - 22;
+    const segStep = clamp(12 - trippy * 2, 8, 16);
+    const segCount = Math.floor((WORLD.h - 30) / segStep);
+    const segHeight = 7;
+    const pairCount = 2;
+
+    const railColors = [0.07, 0.06, 0.06, 0.07];
+    const rails = [railLeftOuter, railLeftMid, railRightMid, railRightOuter];
+    for (let i = 0; i < rails.length; i += 1) {
+      const railX = rails[i];
+      const railColor = visualTheme ? leadTint(visualTheme, railColors[i], accent) : rgba(accent, railColors[i]);
+      ctx.fillStyle = railColor;
+      for (let s = 0; s <= segCount; s += 1) {
+        const y = WORLD.y + 14 + s * segStep;
+        const segW = 2.6 + ((i + s) % 3) * 0.4;
+        const amp = s % 2 === 0 ? 1 : 0.9;
+        fillRoundRect(railX - segW * 0.5, y, segW, segHeight * amp, 999);
+      }
+    }
+
+    const connectors = Math.max(3, Math.floor((Number(pack && pack.latticeCount) || 8) * (0.35 + trippy * 0.15)));
+    for (let pair = 0; pair < pairCount; pair += 1) {
+      const leftRail = rails[pair];
+      const rightRail = rails[rails.length - 1 - pair];
+      for (let i = 0; i < connectors; i += 1) {
+        const progress = i / Math.max(1, connectors - 1);
+        const y = WORLD.y + 24 + (WORLD.h - 48) * progress;
+        const edgeFade = edgeBlend(3, "x", leftRail + WORLD.w * 0.4 * (pair + 0.2));
+        const railFade = edgeFade * (0.75 + 0.25 * pair);
+        ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.11 + railFade * 0.05, accent) : rgba(accent, 0.11 + railFade * 0.05);
+        ctx.lineWidth = 1.05;
+        ctx.beginPath();
+        ctx.moveTo(leftRail, y);
+        const yPhase = (pair * 0.85 + i * 0.4) * Math.PI * 0.7;
+        const centerY = WORLD.y + WORLD.h * 0.5 + Math.sin(yPhase) * 4;
+        const centerX = WORLD.x + WORLD.w * 0.5 + Math.sin(progress * 3.8 + pair) * 2.4;
+        const xPeak = Math.min(leftRail + 14, centerX);
+        const xPeak2 = Math.max(rightRail - 14, centerX);
+        ctx.quadraticCurveTo(xPeak, centerY, centerX, centerY - 2 + (i % 2) * 4);
+        ctx.quadraticCurveTo(xPeak2, centerY + 1, rightRail, y + (pair % 2 === 0 ? 1 : -1));
+        ctx.stroke();
+      }
+    }
+
+    const nodeCount = 6 + Math.floor(trippy * 12);
+    for (let i = 0; i < nodeCount; i += 1) {
+      const t = i / Math.max(1, nodeCount - 1);
+      const y = WORLD.y + 16 + t * (WORLD.h - 32);
+      const x = WORLD.x + WORLD.w * 0.5 + Math.sin(t * 6.9 + game.globalTime * 0.85 + t * 1.3) * 14 * trippy;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, 0.04 + trippy * 0.08, accent) : rgba(accent, 0.04 + trippy * 0.08);
+      fillRoundRect(x - 1.6, y - 1.6, 3.2, 3.2, 999);
+    }
+  }
+
+  function drawStaticBloomLattice(accent, visualTheme, pack) {
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const rows = Math.max(5, Math.floor((Number(pack.latticeCount) || 12) * 0.45));
+    const edgePadding = 14;
+    const rowSpan = Math.max(12, WORLD.h - 36);
+    const maxSpan = WORLD.w * 0.42;
+    const minSpan = WORLD.w * 0.24;
+
+    for (let i = 0; i < rows; i += 1) {
+      const rowT = rows > 1 ? i / (rows - 1) : 0;
+      const y = WORLD.y + 18 + rowT * rowSpan;
+      const span = minSpan + (Math.sin(i * 0.74) + 1) * 0.5 * (maxSpan - minSpan);
+      const alpha = 0.05 + 0.025 * rowT;
+      const phase = rowT * Math.PI * 2 + i * 0.43;
+      drawBloomPetal(
+        WORLD.x + edgePadding,
+        y,
+        span,
+        1,
+        phase,
+        visualTheme,
+        accent,
+        alpha
+      );
+      drawBloomPetal(
+        WORLD.x + WORLD.w - edgePadding,
+        y + Math.cos(i * 0.51) * 2,
+        span,
+        -1,
+        phase + 0.92,
+        visualTheme,
+        accent,
+        alpha + 0.01
+      );
+
+      if (i % 2 === 0) {
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, 0.05 + rowT * 0.02, accent) : rgba(accent, 0.05 + rowT * 0.02);
+        fillRoundRect(WORLD.x + (i % 2 === 0 ? 0 : 4) + edgePadding + 2, y - 2, 3, 3, 999);
+        fillRoundRect(WORLD.x + WORLD.w - edgePadding - 3 + (i % 2 ? -3 : 0), y - 2, 3, 3, 999);
+      }
+
+      if (i % 3 === 0 && trippy > 0.2) {
+        const ringY = y + Math.sin(game.globalTime * 0.6 + i) * 2 * trippy;
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, i + 4, 0.04 + trippy * 0.06, accent) : rgba(accent, 0.04 + trippy * 0.06);
+        fillRoundRect(WORLD.x + WORLD.w * 0.5 - 2, ringY, 4, 4, 999);
+      }
+    }
+  }
+
+  function drawStaticOrbitalTruss(lead, visualTheme, pack) {
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const frames = Math.max(4, Math.floor((Number(pack.latticeCount) || 12) * 0.45));
+    const centerX = WORLD.x + WORLD.w * 0.5;
+    const centerY = WORLD.y + WORLD.h * 0.52;
+    const topRange = WORLD.h * 0.62;
+    let prevLeft = null;
+    let prevRight = null;
+    let prevTip = null;
+
+    for (let i = 0; i < frames; i += 1) {
+      const t = frames > 1 ? i / (frames - 1) : 0;
+      const topY = WORLD.y + WORLD.h * 0.18 + topRange * (1 - Math.pow(1 - t, 1.4));
+      const width = WORLD.w * (0.24 + t * 0.18);
+      const rise = WORLD.h * (0.16 + t * 0.08);
+      const alpha = 0.06 + t * 0.06;
+      const left = centerX - width;
+      const right = centerX + width;
+      const tip = topY - WORLD.h * (0.05 + t * 0.06);
+
+      ctx.strokeStyle = visualTheme ? leadTint(visualTheme, alpha, lead) : rgba(lead, alpha);
+      ctx.lineWidth = 1.1 + t * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(left, topY);
+      ctx.lineTo(centerX, tip);
+      ctx.lineTo(right, topY);
+      ctx.lineTo(centerX + width * 0.58, topY + rise);
+      ctx.lineTo(centerX - width * 0.58, topY + rise);
+      ctx.closePath();
+      ctx.stroke();
+
+      if (i > 0) {
+        const prevLeftLocal = prevLeft;
+        const prevRightLocal = prevRight;
+        const prevTipLocal = prevTip;
+        if (prevLeftLocal !== null && prevRightLocal !== null && prevTipLocal !== null) {
+          ctx.strokeStyle = visualTheme ? leadTint(visualTheme, Math.min(0.05 + alpha, 0.1), lead) : rgba(lead, Math.min(0.05 + alpha, 0.1));
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(prevLeftLocal, topY);
+          ctx.lineTo(left, topY);
+          ctx.lineTo(tip, topY + rise);
+          ctx.lineTo(prevTipLocal, WORLD.y + WORLD.h * 0.52);
+          ctx.lineTo(prevRightLocal, topY);
+          ctx.stroke();
+        }
+      }
+
+      prevLeft = left;
+      prevRight = right;
+      prevTip = tip;
+    }
+
+    if (trippy > 0) {
+      const arcAlpha = clamp(0.06 + trippy * 0.08, 0.06, 0.14);
+      ctx.strokeStyle = visualTheme ? leadTint(visualTheme, arcAlpha, lead) : rgba(lead, arcAlpha);
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 20; i += 1) {
+        const t = i / Math.max(1, 19);
+        const nodeX = WORLD.x + 14 + t * (WORLD.w - 28);
+        const nodeY = WORLD.y + WORLD.h * 0.56 + Math.cos(game.globalTime * 0.42 + i * 0.45) * WORLD.h * (0.025 * trippy);
+        fillRoundRect(nodeX - 1, nodeY - 1, 2, 2, 999);
+      }
+    }
+  }
+
+  function drawStaticSingularityEdgeField(accent, visualTheme, pack) {
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const rings = Math.max(3, Math.floor((Number(pack.latticeCount) || 10) * 0.45));
+    const baseAlpha = visualTheme ? 0.07 : 0.08;
+    const cornerSpan = Math.max(10, WORLD.h * 0.06);
+
+    for (let ring = 0; ring < rings; ring += 1) {
+      const inset = 10 + ring * 5;
+      const left = WORLD.x + inset;
+      const right = WORLD.x + WORLD.w - inset;
+      const top = WORLD.y + inset;
+      const bottom = WORLD.y + WORLD.h - inset;
+      const alpha = baseAlpha - ring * 0.012;
+      const stroke = visualTheme
+        ? leadTint(visualTheme, clamp(alpha, 0.02, 0.09), accent)
+        : rgba(accent, clamp(alpha, 0.02, 0.09));
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = ring % 2 === 0 ? 1.05 : 0.85;
+
+      ctx.beginPath();
+      for (let x = left + 4; x <= right - 4; x += 6) {
+        const wave = Math.sin((x - left) * 0.045 + ring * 0.6) * (1.2 + ring * 0.2);
+        const edgeBoost = edgeBlend(1 + ring * 0.08, "x", x);
+        const y = top + wave * edgeBoost;
+        if (x === left + 4) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let x = right - 4; x >= left + 4; x -= 6) {
+        const wave = Math.sin((x - left) * 0.045 + ring * 0.6 + Math.PI) * (1.2 + ring * 0.2);
+        const edgeBoost = edgeBlend(1 + ring * 0.08, "x", x);
+        const y = bottom - wave * edgeBoost;
+        if (x === right - 4) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let y = top + 4; y <= bottom - 4; y += 6) {
+        const wave = Math.sin((y - top) * 0.05 + ring * 0.9) * (1.15 + ring * 0.17);
+        const edgeBoost = edgeBlend(1 + ring * 0.08, "y", y);
+        const x = left + cornerSpan + wave * edgeBoost;
+        if (y === top + 4) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      for (let y = bottom - 4; y >= top + 4; y -= 6) {
+        const wave = Math.sin((y - top) * 0.05 + ring * 0.9 + Math.PI) * (1.15 + ring * 0.17);
+        const edgeBoost = edgeBlend(1 + ring * 0.08, "y", y);
+        const x = right - cornerSpan + wave * edgeBoost;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const cornerGlow = visualTheme ? supportTint(visualTheme, ring, 0.05 + trippy * 0.05, accent) : rgba(accent, 0.05 + trippy * 0.05);
+      ctx.fillStyle = cornerGlow;
+      fillRoundRect(left + 2, top + 2, 2, 2, 999);
+      fillRoundRect(right - 4, top + 2, 2, 2, 999);
+      fillRoundRect(left + 2, bottom - 4, 2, 2, 999);
+      fillRoundRect(right - 4, bottom - 4, 2, 2, 999);
+    }
+  }
+
+  function drawBloomPetal(anchorX, anchorY, span, direction, phase, visualTheme, accent, alpha) {
+    const crest = Math.max(4, span * 0.48);
+    const tilt = Math.sin(phase + anchorY * 0.013) * 0.6;
+    const pulse = Math.cos(phase * 0.9 + direction) * 1.35;
+    const control1X = anchorX + direction * crest * 0.34 + tilt * 2.2;
+    const control1Y = anchorY - 6 - pulse;
+    const control2X = anchorX + direction * crest * 0.82 + tilt * 2.8;
+    const control2Y = anchorY + 6 - pulse * 0.4;
+
+    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(anchorX, anchorY);
+    ctx.quadraticCurveTo(control1X, control1Y, anchorX + direction * crest * 0.62, anchorY - pulse * 0.35);
+    ctx.quadraticCurveTo(control2X, control2Y, anchorX, anchorY + pulse * 0.1);
+    ctx.stroke();
   }
 
   function drawWordmarkMarkers(accent, visualTheme, pack) {
@@ -3473,8 +3754,375 @@
     }
   }
 
+  function drawDynamicWirelineReactor(accent, progress, visualTheme = null, pack = null) {
+    const escalation = getDynamicEscalation(progress);
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const railLeftOuter = WORLD.x + 22;
+    const railLeftMid = WORLD.x + WORLD.w * 0.24;
+    const railRightMid = WORLD.x + WORLD.w * 0.76;
+    const railRightOuter = WORLD.x + WORLD.w - 22;
+    const flow = game.floorElapsed * 1.95 * escalation.speedScale * reducedMotionScale;
+    const rails = [railLeftOuter, railLeftMid, railRightMid, railRightOuter];
+    const linkCount = Math.max(4, Math.floor((6 + trippy * 4) * escalation.densityScale));
+
+    for (let r = 0; r < rails.length; r += 1) {
+      const rail = rails[r];
+      const phase = flow + r * 0.7 + game.globalTime * 0.5 * reducedMotionScale;
+      const pulse = 0.14 + escalation.intensity * 0.22;
+      ctx.strokeStyle = visualTheme ? leadTint(visualTheme, 0.15 + pulse * 0.3, accent) : rgba(accent, 0.15 + pulse * 0.3);
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      for (let y = WORLD.y + 12; y <= WORLD.y + WORLD.h - 12; y += 8) {
+        const edgeAmp = edgeBlend(3.6, "y", y);
+        const x = rail + Math.sin(phase + y * 0.075 + (r % 2) * 0.8) * (1.6 + edgeAmp * 1.8) * reducedMotionScale;
+        if (y === WORLD.y + 12) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      const packetCount = Math.max(2, Math.floor(2 * escalation.densityScale + 1));
+      const leadAlpha = 0.1 + escalation.intensity * 0.15;
+      ctx.fillStyle = visualTheme ? leadTint(visualTheme, leadAlpha, accent) : rgba(accent, leadAlpha);
+      for (let p = 0; p < packetCount; p += 1) {
+        const packetProgress = ((flow * 0.25 + p * 0.6) % 1 + 1) % 1;
+        const y = WORLD.y + 14 + packetProgress * (WORLD.h - 28);
+        const x = rail + Math.sin(flow * 0.8 + r + p * 0.9) * (2.2 + edgeBlend(2.4, "y", y) * 1.4);
+        fillRoundRect(x - 1.8, y - 1.8, 3.6, 3.6, 999);
+      }
+    }
+
+    for (let pair = 0; pair < 2; pair += 1) {
+      const leftRail = rails[pair];
+      const rightRail = rails[3 - pair];
+      const pairStrength = 0.1 + escalation.intensity * 0.12;
+      for (let step = 0; step < linkCount; step += 1) {
+        const t = step / Math.max(1, linkCount - 1);
+        const y = WORLD.y + 20 + (WORLD.h - 40) * t;
+        const edgeAmp = edgeBlend(2.8, "y", y);
+        const drift = Math.sin(flow * 0.9 + pair * 0.8 + t * Math.PI * 2 + progress * 3) * edgeAmp * reducedMotionScale;
+        const core = WORLD.x + WORLD.w * 0.5 + drift * 0.9;
+        const yJitter = drift * 0.35;
+        const leftColor = visualTheme ? leadTint(visualTheme, 0.08 + pairStrength, accent) : rgba(accent, 0.08 + pairStrength);
+        ctx.strokeStyle = leftColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(leftRail, y + yJitter);
+        ctx.quadraticCurveTo(
+          core - 22 - pair,
+          y - 4 + drift * 0.45,
+          rightRail,
+          y - yJitter
+        );
+        ctx.stroke();
+      }
+    }
+
+    if (trippy > 0.2) {
+      const ringCount = Math.max(2, Math.floor(4 + trippy * 5));
+      for (let j = 0; j < ringCount; j += 1) {
+        const t = (j / Math.max(1, ringCount - 1)) * Math.PI * 2 + game.globalTime * 0.3;
+        const y = WORLD.y + WORLD.h * (0.24 + j * 0.18);
+        const amp = 0.8 + trippy * 1.4;
+        const width = WORLD.w * (0.24 + j * 0.08);
+        const leftX = WORLD.x + WORLD.w * 0.5 - width;
+        const rightX = WORLD.x + WORLD.w * 0.5 + width;
+        const jitter = Math.sin(t + game.floorElapsed * 0.02) * amp;
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, j, 0.05 + trippy * 0.06, accent) : rgba(accent, 0.05 + trippy * 0.06);
+        fillRoundRect(leftX, y + jitter, rightX - leftX, 1.4, 999);
+      }
+    }
+  }
+
+  function drawDynamicBloomLattice(accent, progress, visualTheme = null, pack = null) {
+    const escalation = getDynamicEscalation(progress);
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const rows = Math.max(5, Math.floor((11 + Math.floor(4 * trippy)) * escalation.densityScale));
+    const inversion = Math.sin(game.floorElapsed * 0.22 + progress * 2.2) >= 0;
+    const phaseBase = game.globalTime * 1.35 * escalation.speedScale * reducedMotionScale;
+
+    for (let i = 0; i < rows; i += 1) {
+      const t = rows > 1 ? i / (rows - 1) : 0;
+      const y = WORLD.y + 16 + t * (WORLD.h - 32);
+      const span = WORLD.w * (0.22 + 0.17 * Math.sin(t * Math.PI) * 0.4);
+      const phase = phaseBase + t * 2.4 + i * 0.53;
+      const alpha = 0.06 + 0.05 * escalation.intensity + t * 0.03;
+      const leftAnchor = WORLD.x + 14;
+      const rightAnchor = WORLD.x + WORLD.w - 14;
+
+      drawBloomPetal(
+        inversion ? rightAnchor : leftAnchor,
+        y + Math.sin(t * 5 + phase) * 1.8,
+        span,
+        inversion ? -1 : 1,
+        phase,
+        visualTheme,
+        accent,
+        alpha
+      );
+      drawBloomPetal(
+        inversion ? leftAnchor : rightAnchor,
+        y + Math.cos(t * 4 + phase) * 1.5,
+        span,
+        inversion ? 1 : -1,
+        phase + 0.64,
+        visualTheme,
+        accent,
+        alpha + 0.01
+      );
+
+      const chordY = WORLD.y + 24 + (WORLD.h - 48) * t + Math.sin(phase) * 4 * reducedMotionScale;
+      const lineAlpha = visualTheme
+        ? leadTint(visualTheme, 0.07 + escalation.intensity * 0.12 + t * 0.02, accent)
+        : rgba(accent, 0.07 + escalation.intensity * 0.12 + t * 0.02);
+      const edgeAmp = edgeBlend(1.3, "y", chordY);
+      ctx.strokeStyle = lineAlpha;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let x = WORLD.x + 24; x <= WORLD.x + WORLD.w - 24; x += 10) {
+        const offset = Math.sin(x * 0.022 + phase + t * 1.6) * (2 + escalation.intensity * 3) * edgeAmp * reducedMotionScale;
+        if (x === WORLD.x + 24) {
+          ctx.moveTo(x, chordY + offset);
+        } else {
+          ctx.lineTo(x, chordY + offset);
+        }
+      }
+      ctx.stroke();
+
+      if (i % 2 === 0) {
+        const nodeCount = Math.max(2, Math.floor(3 * escalation.densityScale));
+        for (let n = 0; n < nodeCount; n += 1) {
+          const nodeT = n / Math.max(1, nodeCount);
+          const nodeX = WORLD.x + 20 + nodeT * (WORLD.w - 40);
+          const nodeY = chordY + Math.sin(phase + n * 1.9) * (1.6 + escalation.intensity * 2);
+          ctx.fillStyle = visualTheme ? supportTint(visualTheme, n, 0.09, accent) : rgba(accent, 0.09);
+          fillRoundRect(nodeX - 1, nodeY - 1, 2.2, 2.2, 999);
+        }
+      }
+    }
+
+    if (trippy > 0.25) {
+      const bandCount = Math.max(2, Math.floor(3 + trippy * 4));
+      for (let i = 0; i < bandCount; i += 1) {
+        const bandY = WORLD.y + WORLD.h * (0.28 + i * 0.18);
+        const width = WORLD.w * (0.14 + i * 0.06);
+        const xAmp = edgeBlend(1.6 + trippy * 1.2, "x", WORLD.x + WORLD.w * 0.5);
+        ctx.strokeStyle = visualTheme
+          ? leadTint(visualTheme, 0.05 + trippy * 0.05, accent)
+          : rgba(accent, 0.05 + trippy * 0.05);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for (let x = WORLD.x + 16; x <= WORLD.x + WORLD.w - 16; x += 8) {
+          const y = bandY + Math.sin(x * 0.022 + progress * 8 + i * 0.9) * (2 + trippy * 1.8 + escalation.intensity * 2) * xAmp * reducedMotionScale;
+          if (x === WORLD.x + 16) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
+    }
+  }
+
+  function drawDynamicOrbitalTruss(accent, progress, visualTheme = null, pack = null) {
+    const escalation = getDynamicEscalation(progress);
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const centerX = WORLD.x + WORLD.w * 0.5;
+    const centerY = WORLD.y + WORLD.h * 0.58;
+    const orbitCount = 3;
+
+    for (let ring = 0; ring < orbitCount; ring += 1) {
+      const ringProgress = (ring + 1) / Math.max(1, orbitCount);
+      const radiusX = WORLD.w * (0.12 + ringProgress * 0.18);
+      const radiusY = WORLD.h * (0.09 + ringProgress * 0.06);
+      const phase = game.globalTime * 0.55 * escalation.speedScale * reducedMotionScale + ring * 0.9;
+      const segments = Math.max(8, Math.floor((12 + ring * 6) * escalation.densityScale));
+      const ringAlpha = 0.08 + escalation.intensity * 0.16 + ring * 0.01;
+      ctx.strokeStyle = visualTheme ? leadTint(visualTheme, ringAlpha, accent) : rgba(accent, ringAlpha);
+      ctx.lineWidth = 1 + ring * 0.2;
+      ctx.beginPath();
+      for (let s = 0; s <= segments; s += 1) {
+        const t = s / segments;
+        const theta = t * Math.PI * 2 + phase;
+        const x = centerX + Math.cos(theta) * radiusX;
+        const y = centerY + Math.sin(theta * 1.35) * radiusY;
+        const edge = edgeBlend(2.1 + ring * 0.3, "x", x);
+        const yOffset = Math.cos(theta * 2 + progress * 2) * 1.6 * edge * reducedMotionScale;
+        if (s === 0) {
+          ctx.moveTo(x, y + yOffset);
+        } else {
+          ctx.lineTo(x, y + yOffset);
+        }
+      }
+      ctx.stroke();
+
+      const shardCount = Math.max(4, Math.floor((segments * (0.45 + trippy * 0.3)) * escalation.densityScale));
+      const shardAlpha = visualTheme ? leadTint(visualTheme, 0.1 + escalation.intensity * 0.1, accent) : rgba(accent, 0.1 + escalation.intensity * 0.1);
+      const markColor = shardAlpha;
+      ctx.strokeStyle = markColor;
+      for (let i = 0; i < shardCount; i += 1) {
+        const t = i / Math.max(1, shardCount);
+        const theta = phase * 0.65 + t * Math.PI * 2;
+        const x = centerX + Math.cos(theta) * (radiusX * 1.02);
+        const y = centerY + Math.sin(theta * 1.17) * (radiusY * 1.05);
+        const markSize = 2.1 + (ring % 2) * 0.5;
+        const edge = edgeBlend(2.8, "x", x);
+        if (edge < 0.18) {
+          continue;
+        }
+        ctx.fillStyle = shardAlpha;
+        fillRoundRect(x - markSize * 0.5, y - markSize * 0.5, markSize, markSize, 999);
+      }
+    }
+
+    if (trippy > 0.2) {
+      const nodeCount = 10 + Math.floor(trippy * 14);
+      for (let i = 0; i < nodeCount; i += 1) {
+        const t = i / Math.max(1, nodeCount - 1);
+        const theta = game.globalTime * 0.42 * (1 + trippy * 0.45) + t * Math.PI * 2;
+        const radiusX = WORLD.w * 0.28;
+        const radiusY = WORLD.h * 0.12;
+        const x = centerX + Math.cos(theta + (Math.PI * t)) * radiusX * (0.2 + t * 0.9);
+        const y = WORLD.y + WORLD.h * 0.36 + Math.sin(theta * 1.4) * (radiusY * (0.5 + t * 0.5));
+        const nodeSize = 1.4 + (i % 3) * 0.5;
+        const nodeAlpha = clamp(0.05 + trippy * 0.04 + (1 - t) * 0.03, 0.05, 0.13);
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, nodeAlpha, accent) : rgba(accent, nodeAlpha);
+        fillRoundRect(x - nodeSize * 0.5, y - nodeSize * 0.5, nodeSize, nodeSize, 999);
+      }
+    }
+  }
+
+  function drawDynamicSingularityChoir(accent, progress, visualTheme = null, pack = null) {
+    const escalation = getDynamicEscalation(progress);
+    const trippy = clamp((Number(pack && pack.trippyLevel) || 0) / 5, 0, 1);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const baseRingCount = 4;
+    const ringCount = Math.max(4, Math.floor(baseRingCount + trippy * 4));
+    const phase = game.globalTime * 0.47 * escalation.speedScale * reducedMotionScale + progress * 2;
+    const pulse = (Math.sin(game.floorElapsed * 1.05 * escalation.speedScale * reducedMotionScale + progress * Math.PI) * 0.5 + 0.5);
+
+    for (let ring = 0; ring < ringCount; ring += 1) {
+      const inset = 10 + ring * 7;
+      const left = WORLD.x + inset;
+      const right = WORLD.x + WORLD.w - inset;
+      const top = WORLD.y + inset;
+      const bottom = WORLD.y + WORLD.h - inset;
+      const trippyAmp = 1 + trippy * 0.45;
+      const waveAmp = (1.2 + ring * 0.42 + escalation.intensity * 2.2) * trippyAmp;
+      const edgeAlpha = 0.06 + escalation.intensity * 0.22 + ring * 0.008 + trippy * 0.04;
+      const edgeStyle = visualTheme ? leadTint(visualTheme, edgeAlpha, accent) : rgba(accent, edgeAlpha);
+      ctx.strokeStyle = edgeStyle;
+      ctx.lineWidth = 1;
+
+      ctx.beginPath();
+      for (let x = left + 4; x <= right - 4; x += 6) {
+        const edgeAmp = edgeBlend(2 + ring * 0.2, "x", x);
+        const y = top + (Math.sin((x - left) * 0.043 + phase + ring * 0.8) * waveAmp * edgeAmp + (1 - pulse) * ring * 0.2);
+        if (x === left + 4) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let x = right - 4; x >= left + 4; x -= 6) {
+        const edgeAmp = edgeBlend(2 + ring * 0.2, "x", x);
+        const y = bottom - (Math.sin((x - left) * 0.043 + phase + ring * 0.8 + Math.PI) * waveAmp * edgeAmp + pulse * ring * 0.15);
+        if (x === right - 4) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let y = top + 4; y <= bottom - 4; y += 6) {
+        const edgeAmp = edgeBlend(2 + ring * 0.2, "y", y);
+        const x = left + 14 + (Math.sin((y - top) * 0.043 + phase * 0.8 + ring * 0.4) * waveAmp * edgeAmp);
+        if (y === top + 4) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+      ctx.stroke();
+
+      ctx.beginPath();
+      for (let y = bottom - 4; y >= top + 4; y -= 6) {
+        const edgeAmp = edgeBlend(2 + ring * 0.2, "y", y);
+        const x = right - 14 - (Math.sin((y - top) * 0.043 + phase * 0.9 + ring * 0.6) * waveAmp * edgeAmp);
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const markerCount = Math.max(4, Math.floor((6 + trippy * 6) * escalation.densityScale));
+      for (let i = 0; i < markerCount; i += 1) {
+        const markT = i / Math.max(1, markerCount);
+        const edge = i % 4;
+        const jitter = Math.sin(phase * 1.2 + markT * 9 + ring) * (1 + ring * 0.25);
+        const markX =
+          edge === 0
+            ? left + 16 + jitter * reducedMotionScale
+            : edge === 1
+              ? right - 16 - jitter * reducedMotionScale
+              : WORLD.x + WORLD.w * 0.5 + (edge - 1.5) * WORLD.w * 0.05;
+        const markY =
+          edge === 2
+            ? top + 16 + jitter * reducedMotionScale
+            : edge === 3
+              ? bottom - 16 - jitter * reducedMotionScale
+              : WORLD.y + WORLD.h * (0.3 + markT * 0.4);
+        const markerAlpha = visualTheme ? supportTint(visualTheme, i, 0.07 + escalation.intensity * 0.12, accent) : rgba(accent, 0.07 + escalation.intensity * 0.12);
+        const markerSize = 1.8 + (ring % 2) * 0.45;
+        ctx.fillStyle = markerAlpha;
+        fillRoundRect(
+          markX + (edge === 2 ? 1 : edge === 3 ? -1 : 0),
+          markY - markerSize * 0.5,
+          markerSize,
+          markerSize,
+          999
+        );
+      }
+    }
+
+    if (trippy > 0.2) {
+      const ringBandCount = Math.max(2, Math.floor(3 + trippy * 4));
+      for (let i = 0; i < ringBandCount; i += 1) {
+        const y = WORLD.y + WORLD.h * (0.16 + i * 0.18);
+        const xSpan = WORLD.w * (0.16 + i * 0.07);
+        const edge = WORLD.x + (WORLD.w - xSpan) * 0.5;
+        const alpha = 0.04 + trippy * 0.03;
+        ctx.strokeStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(edge, y);
+        for (let x = edge; x <= edge + xSpan; x += 6) {
+          const wave = Math.sin(x * 0.033 + game.floorElapsed * 0.9 + i * 0.8) * (1.4 + trippy * 1.2);
+          if (x === edge) {
+            ctx.moveTo(x, y + wave);
+          } else {
+            ctx.lineTo(x, y + wave);
+          }
+        }
+        ctx.stroke();
+      }
+    }
+  }
+
   function drawWallDecor(floor, accent, wallLeft, wallRight, visualTheme = null) {
     const loops = 8;
+    const floorId = resolveFloorId(floor);
+    const postNine = Number.isFinite(floorId) && floorId >= 10 && floorId <= 13;
+    const wallPulse = Math.sin(game.globalTime * 0.8) * 0.04;
     for (let i = 0; i < loops; i += 1) {
       const y = wallLeft.y + 22 + i * 58;
       const xL = wallLeft.x + 12;
@@ -3494,6 +4142,12 @@
       ctx.strokeStyle = rgba(TOKENS.ink, 0.3);
       strokeRoundRect(xL, y, wallLeft.w - 24, 18, 8);
       strokeRoundRect(xR, rightOffsetY, wallRight.w - 24, 18, 8);
+
+      if (postNine) {
+        ctx.fillStyle = visualTheme ? supportTint(visualTheme, i + 2, 0.05 + wallPulse, accent) : rgba(accent, 0.05 + wallPulse);
+        fillRoundRect(xL + 12, y + (i % 2 ? 8 : 10), 1.6, 1.6, 999);
+        fillRoundRect(xR + 7, rightOffsetY + (i % 2 ? 11 : 9), 1.6, 1.6, 999);
+      }
     }
   }
 

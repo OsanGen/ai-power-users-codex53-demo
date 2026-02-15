@@ -27,6 +27,7 @@ Outputs:
   - `enterGameOver`, `requestRestart`, `startRun`, `startFloor`, `beginCurrentFloor`
   - `resolveDirectionalBurstMode`, `getDirectionalBurstStatus`
   - `getCollections`
+- `applyPlayerDamage` returns a boolean hit-result and writes debug diagnostics when `game.showDebugStats` is enabled.
 - Internal pools are not exported but remain stable during state transitions.
 
 State/Edges:
@@ -40,6 +41,10 @@ State/Edges:
 - Burst system:
   - Tracks hold time only while directional shoot key is held in PLAYING.
   - Enforces floor unlock rules for dual/omni modes.
+- Damage pipeline:
+  - `handleCollisions()` now routes collisions through `applyPlayerDamage` and records skipped/blocked hit events when debug mode is enabled.
+  - `applyPlayerDamage()` validates damage source values and player health/shield state before mutating HP.
+  - Damage is treated as skipped only for explicit guard conditions and is traceable by reason in debug logs.
 - Entity performance:
   - Uses reusable pools for bullets, enemy bullets, enemies, pickups, and particles.
   - Releases pooled objects on all collection exits (death, collisions, pickups, timeouts, and bomb clear).

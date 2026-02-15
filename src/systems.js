@@ -2069,15 +2069,34 @@
     for (let i = enemyBullets.length - 1; i >= 0; i -= 1) {
       const bullet = enemyBullets[i];
       if (circleHit(player.x, player.y, player.radius, bullet.x, bullet.y, bullet.radius)) {
+        const damage = Number.isFinite(bullet.damage) ? bullet.damage : 0;
         releaseEnemyBullet(bullet);
         enemyBullets.splice(i, 1);
-        applyPlayerDamage(bullet.damage, bullet.x, bullet.y);
+        const didDamage = applyPlayerDamage(damage, bullet.x, bullet.y, "enemyBullet");
+        if (!didDamage && game.showDebugStats) {
+          logDamageDebug("enemyBulletHitSkipped", {
+            sourceType: "enemyBullet",
+            amount: damage,
+            sourceX: bullet.x,
+            sourceY: bullet.y
+          });
+        }
       }
     }
 
     for (const enemy of enemies) {
       if (circleHit(player.x, player.y, player.radius, enemy.x, enemy.y, enemy.radius)) {
-        applyPlayerDamage(enemy.touchDamage || 1, enemy.x, enemy.y);
+        const touchDamage = Number.isFinite(enemy.touchDamage) ? enemy.touchDamage : 1;
+        const didDamage = applyPlayerDamage(touchDamage, enemy.x, enemy.y, "enemyContact");
+        if (!didDamage && game.showDebugStats) {
+          logDamageDebug("enemyContactSkipped", {
+            sourceType: "enemyContact",
+            enemyType: enemy.type,
+            amount: touchDamage,
+            sourceX: enemy.x,
+            sourceY: enemy.y
+          });
+        }
       }
     }
 
@@ -2156,7 +2175,34 @@
     return clamp(chance, 0.05, 0.34);
   }
 
-  function applyPlayerDamage(amount, sourceX, sourceY) {
+  function logDamageDebug(reason, payload = null) {
+    if (!game.showDebugStats) {
+      return;
+    }
+    const context = {
+      reason,
+      state: game.state,
+      invuln: player.invuln,
+      shieldCharges: player.shieldCharges,
+      hearts: player.hearts,
+      maxHearts: player.maxHearts,
+      fireCooldown: player.fireCooldown
+    };
+    console.log("[damage]", payload ? { ...context, ...payload } : context);
+  }
+
+  function applyPlayerDamage(amount, sourceX, sourceY, sourceType = "unknown") {
+    const resolvedAmount = Number.isFinite(amount) ? amount : 0;
+    if (resolvedAmount <= 0) {
+      logDamageDebug("invalidDamageAmount", {
+        sourceType,
+        sourceX,
+        sourceY,
+        amount
+      });
+      return false;
+    }
+
     if (
       player.invuln > 0 ||
       game.state === GameState.DEATH_ANIM ||
@@ -2164,25 +2210,60 @@
       game.state === GameState.VICTORY ||
       game.state === GameState.FLOOR_CLEAR
     ) {
-      return;
+      logDamageDebug("damageBlockedByState", {
+        sourceType,
+        sourceX,
+        sourceY,
+        amount: resolvedAmount
+      });
+      return false;
+    }
+
+    const normalizedShieldCharges = Number.isFinite(player.shieldCharges) ? Math.floor(player.shieldCharges) : 0;
+    if (normalizedShieldCharges > 0) {
+      player.shieldCharges = normalizedShieldCharges - 1;
+      player.shieldBreakFlash = 0.22;
+      player.invuln = upgrades.getInvulnDuration();
+      emitBurst(player.x, player.y, currentAccent(), 10, 175);
+      logDamageDebug("shieldAbsorbed", {
+        sourceType,
+        sourceX,
+        sourceY,
+        amount: resolvedAmount,
+        remainingShields: player.shieldCharges
+      });
+      return true;
+    }
+
+    if (!Number.isFinite(player.hearts) || !Number.isFinite(player.maxHearts) || player.maxHearts <= 0) {
+      logDamageDebug("invalidPlayerHpState", {
+        sourceType,
+        sourceX,
+        sourceY,
+        amount: resolvedAmount,
+        playerHearts: player.hearts,
+        playerMaxHearts: player.maxHearts
+      });
+      return false;
     }
 
     const invulnDuration = upgrades.getInvulnDuration();
-    if (player.shieldCharges > 0) {
-      player.shieldCharges -= 1;
-      player.shieldBreakFlash = 0.22;
-      player.invuln = invulnDuration;
-      emitBurst(player.x, player.y, currentAccent(), 10, 175);
-      return;
-    }
-
-    player.hearts = clamp(player.hearts - amount, 0, player.maxHearts);
+    const previousHearts = player.hearts;
+    player.hearts = clamp(previousHearts - resolvedAmount, 0, player.maxHearts);
     if (player.hearts <= 0) {
       player.hearts = 0;
       const deathFloor = currentFloor();
       setCheckpointFloor((deathFloor && deathFloor.id) || game.currentFloorIndex + 1);
       startDeathAnim();
-      return;
+      logDamageDebug("playerDeath", {
+        sourceType,
+        sourceX,
+        sourceY,
+        previousHearts,
+        afterHearts: player.hearts,
+        amount: resolvedAmount
+      });
+      return true;
     }
 
     player.invuln = invulnDuration;
@@ -2194,6 +2275,15 @@
     player.y = clamp(player.y, WORLD.y + player.radius, WORLD.y + WORLD.h - player.radius);
 
     emitBurst(player.x, player.y, TOKENS.white, 14, 200);
+    logDamageDebug("playerDamaged", {
+      sourceType,
+      sourceX,
+      sourceY,
+      previousHearts,
+      afterHearts: player.hearts,
+      amount: resolvedAmount
+    });
+    return true;
   }
 
   function emitBurst(x, y, color, count, speed) {
