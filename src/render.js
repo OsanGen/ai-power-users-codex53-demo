@@ -145,6 +145,16 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
+  const glfxWorldFxState = {
+    api: null,
+    fxCanvas: null,
+    texture: null,
+    sourceCanvas: null,
+    sourceCtx: null,
+    lastWidth: 0,
+    lastHeight: 0,
+    failed: false
+  };
   const fxPreviousEnemyIds = new Set();
   const fxEnemyPositions = new Map();
 
@@ -187,6 +197,113 @@
         segments: 10,
         angleOffset: 0
       });
+    }
+  }
+
+  function applyGlfxPassForTier(pipeline, quality, intensity, trippy, _time) {
+    if (!pipeline || typeof pipeline.bulgePinch !== "function") {
+      return pipeline;
+    }
+
+    const clampedIntensity = clamp(Number(intensity) || 0, 0, 1);
+    const trippyScale = clamp(Number(trippy) || 0, 0, 1);
+    const reduced = isReducedMotion();
+    const intensityScale = reduced ? 0.16 : 1;
+    const centerX = WORLD.x + WORLD.w * 0.5;
+    const centerY = WORLD.y + WORLD.h * 0.5;
+    const localRadius = Math.min(WORLD.w, WORLD.h) * (0.46 + trippyScale * 0.08);
+    const bulgeStrength = (quality === "high" ? 0.16 : quality === "medium" ? 0.1 : 0.07) * clampedIntensity * intensityScale;
+
+    let next = pipeline.bulgePinch(centerX, centerY, localRadius, bulgeStrength);
+
+    if (quality === "medium" || quality === "high") {
+      if (typeof next.swirl === "function") {
+        const angle = clampedIntensity * (quality === "high" ? 0.35 : 0.25) * intensityScale;
+        next = next.swirl(centerX, centerY, localRadius, angle);
+      }
+    }
+
+    if (quality === "high") {
+      if (typeof next.noise === "function") {
+        next = next.noise(clamp(0.01 + clampedIntensity * 0.05 + trippyScale * 0.03, 0, 0.08));
+      }
+      if (typeof next.vignette === "function") {
+        next = next.vignette(clamp(0.03 + clampedIntensity * 0.06 + trippyScale * 0.02, 0, 0.12));
+      }
+    }
+
+    return next;
+  }
+
+  function applyGlfxWorldPass(visualTheme = null) {
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const intensity = clamp(fxState.intensity || 0, 0, 1);
+    const reduced = isReducedMotion();
+    const reducedIntensity = reduced ? intensity * 0.09 : intensity;
+    if (!reduced && reducedIntensity <= 0.002) {
+      return;
+    }
+    if (quality === "low" && reducedIntensity <= 0.01) {
+      return;
+    }
+
+    const glfx = initGlfxWorldFx();
+    if (!glfx || !glfx.fxCanvas || !glfx.sourceCanvas || !glfx.sourceCtx) {
+      return;
+    }
+
+    try {
+      const trippy = visualTheme && Number.isFinite(visualTheme.trippyLevel)
+        ? clamp(visualTheme.trippyLevel / 5, 0, 1)
+        : 0;
+      const sourceCanvas = glfx.sourceCanvas;
+      const sourceCtx = glfx.sourceCtx;
+      sourceCtx.setTransform(1, 0, 0, 1, 0, 0);
+      sourceCtx.clearRect(0, 0, WIDTH, HEIGHT);
+      sourceCtx.drawImage(ctx.canvas, 0, 0);
+
+      let texture = glfx.texture;
+      if (texture && typeof texture.loadContentsOf === "function") {
+        texture.loadContentsOf(sourceCanvas);
+      } else {
+        if (texture && typeof texture.destroy === "function") {
+          texture.destroy();
+        }
+        texture = glfx.api.texture(sourceCanvas);
+      }
+      if (!texture) {
+        return;
+      }
+      glfx.texture = texture;
+
+      let pipeline = glfx.fxCanvas.draw(texture);
+      pipeline = applyGlfxPassForTier(pipeline, quality, reducedIntensity, trippy, performance.now() / 1000);
+      if (!pipeline || typeof pipeline.update !== "function") {
+        return;
+      }
+      pipeline.update();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(WORLD.x, WORLD.y, WORLD.w, WORLD.h);
+      ctx.clip();
+      ctx.drawImage(
+        glfx.fxCanvas,
+        WORLD.x,
+        WORLD.y,
+        WORLD.w,
+        WORLD.h,
+        WORLD.x,
+        WORLD.y,
+        WORLD.w,
+        WORLD.h
+      );
+      ctx.restore();
+    } catch (err) {
+      if (glfx.texture && typeof glfx.texture.destroy === "function") {
+        glfx.texture.destroy();
+      }
+      glfx.texture = null;
     }
   }
 
@@ -319,6 +436,71 @@
 
   function isReducedMotion() {
     return !!(FX_CONFIG.respectReducedMotion && AIPU.input && AIPU.input.prefersReducedMotion);
+  }
+
+  function getGlfxLibrary() {
+    if (typeof fx === "object" && fx && typeof fx.canvas === "function") {
+      return fx;
+    }
+    if (typeof window === "object" && window && typeof window.fx === "object" && window.fx && typeof window.fx.canvas === "function") {
+      return window.fx;
+    }
+    return null;
+  }
+
+  function initGlfxWorldFx() {
+    return tryCreateGlfxWorldFx();
+  }
+
+  function tryCreateGlfxWorldFx() {
+    if (!isFxEnabled() || !isFxToggleEnabled("distortion")) {
+      return null;
+    }
+    if (glfxWorldFxState.failed) {
+      return null;
+    }
+    if (!glfxWorldFxState.api) {
+      glfxWorldFxState.api = getGlfxLibrary();
+    }
+    if (!glfxWorldFxState.api || typeof glfxWorldFxState.api.canvas !== "function") {
+      return null;
+    }
+
+    try {
+      if (!glfxWorldFxState.fxCanvas) {
+        glfxWorldFxState.fxCanvas = glfxWorldFxState.api.canvas();
+      }
+      if (!glfxWorldFxState.sourceCanvas || !glfxWorldFxState.sourceCtx) {
+        const built = createLayerCanvasWithContext();
+        glfxWorldFxState.sourceCanvas = built.canvas;
+        glfxWorldFxState.sourceCtx = built.layerCtx;
+      }
+      if (!glfxWorldFxState.fxCanvas || !glfxWorldFxState.sourceCanvas || !glfxWorldFxState.sourceCtx) {
+        glfxWorldFxState.fxCanvas = null;
+        glfxWorldFxState.sourceCanvas = null;
+        glfxWorldFxState.sourceCtx = null;
+        return null;
+      }
+
+      if (glfxWorldFxState.lastWidth !== WIDTH || glfxWorldFxState.lastHeight !== HEIGHT) {
+        glfxWorldFxState.fxCanvas.width = WIDTH;
+        glfxWorldFxState.fxCanvas.height = HEIGHT;
+        glfxWorldFxState.sourceCanvas.width = WIDTH;
+        glfxWorldFxState.sourceCanvas.height = HEIGHT;
+        glfxWorldFxState.lastWidth = WIDTH;
+        glfxWorldFxState.lastHeight = HEIGHT;
+        glfxWorldFxState.texture = null;
+      }
+
+      return glfxWorldFxState;
+    } catch (err) {
+      glfxWorldFxState.failed = true;
+      glfxWorldFxState.fxCanvas = null;
+      glfxWorldFxState.texture = null;
+      glfxWorldFxState.sourceCanvas = null;
+      glfxWorldFxState.sourceCtx = null;
+      return null;
+    }
   }
 
   function isFxEnabled() {
@@ -1270,12 +1452,13 @@
     drawPickups(accent);
     drawBullets(accent);
     drawEnemies(accent);
-    drawPlayer(accent);
+    drawPlayer(accent, visualTheme);
     drawParticles();
     drawFxParticles();
     applyChromaEdgeSplit(visualTheme);
 
     restoreAfterWorld(worldCameraApplied);
+    applyGlfxWorldPass(visualTheme);
 
     drawHud(floor, accent);
     drawStateOverlay(floor, accent);
@@ -3403,7 +3586,7 @@
     }
   }
 
-  function drawPlayer(accent) {
+  function drawPlayer(accent, visualTheme = null) {
     const blink = player.invuln > 0 && Math.floor(game.globalTime * 24) % 2 === 0;
     if (blink) {
       return;
@@ -3433,28 +3616,76 @@
     fillRoundRect(bodyX + 6, bodyY + bodyH - 6, bodyW * 0.28, 16, 6);
     fillRoundRect(bodyX + bodyW - 6 - bodyW * 0.28, bodyY + bodyH - 6, bodyW * 0.28, 16, 6);
 
-    ctx.fillStyle = TOKENS.yellow;
+    const headTime = typeof game.globalTime === "number" ? game.globalTime : 0;
+    const secondaryColor = visualTheme && Array.isArray(visualTheme.support) && visualTheme.support.length > 0
+      ? visualTheme.support[0]
+      : TOKENS.ink;
+    const pulse = (Math.sin(headTime * 1.2 + x * 0.015 + y * 0.008) + 1) * 0.5;
+    const spin = headTime * 0.7 + fxState.shotPulse * 0.4;
+    const gearTeeth = 10;
+    const outerRadius = headRadius * 1.05;
+    const innerRadius = headRadius * 0.72;
+
+    ctx.save();
+    ctx.translate(x, headY);
+    ctx.rotate(spin);
+
+    ctx.fillStyle = rgba(accent, clamp(0.62 + pulse * 0.24 + fxState.intensity * 0.1, 0.64, 0.94));
     ctx.beginPath();
-    ctx.arc(x, headY, headRadius, 0, Math.PI * 2);
+    ctx.arc(0, 0, outerRadius, 0, Math.PI * 2);
     ctx.fill();
+
     ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let i = 0; i < gearTeeth; i += 1) {
+      const angle = (Math.PI * 2 * i) / gearTeeth;
+      const sx = Math.cos(angle) * innerRadius;
+      const sy = Math.sin(angle) * innerRadius;
+      const tx = Math.cos(angle) * outerRadius;
+      const ty = Math.sin(angle) * outerRadius;
+
+      const toothWidth = headRadius * 0.38;
+      const toothHeight = headRadius * 0.28;
+      ctx.beginPath();
+      const toothAngle = angle - Math.PI / gearTeeth;
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(toothAngle);
+      ctx.fillStyle = rgba(accent, clamp(0.9 - fxState.intensity * 0.15, 0.72, 0.98));
+      ctx.fillRect(toothWidth * 0.45, -toothHeight * 0.5, toothWidth * 0.55, toothHeight);
+      ctx.restore();
+
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(tx, ty);
+    }
     ctx.stroke();
 
+    ctx.beginPath();
+    ctx.arc(0, 0, innerRadius, 0, Math.PI * 2);
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillRect(x - 5, headY - 3, 2, 2);
-    ctx.fillRect(x + 3, headY - 3, 2, 2);
+    ctx.fill();
+
+    ctx.fillStyle = rgba(secondaryColor, clamp(0.08 + pulse * 0.06 + fxState.intensity * 0.07, 0.08, 0.24));
+    ctx.beginPath();
+    ctx.arc(0, 0, innerRadius * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillRect(-2, -2, 4, 2);
 
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.arc(x - 4, headY - 1, 6, Math.PI * 1.25, Math.PI * 0.1, false);
+    ctx.arc(-4, -1, 4.5, Math.PI * 1.15, Math.PI * 0.24, false);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x + 4, headY + 1, 5.5, Math.PI * 1.1, Math.PI * 0.1, false);
+    ctx.arc(4, 1, 3.8, Math.PI * 1.1, Math.PI * 0.24, false);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(x, headY + 4, 6, Math.PI * 1.05, Math.PI * 2, false);
+    ctx.arc(0, 2.5, 4.5, Math.PI * 1.1, Math.PI * 2, false);
     ctx.stroke();
+    ctx.restore();
 
     const aimX = player.lastAimX;
     const aimY = player.lastAimY;

@@ -20,4 +20,6 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Implement Prompt 12 performance pass: add debug overlay stats (FX tier, particle count, render cache hits/misses) and eliminate per-frame Set churn in `updateFxState` and `pruneBulletTrails`.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Fix run summary overlays and floor-clear footer progression logic: proper summary pill text anchor x-positions and `FLOORS.length`-based clear footer gating.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Implement Prompt 6: add render-only fxParticles effect stream with pooled hit sparks and death dissolve fragments.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | pending | Run browser smoke check for `game.showDebugStats`, confirm overlay text is visible, and verify draw cadence still matches `DYNAMIC_FX_FPS`.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Implemented GLFX world post-process in `draw()` after world restore and before HUD overlay, with reduced-motion and fallback-safe behavior.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Reworked `drawPlayer` head into a rotating cog motif with subtle color modulation from visual theme support palette and FX intensity.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | pending | Perform browser smoke validation: enable `game.showDebugStats`, verify GLFX world pass + cog-head visuals render correctly and confirm no HUD distortion in PLAYING, then sample on reduced-motion profile.

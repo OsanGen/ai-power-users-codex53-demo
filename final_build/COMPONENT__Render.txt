@@ -46,6 +46,19 @@ State/Edges:
 - Maintains one-accent rendering by keeping support colors secondary and low-alpha only.
 - No gameplay mechanics are changed in render path.
 - `hasDynamicFloorVisuals` now safely accepts numeric or numeric-string floor IDs before enabling dynamic layer effects.
+- Added a GLFX wrapper post-process on the world layer using `glfx.js` in `applyGlfxWorldPass()`.
+  - Initializes WebGL pipeline via `initGlfxWorldFx()` / `tryCreateGlfxWorldFx()` only in render namespace.
+  - Uses a cached `fxCanvas` and `sourceCanvas` to keep GLFX updates in world-space only (WORLD clip).
+  - Builds tiered filter chains via `applyGlfxPassForTier()`:
+    - low: subtle `bulgePinch`
+    - medium: `bulgePinch + swirl`
+    - high: adds muted `swirl + noise + vignette`
+  - Honors reduced-motion by scaling effect down aggressively and avoiding abrupt color-heavy operations.
+  - Catches runtime exceptions and falls back to existing native distortions when GLFX fails.
+  - Invoked from `draw()` after world rendering and world-camera restore, before HUD and state overlay draws.
+- Added world-layer-only character head variant in `drawPlayer()`:
+  - Head now renders as a rotating cog motif with subtle per-frame color shift using floor support/accent mix.
+  - Keeps lead accent dominance and avoids gameplay state changes.
 
 Dependencies:
 - `AIPU.content` narrative helper methods for labels.
