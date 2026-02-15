@@ -60,3 +60,11 @@ Acceptance Checks:
   - `drawDebugStatsLine` shows render-only FX diagnostics when `game.showDebugStats` is active.
   - Diagnostic text reports FX tier (`FX_CONFIG.quality`), particle count, and render cache hit/miss counters.
   - Removed hot-path `Set` allocations by reusing render-local sets in `updateFxState` and `pruneBulletTrails`.
+- UI overlays honor current floor count:
+  - `drawStateOverlay` clear-state footer only shows "Transitioning..." when floor id is below `FLOORS.length`.
+- Run summary pill labels and spacing remain correctly anchored within the summary panel bounds.
+- Prompt 6 impact effects implemented:
+  - Render-only `fxParticles` array has object pool backed storage and cap by quality tier.
+  - Hit events trigger pooled micro sparks near enemy impact points.
+  - Death events trigger a ring dissolve and shard-like particles.
+  - Update/draw pass runs with line/rect drawing in the world transform and does not mutate gameplay collections.

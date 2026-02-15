@@ -133,10 +133,188 @@
     lastKills: 0,
     lastEnemyHurt: new Map()
   };
+  const FX_PARTICLE_CAPS = Object.freeze({
+    low: 150,
+    medium: 350,
+    high: 700
+  });
+  const fxParticles = [];
+  const fxParticlePool = [];
+  const fxParticleMeta = {
+    lastRenderTime: 0,
+    renderAccent: TOKENS.yellow,
+    activeFloorId: 1
+  };
+  const fxPreviousEnemyIds = new Set();
+  const fxEnemyPositions = new Map();
 
   function getFxQualityCaps() {
     const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
     return FX_QUALITY_CAPS[quality] || FX_QUALITY_CAPS.medium;
+  }
+
+  function getFxParticleCapacity() {
+    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    return FX_PARTICLE_CAPS[quality] || FX_PARTICLE_CAPS.medium;
+  }
+
+  function ensureFxParticlePool() {
+    const target = getFxParticleCapacity();
+    const available = fxParticlePool.length + fxParticles.length;
+    const missing = target - available;
+    if (missing <= 0) {
+      return;
+    }
+
+    for (let i = 0; i < missing; i += 1) {
+      fxParticlePool.push({
+        kind: "spark",
+        x: 0,
+        y: 0,
+        prevX: 0,
+        prevY: 0,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 0,
+        size: 0,
+        alpha: 0,
+        color: TOKENS.ink,
+        speed: 0,
+        radius: 0,
+        radiusDelta: 0,
+        age: 0,
+        segments: 10,
+        angleOffset: 0
+      });
+    }
+  }
+
+  function acquireFxParticle() {
+    if (!isFxEnabled()) {
+      return null;
+    }
+    if (fxParticlePool.length <= 0) {
+      return null;
+    }
+    return fxParticlePool.pop();
+  }
+
+  function releaseFxParticle(particle) {
+    if (!particle) {
+      return;
+    }
+    fxParticlePool.push(particle);
+  }
+
+  function spawnFxParticle(definition = null) {
+    if (!definition || !isFxToggleEnabled("particles")) {
+      return;
+    }
+
+    const max = getFxParticleCapacity();
+    if (fxParticles.length >= max) {
+      return;
+    }
+
+    const particle = acquireFxParticle();
+    if (!particle) {
+      return;
+    }
+
+    particle.kind = definition.kind || "spark";
+    particle.x = Number.isFinite(definition.x) ? definition.x : 0;
+    particle.y = Number.isFinite(definition.y) ? definition.y : 0;
+    particle.prevX = particle.x;
+    particle.prevY = particle.y;
+    particle.vx = Number.isFinite(definition.vx) ? definition.vx : 0;
+    particle.vy = Number.isFinite(definition.vy) ? definition.vy : 0;
+    particle.life = Number.isFinite(definition.life) ? definition.life : 0;
+    particle.maxLife = Number.isFinite(definition.maxLife) ? Math.max(0.05, definition.maxLife) : 0.12;
+    particle.size = Number.isFinite(definition.size) ? clamp(definition.size, 1, 5) : 1.8;
+    particle.alpha = Number.isFinite(definition.alpha) ? clamp(definition.alpha, 0, 1) : 0.7;
+    particle.color = definition.color || TOKENS.ink;
+    particle.speed = Number.isFinite(definition.speed) ? definition.speed : 0;
+    particle.radius = Number.isFinite(definition.radius) ? definition.radius : 0;
+    particle.radiusDelta = Number.isFinite(definition.radiusDelta) ? definition.radiusDelta : 0;
+    particle.age = 0;
+    particle.segments = Number.isFinite(definition.segments) ? Math.max(8, Math.floor(definition.segments)) : 12;
+    particle.angleOffset = definition.angleOffset || 0;
+
+    fxParticles.push(particle);
+  }
+
+  function spawnFxImpactSparks(x, y) {
+    if (!isFxToggleEnabled("particles")) {
+      return;
+    }
+
+    const count = 6 + Math.floor(Math.random() * 9);
+    const reducedScale = isReducedMotion() ? 0.4 : 1;
+    const accentBoostChance = 0.18;
+    for (let i = 0; i < count; i += 1) {
+      const amp = reducedScale * (0.8 + Math.random() * 1.6);
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 44 + Math.random() * 64;
+      const isAccent = i < 2 && Math.random() < accentBoostChance;
+      spawnFxParticle({
+        kind: "spark",
+        x,
+        y,
+        vx: Math.cos(angle) * speed * amp,
+        vy: Math.sin(angle) * speed * amp,
+        life: 0.12 + Math.random() * 0.1,
+        maxLife: 0.2 + Math.random() * 0.08,
+        size: 1.2 + Math.random() * 1.4,
+        alpha: 0.18 + Math.random() * 0.1,
+        color: isAccent ? fxParticleMeta.renderAccent : TOKENS.ink
+      });
+    }
+  }
+
+  function spawnFxDeathDissolve(x, y) {
+    if (!isFxToggleEnabled("particles")) {
+      return;
+    }
+
+    const accentChance = 0.2;
+    const ringLife = 0.5 + Math.random() * 0.1;
+    spawnFxParticle({
+      kind: "deathRing",
+      x,
+      y,
+      vx: 0,
+      vy: 0,
+      life: ringLife,
+      maxLife: ringLife,
+      size: 1.3,
+      alpha: 0.42,
+      radius: 3 + Math.random() * 2,
+      radiusDelta: 45 + Math.random() * 35,
+      segments: 10 + Math.floor(Math.random() * 3),
+      color: TOKENS.ink
+    });
+
+    const shardCount = 3 + Math.floor(Math.random() * 3);
+    const reducedScale = isReducedMotion() ? 0.35 : 1;
+    for (let i = 0; i < shardCount; i += 1) {
+      const angle = (Math.PI * 2 * i) / shardCount + Math.random() * 0.6;
+      const speed = 55 + Math.random() * 35;
+      const isAccent = Math.random() < accentChance;
+      spawnFxParticle({
+        kind: "deathShard",
+        x,
+        y,
+        vx: Math.cos(angle) * speed * reducedScale,
+        vy: Math.sin(angle) * speed * reducedScale,
+        life: 0.16 + Math.random() * 0.12,
+        maxLife: 0.32 + Math.random() * 0.1,
+        size: 1.2 + Math.random() * 1,
+        alpha: 0.2 + Math.random() * 0.1,
+        color: isAccent ? fxParticleMeta.renderAccent : TOKENS.ink,
+        speed
+      });
+    }
   }
 
   function isReducedMotion() {
@@ -179,6 +357,7 @@
     const threat = (enemies && enemies.length ? enemies.length : 0) + (enemyBullets && enemyBullets.length ? enemyBullets.length : 0);
     fxState.progress = floorProgress;
     fxState.danger = clamp(threat / 12, 0, 1);
+    ensureFxParticlePool();
 
     if (player && fxState.lastFireCooldown <= 0 && player.fireCooldown > 0) {
       fxState.shotPulse = 1;
@@ -206,8 +385,33 @@
       const currentHurt = Number.isFinite(enemy.hurtFlash) ? enemy.hurtFlash : 0;
       if (currentHurt > hitThreshold && currentHurt > previousHurt) {
         fxState.hitPulse = 1;
+        spawnFxImpactSparks(enemy.x, enemy.y);
       }
+
+      const lastPos = fxEnemyPositions.get(key);
+      if (lastPos) {
+        lastPos.x = enemy.x;
+        lastPos.y = enemy.y;
+      } else {
+        fxEnemyPositions.set(key, { x: enemy.x, y: enemy.y });
+      }
+
       fxState.lastEnemyHurt.set(key, currentHurt);
+    }
+
+    for (const key of fxPreviousEnemyIds) {
+      if (!fxActiveEnemyIds.has(key)) {
+        const position = fxEnemyPositions.get(key);
+        if (position) {
+          spawnFxDeathDissolve(position.x, position.y);
+        }
+        fxEnemyPositions.delete(key);
+      }
+    }
+
+    fxPreviousEnemyIds.clear();
+    for (const key of fxActiveEnemyIds) {
+      fxPreviousEnemyIds.add(key);
     }
 
     for (const key of fxState.lastEnemyHurt.keys()) {
@@ -1005,7 +1209,6 @@
 
   function draw() {
     syncCollections();
-    updateFxState();
     ctx = mainCtx;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -1016,7 +1219,11 @@
 
     const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
     const accent = accentColor(floor.accent);
+    const floorId = resolveFloorId(floor);
+    fxParticleMeta.renderAccent = accent;
+    fxParticleMeta.activeFloorId = Number.isFinite(floorId) ? floorId : 1;
     const visualTheme = resolveFloorVisualTheme(floor, accent);
+    updateFxState();
     const deathShake = game.state === GameState.DEATH_ANIM ? systems.getDeathShakeOffset() : null;
     systems.syncOverlayRestartButton();
 
@@ -1065,6 +1272,7 @@
     drawEnemies(accent);
     drawPlayer(accent);
     drawParticles();
+    drawFxParticles();
     applyChromaEdgeSplit(visualTheme);
 
     restoreAfterWorld(worldCameraApplied);
@@ -3273,6 +3481,87 @@
     }
   }
 
+  function drawFxParticles() {
+    if (!isFxToggleEnabled("particles")) {
+      return;
+    }
+
+    const now = performance.now();
+    const prev = Number(fxParticleMeta.lastRenderTime) || now;
+    const dt = clamp((now - prev) / 1000, 0.001, 0.033);
+    fxParticleMeta.lastRenderTime = now;
+    const reduced = getReducedMotionScale();
+
+    for (let i = fxParticles.length - 1; i >= 0; i -= 1) {
+      const particle = fxParticles[i];
+      if (!particle) {
+        fxParticles.splice(i, 1);
+        releaseFxParticle(particle);
+        continue;
+      }
+
+      particle.age += dt;
+      particle.prevX = particle.x;
+      particle.prevY = particle.y;
+      particle.x += particle.vx * dt * reduced;
+      particle.y += particle.vy * dt * reduced;
+
+      const drag = particle.kind === "deathRing" ? 1 - dt * 1.5 : 1 - dt * 2.8;
+      const damp = clamp(drag, 0.64, 0.98);
+      particle.vx *= damp;
+      particle.vy *= damp;
+      particle.life -= dt;
+
+      if (particle.life <= 0) {
+        fxParticles.splice(i, 1);
+        releaseFxParticle(particle);
+        continue;
+      }
+
+      const localProgress = clamp(particle.age / Math.max(particle.maxLife, 0.001), 0, 1);
+      const localFade = clamp(1 - localProgress, 0, 1);
+      const baseAlpha = clamp(particle.alpha * localFade, 0, 1);
+
+      if (particle.kind === "deathRing") {
+        const radius = clamp(particle.radius + particle.radiusDelta * localProgress, 0, particle.radius + particle.radiusDelta);
+        const segments = particle.segments;
+        const localLineWidth = Math.max(0.8, particle.size * 0.8);
+        ctx.strokeStyle = rgba(particle.color, baseAlpha * 0.7);
+        ctx.lineWidth = localLineWidth;
+        ctx.beginPath();
+        for (let s = 0; s < segments; s += 1) {
+          const t0 = (Math.PI * 2 * s) / segments + particle.angleOffset;
+          const t1 = t0 + Math.PI * 2 / (segments * 2);
+          const x0 = particle.x + Math.cos(t0) * radius;
+          const y0 = particle.y + Math.sin(t0) * radius;
+          const x1 = particle.x + Math.cos(t1) * radius;
+          const y1 = particle.y + Math.sin(t1) * radius;
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+        }
+        ctx.stroke();
+        continue;
+      }
+
+      const drawColor = rgba(particle.color, clamp(baseAlpha * 0.9, 0, 1));
+      const lineW = clamp(particle.size * 0.8, 0.6, 2.1);
+      ctx.strokeStyle = drawColor;
+      ctx.lineWidth = lineW;
+      ctx.beginPath();
+      ctx.moveTo(particle.prevX, particle.prevY);
+      ctx.lineTo(particle.x, particle.y);
+      ctx.stroke();
+
+      ctx.fillStyle = drawColor;
+      ctx.fillRect(
+        particle.x - particle.size * 0.4,
+        particle.y - particle.size * 0.4,
+        Math.max(1, particle.size * 0.85),
+        Math.max(1, particle.size * 0.85)
+      );
+    }
+  }
+
   function drawHud(floor, accent) {
     const hudX = 70;
     const hudY = 18;
@@ -3564,10 +3853,11 @@
     const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
     const cacheStats = renderCacheState && renderCacheState.stats ? renderCacheState.stats : null;
     const particleCount = particles ? particles.length : 0;
+    const fxParticleCount = fxParticles ? fxParticles.length : 0;
     const cacheHits = cacheStats ? cacheStats.hits : 0;
     const cacheMisses = cacheStats ? cacheStats.misses : 0;
     const debugText =
-      "dbg fx " + quality + " | particles " + particleCount + " | cache " + cacheHits + "/" + cacheMisses;
+      "dbg fx " + quality + " | particles " + particleCount + "+" + fxParticleCount + " | cache " + cacheHits + "/" + cacheMisses;
 
     const panelX = 70;
     const panelY = 98;
@@ -3616,7 +3906,8 @@
     } else if (game.state === GameState.FLOOR_CLEAR) {
       title = uiText("floorClearTitle", "Floor cleared");
       body = uiText("floorClearSubtitle", "Inputs → weights → neurons → layers → guess.");
-      footer = floor.id < 9 ? uiText("floorTransitioningFooter", "Transitioning...") : "";
+      const floorId = resolveFloorId(floor);
+      footer = floorId < FLOORS.length ? uiText("floorTransitioningFooter", "Transitioning...") : "";
     }
 
     const panelW = 760;
@@ -3721,12 +4012,12 @@
     ctx.fillStyle = TOKENS.ink;
     ctx.font = '700 17px "Inter", sans-serif';
     ctx.fillText(
-      fitCanvasText(formatUiText("runSummaryFloorsCleared", "Floors cleared: {count}", { count: floorsCleared }), pillW - 26),
+      fitCanvasText(formatUiText("runSummaryFloorsCleared", "Floors cleared: {count}", { count: floorsCleared }), pillW - 12),
       panelX + 68,
       pillY + 11
     );
     ctx.fillText(
-      fitCanvasText(formatUiText("runSummaryUpgradesTaken", "Upgrades taken: {count}", { count: totalTaken }), pillW - 26),
+      fitCanvasText(formatUiText("runSummaryUpgradesTaken", "Upgrades taken: {count}", { count: totalTaken }), pillW - 12),
       panelX + 305,
       pillY + 11
     );
