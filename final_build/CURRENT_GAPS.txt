@@ -7,3 +7,4 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/narrative.js | completed | Add teachCards floors 10–15 (new concept entries only).
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Add late-floor archetype pressure (10–15) with two new ENEMY_DEFS types phased in 12–15.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Validate late-floor 10–15 tuning pass/fail: spawn-score metric is monotonically increasing 10→15 and wave endTime constraints hold.
+- /Users/abelsanchez/CODEX/WONDERLAND/deploy | completed | Verified live GH Pages payload: floor IDs 1..15 and teach cards 1..15 synchronized in remote `src/content.js` and `narrative.js`.
