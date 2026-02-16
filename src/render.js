@@ -145,6 +145,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
+  const PLAYER_SPRITE_CACHE_BUST = "v=20260216-3";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -198,7 +199,8 @@
       entry.status = "error";
       entry.failed = true;
     };
-    image.src = encodeURI(entry.path);
+    const versionedPath = `${entry.path}?${PLAYER_SPRITE_CACHE_BUST}`;
+    image.src = encodeURI(versionedPath);
     entry.status = "loading";
     return entry;
   }
