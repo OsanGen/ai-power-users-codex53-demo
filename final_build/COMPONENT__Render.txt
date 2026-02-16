@@ -76,6 +76,7 @@ Dependencies:
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
 - `index.html` script tags use cache-bust tokens (`?v=20260216-2`) to force render bundle refresh on deployment.
+  - `index.html` script tags now use cache-bust tokens (`?v=20260216-3`) to ensure updated render and main bundles load.
   - Player sprite URLs are additionally cache-busted by version in `src/render.js` (`PLAYER_SPRITE_CACHE_BUST = "v=20260216-3"`) to avoid stale image caching across deploys.
 
 Acceptance Checks:
