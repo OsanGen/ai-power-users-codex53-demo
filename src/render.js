@@ -232,7 +232,7 @@
     return playerFacingDirection;
   }
 
-  function drawPlayerSpriteFallbackToFront(direction) {
+  function drawPlayerSpriteFallbackToFront(direction, accent, visualTheme = null) {
     const order = direction === "front" ? ["front"] : [direction, "front"];
     for (let i = 0; i < order.length; i += 1) {
       const state = getPlayerSpriteState(order[i]);
@@ -261,7 +261,112 @@
       return true;
     }
 
-    return false;
+    return drawPlayerProceduralSprite(direction, accent, visualTheme);
+  }
+
+  function drawPlayerProceduralSprite(direction, accent, visualTheme = null) {
+    const x = player.x;
+    const y = player.y;
+    const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
+    const bodyW = playerRadius * 1.35;
+    const bodyH = playerRadius * 2;
+    const bodyX = x - bodyW * 0.5;
+    const bodyY = y - bodyH * 0.45;
+    const headR = playerRadius * 0.82;
+    const supportColor = visualTheme && Array.isArray(visualTheme.support) && visualTheme.support.length > 0
+      ? visualTheme.support[0]
+      : TOKENS.ink;
+    const armL = direction === "left" ? -1 : direction === "right" ? 1 : 0;
+    const tilt = direction === "back" ? 0.2 : 0;
+    const shouldMirror = direction === "left";
+
+    ctx.save();
+    if (shouldMirror) {
+      ctx.translate(x + bodyW * 0.5, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-(x + bodyW * 0.5), 0);
+    }
+    if (direction === "back") {
+      ctx.translate(0, 0.8);
+    }
+
+    ctx.fillStyle = TOKENS.white;
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    fillRoundRect(bodyX, bodyY, bodyW, bodyH, 10);
+    strokeRoundRect(bodyX, bodyY, bodyW, bodyH, 10);
+
+    ctx.fillStyle = accent;
+    fillRoundRect(bodyX + 2.7, bodyY + 3, bodyW - 5.4, bodyH - 6, 8);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillRect(bodyX + bodyW * 0.58, bodyY + bodyH - 1, 2.8, 10);
+    if (direction !== "back") {
+      ctx.fillRect(bodyX + 2, bodyY + bodyH - 1, 2.8, 10);
+    }
+
+    ctx.save();
+    ctx.translate(x, bodyY - headR * 0.28);
+    ctx.rotate(tilt * armL);
+
+    ctx.fillStyle = accent;
+    fillRoundRect(-headR * 0.7, -headR * 1.05, headR * 1.4, headR * 0.95, 4);
+    ctx.fillStyle = TOKENS.ink;
+    fillRoundRect(-headR * 0.55, -headR * 0.9, headR * 1.1, headR * 0.2, 3);
+    fillRoundRect(-headR * 0.25, -headR * 0.48, headR * 0.5, headR * 0.35, 4);
+
+    ctx.fillStyle = TOKENS.white;
+    ctx.beginPath();
+    ctx.arc(0, -headR * 0.38, headR * 0.25, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, -headR * 0.38, headR * 0.25, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if (direction === "left" || direction === "right") {
+      const jawShift = armL * 0.9;
+      ctx.fillStyle = TOKENS.ink;
+      ctx.beginPath();
+      ctx.arc(jawShift * headR * 0.25, -headR * 0.2, headR * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = supportColor;
+    ctx.globalAlpha = 0.16;
+    ctx.beginPath();
+    ctx.arc(0, headR * 0.16, headR * 0.62, Math.PI, Math.PI * 2, false);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillRect(-headR * 0.17, -headR * 0.02, headR * 0.34, 2);
+    ctx.restore();
+
+    if (direction !== "back") {
+      ctx.fillStyle = TOKENS.ink;
+      const shoulderX = armL === -1 ? bodyX + 2 : bodyX + bodyW - 2;
+      ctx.beginPath();
+      ctx.arc(shoulderX, bodyY + 4, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(shoulderX, bodyY + 30, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    if (direction === "left" || direction === "right") {
+      const eyeY = bodyY + bodyH - 6;
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 1.7;
+      ctx.beginPath();
+      ctx.moveTo(x - bodyW * 0.18, eyeY);
+      ctx.lineTo(x + bodyW * 0.18, eyeY);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+    return true;
   }
 
   function getFxQualityCaps() {
@@ -4456,7 +4561,7 @@
     }
 
     const direction = getPlayerDirectionFromMotion();
-    const drewSprite = drawPlayerSpriteFallbackToFront(direction);
+    const drewSprite = drawPlayerSpriteFallbackToFront(direction, accent, visualTheme);
     if (!drewSprite) {
       drawPlayerCog(accent, visualTheme);
     }
