@@ -7,7 +7,7 @@ Purpose:
 - Support directional player model swap for visuals:
   - Idle/front/left/right/back player sprites are loaded lazily from `./assets/player/character-idle-{state}.png`.
   - Direction is resolved from movement velocity and aim fallback.
-  - Missing or failed sprite loads fall back to a built-in directional procedural character so visuals remain updated without external files.
+  - Missing or failed sprite loads fall back to a built-in directional procedural character that uses a cog-style head and per-orientation body profile.
 
 Inputs:
 - Render state (`AIPU.state.game`, `AIPU.state.player`, entity collections).
@@ -70,6 +70,7 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
+- `index.html` script tags use cache-bust tokens (`?v=20260216-1`) to force render bundle refresh on deployment.
 
 Acceptance Checks:
 - No state transitions altered by rendering.

@@ -264,32 +264,111 @@
     return drawPlayerProceduralSprite(direction, accent, visualTheme);
   }
 
+  function drawPlayerCogGlyph(cx, cy, radius, accent, visualTheme = null) {
+    const pulse = (Math.sin((typeof game.globalTime === "number" ? game.globalTime : 0) * 1.8) + 1) * 0.5;
+    const support = visualTheme && Array.isArray(visualTheme.support) && visualTheme.support.length > 0
+      ? visualTheme.support[0]
+      : TOKENS.ink;
+    const spin = (typeof game.globalTime === "number" ? game.globalTime : 0) * 0.8 + fxState.shotPulse * 0.45 + fxState.intensity * 0.9;
+    const teeth = 9;
+    const outerR = radius * 1.05;
+    const innerR = radius * 0.67;
+    const hubR = radius * 0.54;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(spin);
+
+    ctx.fillStyle = rgba(accent, clamp(0.7 + pulse * 0.08, 0.7, 0.96));
+    ctx.beginPath();
+    ctx.arc(0, 0, outerR, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = TOKENS.ink;
+    for (let i = 0; i < teeth; i += 1) {
+      const a = (Math.PI * 2 * i) / teeth;
+      const dx = Math.cos(a);
+      const dy = Math.sin(a);
+      ctx.beginPath();
+      ctx.moveTo(dx * innerR * 0.72, dy * innerR * 0.72);
+      ctx.lineTo(dx * outerR, dy * outerR);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = Math.max(0.7, radius * 0.12);
+      ctx.stroke();
+
+      const px = dx * innerR;
+      const py = dy * innerR;
+      const qx = dx * (outerR + radius * 0.08);
+      const qy = dy * (outerR + radius * 0.08);
+      ctx.fillStyle = rgba(accent, 0.9);
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + radius * 0.18, py - radius * 0.11);
+      ctx.lineTo(qx, qy);
+      ctx.lineTo(px - radius * 0.18, py + radius * 0.11);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = TOKENS.white;
+    ctx.lineWidth = Math.max(1, radius * 0.2);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.74, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = rgba(support, 0.22);
+    ctx.beginPath();
+    ctx.arc(0, 0, hubR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillRect(-radius * 0.12, -radius * 0.12, radius * 0.24, radius * 0.24);
+
+    ctx.restore();
+    return true;
+  }
+
   function drawPlayerProceduralSprite(direction, accent, visualTheme = null) {
     const x = player.x;
     const y = player.y;
     const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
-    const bodyW = playerRadius * 1.35;
-    const bodyH = playerRadius * 2;
-    const bodyX = x - bodyW * 0.5;
-    const bodyY = y - bodyH * 0.45;
-    const headR = playerRadius * 0.82;
+    const directionSign = direction === "left" ? -1 : direction === "right" ? 1 : 0;
     const supportColor = visualTheme && Array.isArray(visualTheme.support) && visualTheme.support.length > 0
       ? visualTheme.support[0]
       : TOKENS.ink;
-    const armL = direction === "left" ? -1 : direction === "right" ? 1 : 0;
-    const tilt = direction === "back" ? 0.2 : 0;
-    const shouldMirror = direction === "left";
+    const isSide = directionSign !== 0;
+    const isBack = direction === "back";
+    const bodyW = playerRadius * (isSide ? 1.72 : 1.45);
+    const bodyH = playerRadius * 1.88;
+    const stride = Math.sin((typeof game.globalTime === "number" ? game.globalTime : 0) * 5 + x * 0.15) * (playerRadius * 0.07);
+    const bodyX = x - bodyW * 0.5;
+    const bodyY = y - bodyH * 0.5 + Math.min(stride, playerRadius * 0.12);
+    const headR = playerRadius * 0.73;
+    const shoulderGap = bodyW * 0.28;
+    const torsoInset = playerRadius * 0.22;
+    const hipW = playerRadius * 0.95;
+    const footW = playerRadius * 0.9;
+    const footH = playerRadius * 0.34;
+    const legLift = Math.abs(stride);
 
     ctx.save();
-    if (shouldMirror) {
+    if (directionSign < 0) {
       ctx.translate(x + bodyW * 0.5, 0);
       ctx.scale(-1, 1);
       ctx.translate(-(x + bodyW * 0.5), 0);
     }
-    if (direction === "back") {
+    if (isBack) {
       ctx.translate(0, 0.8);
     }
 
+    // Boots
+    ctx.fillStyle = TOKENS.ink;
+    ctx.fillRect(bodyX + bodyW * 0.12, y - footH + legLift * 0.38, footW * 0.46, footH);
+    ctx.fillRect(bodyX + bodyW * 0.42, y - footH - legLift * 0.38, footW * 0.46, footH);
+    ctx.fillStyle = TOKENS.white;
+    ctx.fillRect(bodyX + bodyW * 0.2, y - footH * 0.78 + legLift * 0.38, footW * 0.26, footH * 0.72);
+    ctx.fillRect(bodyX + bodyW * 0.54, y - footH * 0.78 - legLift * 0.38, footW * 0.26, footH * 0.72);
+
+    // Torso and core
     ctx.fillStyle = TOKENS.white;
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
@@ -297,72 +376,104 @@
     strokeRoundRect(bodyX, bodyY, bodyW, bodyH, 10);
 
     ctx.fillStyle = accent;
-    fillRoundRect(bodyX + 2.7, bodyY + 3, bodyW - 5.4, bodyH - 6, 8);
+    fillRoundRect(bodyX + torsoInset, bodyY + 3, bodyW - torsoInset * 2, bodyH - 6, 8);
+    if (isSide) {
+      ctx.fillStyle = rgba(supportColor, 0.16);
+      fillRoundRect(bodyX + 2.5 + shoulderGap, bodyY + 4, bodyW - 5.2 - shoulderGap * 2, bodyH - 18, 7);
+    }
+
+    if (!isBack) {
+      ctx.fillStyle = TOKENS.ink;
+      fillRoundRect(bodyX + bodyW * 0.38, bodyY + bodyH - 1, bodyW * 0.24, 9.4, 4);
+      fillRoundRect(bodyX + bodyW * 0.6, bodyY + bodyH - 1, bodyW * 0.24, 9.4, 4);
+    } else {
+      fillRoundRect(bodyX + bodyW * 0.56, bodyY + bodyH - 2.6, bodyW * 0.12, 8.8, 4);
+      fillRoundRect(bodyX + bodyW * 0.32, bodyY + bodyH - 2.6, bodyW * 0.12, 8.8, 4);
+    }
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillRect(bodyX + bodyW * 0.58, bodyY + bodyH - 1, 2.8, 10);
-    if (direction !== "back") {
-      ctx.fillRect(bodyX + 2, bodyY + bodyH - 1, 2.8, 10);
+    fillRoundRect(bodyX + bodyW * 0.38, bodyY + 3, bodyW * 0.24, 10.5, 3);
+    fillRoundRect(bodyX + bodyW * 0.38, bodyY + bodyH - 13, bodyW * 0.24, 6, 3);
+
+    if (isBack) {
+      ctx.fillStyle = rgba(supportColor, 0.28);
+      fillRoundRect(bodyX + bodyW * 0.18, bodyY + bodyH * 0.34, bodyW * 0.64, bodyH * 0.22, 7);
     }
 
     ctx.save();
-    ctx.translate(x, bodyY - headR * 0.28);
-    ctx.rotate(tilt * armL);
-
-    ctx.fillStyle = accent;
-    fillRoundRect(-headR * 0.7, -headR * 1.05, headR * 1.4, headR * 0.95, 4);
+    const coreY = bodyY + bodyH * 0.54;
+    const coreX = bodyX + bodyW * 0.5;
+    ctx.translate(coreX + (isSide ? directionSign * playerRadius * 0.14 : 0), coreY);
     ctx.fillStyle = TOKENS.ink;
-    fillRoundRect(-headR * 0.55, -headR * 0.9, headR * 1.1, headR * 0.2, 3);
-    fillRoundRect(-headR * 0.25, -headR * 0.48, headR * 0.5, headR * 0.35, 4);
+    fillRoundRect(-hipW * 0.5, -footH * 0.35, hipW, footH * 0.7, 2.8);
 
-    ctx.fillStyle = TOKENS.white;
+    ctx.restore();
+
+    // Arms
+    if (isSide) {
+      ctx.fillStyle = TOKENS.white;
+      const armY = bodyY + bodyH * 0.36;
+      const armLength = bodyW * 0.28;
+      fillRoundRect(bodyX + bodyW * (directionSign < 0 ? 0.08 : 0.64), armY, armLength, playerRadius * 0.22, 2.2);
+      ctx.fillStyle = accent;
+      fillRoundRect(bodyX + bodyW * (directionSign < 0 ? 0.14 : 0.70), armY + 4, armLength, playerRadius * 0.11, 1.5);
+    }
+
+    // Head/cog module
+    const headY = bodyY - headR * 0.32 + (isBack ? 0.8 : 0);
+    drawPlayerCogGlyph(x, headY, headR, accent, visualTheme);
+
+    // Goggles and direction accents
+    ctx.fillStyle = accent;
+    if (isBack) {
+      ctx.fillStyle = TOKENS.ink;
+      fillRoundRect(x - headR * 0.8, headY - headR * 0.95, headR * 0.5, headR * 0.28, 1.6);
+      fillRoundRect(x + headR * 0.3, headY - headR * 0.95, headR * 0.5, headR * 0.28, 1.6);
+      ctx.fillStyle = TOKENS.white;
+      fillRoundRect(x - headR * 0.3, headY - headR * 0.4, headR * 0.6, headR * 0.21, 2);
+    } else {
+      ctx.fillStyle = TOKENS.white;
+      fillRoundRect(x - headR * 0.62, headY - headR * 0.76, headR * 0.42, headR * 0.17, 2);
+      fillRoundRect(x + headR * 0.2, headY - headR * 0.76, headR * 0.42, headR * 0.17, 2);
+      ctx.fillStyle = TOKENS.ink;
+      fillRoundRect(x - headR * 0.12, headY - headR * 0.22, headR * 0.24, headR * 0.18, 2);
+      if (isSide) {
+        fillRoundRect(x - headR * 0.46, headY + headR * 0.12, headR * 0.24, headR * 0.17, 2);
+      } else {
+        fillRoundRect(x - headR * 0.12, headY - headR * 0.45, headR * 0.06, headR * 0.19, 1);
+        fillRoundRect(x + headR * 0.06, headY - headR * 0.45, headR * 0.06, headR * 0.19, 1);
+      }
+    }
+
+    // Core line accents
+    ctx.save();
+    ctx.translate(x, headY - headR * 0.08);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.globalAlpha = clamp(0.3 + fxState.intensity * 0.12, 0.25, 0.55);
     ctx.beginPath();
-    ctx.arc(0, -headR * 0.38, headR * 0.25, 0, Math.PI * 2);
+    ctx.arc(0, 0, headR * 0.2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 1.4;
+    ctx.restore();
+    ctx.globalAlpha = 1;
+
+    if (!isSide && directionSign === 0) {
+      // subtle chest detail for front-facing reads
+      ctx.fillStyle = rgba(supportColor, 0.24);
+      fillRoundRect(x - headR * 0.72, bodyY + bodyH * 0.44, headR * 1.44, playerRadius * 0.18, 5);
+    }
+
     ctx.beginPath();
-    ctx.arc(0, -headR * 0.38, headR * 0.25, 0, Math.PI * 2);
+    ctx.moveTo(bodyX + bodyW * 0.48, bodyY + bodyH * 0.22);
+    ctx.lineTo(bodyX + bodyW * 0.52, bodyY + bodyH * 0.22 + playerRadius * 0.26);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 1.7;
     ctx.stroke();
 
     if (direction === "left" || direction === "right") {
-      const jawShift = armL * 0.9;
       ctx.fillStyle = TOKENS.ink;
       ctx.beginPath();
-      ctx.arc(jawShift * headR * 0.25, -headR * 0.2, headR * 0.18, 0, Math.PI * 2);
+      ctx.arc(x + directionSign * headR * 0.32, headY + headR * 0.22, headR * 0.24, 0, Math.PI * 2);
       ctx.fill();
-    }
-
-    ctx.fillStyle = supportColor;
-    ctx.globalAlpha = 0.16;
-    ctx.beginPath();
-    ctx.arc(0, headR * 0.16, headR * 0.62, Math.PI, Math.PI * 2, false);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.fillRect(-headR * 0.17, -headR * 0.02, headR * 0.34, 2);
-    ctx.restore();
-
-    if (direction !== "back") {
-      ctx.fillStyle = TOKENS.ink;
-      const shoulderX = armL === -1 ? bodyX + 2 : bodyX + bodyW - 2;
-      ctx.beginPath();
-      ctx.arc(shoulderX, bodyY + 4, 2.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(shoulderX, bodyY + 30, 2.3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    if (direction === "left" || direction === "right") {
-      const eyeY = bodyY + bodyH - 6;
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 1.7;
-      ctx.beginPath();
-      ctx.moveTo(x - bodyW * 0.18, eyeY);
-      ctx.lineTo(x + bodyW * 0.18, eyeY);
-      ctx.stroke();
     }
 
     ctx.restore();
@@ -4563,7 +4674,7 @@
     const direction = getPlayerDirectionFromMotion();
     const drewSprite = drawPlayerSpriteFallbackToFront(direction, accent, visualTheme);
     if (!drewSprite) {
-      drawPlayerCog(accent, visualTheme);
+      drawPlayerProceduralSprite(direction, accent, visualTheme);
     }
     drawPlayerAimLine();
   }
