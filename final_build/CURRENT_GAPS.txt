@@ -3,7 +3,7 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | in_progress | Add reproducible no-damage diagnostics around `applyPlayerDamage` and `handleCollisions`, then validate a live collision repro in debug mode.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | pending | Re-run local interactive repro with `game.showDebugStats = true` to confirm blocked-hit reason captures invuln/state/shield conditions and no gameplay regressions.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Re-check floor intro/lesson/death overlay clipping and baseline alignment.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | in_progress | Add or replace `assets/player/character-idle-{front,left,right,back}.png` so the new directional character art path is exercised (render fallback now uses procedural model as a safe default).
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Mapped root PNG assets to directional sprite keys (`front/left/right/back`) and switched image load to `encodeURI(path)` so filenames with spaces/parentheses load reliably.
 - /Users/abelsanchez/CODEX/WONDERLAND/index.html | completed | Bumped script cache-bust token to `v=20260216-1` for all game scripts so live clients fetch updated render/main code instead of stale cached bundles.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Keep narrative copy and gameplay content consistent with latest overlays.
 - DEPLOY | completed | Push latest fixset and verify live site refresh from HEAD.

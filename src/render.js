@@ -160,10 +160,10 @@
   const fxPreviousEnemyIds = new Set();
   const fxEnemyPositions = new Map();
   const PLAYER_SPRITE_PATHS = Object.freeze({
-    front: "./assets/player/character-idle-front.png",
-    left: "./assets/player/character-idle-left.png",
-    right: "./assets/player/character-idle-right.png",
-    back: "./assets/player/character-idle-back.png"
+    front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
+    left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
+    right: "./ChatGPT Image Feb 16, 2026, 05_58_25 PM.png",
+    back: "./ChatGPT Image Feb 16, 2026, 05_46_16 PM.png"
   });
   const playerSpriteCache = Object.create(null);
   let playerFacingDirection = "front";
@@ -198,7 +198,7 @@
       entry.status = "error";
       entry.failed = true;
     };
-    image.src = entry.path;
+    image.src = encodeURI(entry.path);
     entry.status = "loading";
     return entry;
   }
