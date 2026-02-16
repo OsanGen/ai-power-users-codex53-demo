@@ -4,6 +4,10 @@ Purpose:
 - Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
+- Support directional player model swap for visuals:
+  - Idle/front/left/right/back player sprites are loaded lazily from `./assets/player/character-idle-{state}.png`.
+  - Direction is resolved from movement velocity and aim fallback.
+  - Missing or failed sprite loads fall back to the legacy cog render path to keep gameplay readable in any case.
 
 Inputs:
 - Render state (`AIPU.state.game`, `AIPU.state.player`, entity collections).

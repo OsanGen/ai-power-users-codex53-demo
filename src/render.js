@@ -159,6 +159,110 @@
   };
   const fxPreviousEnemyIds = new Set();
   const fxEnemyPositions = new Map();
+  const PLAYER_SPRITE_PATHS = Object.freeze({
+    front: "./assets/player/character-idle-front.png",
+    left: "./assets/player/character-idle-left.png",
+    right: "./assets/player/character-idle-right.png",
+    back: "./assets/player/character-idle-back.png"
+  });
+  const playerSpriteCache = Object.create(null);
+  let playerFacingDirection = "front";
+  const PLAYER_SPRITE_HEIGHT_SCALE = 4.2;
+  const PLAYER_SPRITE_WIDTH_SCALE = {
+    min: 1.7,
+    max: 2.8,
+    topOffset: 0.76
+  };
+
+  function getPlayerSpriteState(direction) {
+    const dir = PLAYER_SPRITE_PATHS[direction] ? direction : "front";
+    let entry = playerSpriteCache[dir];
+    if (entry) {
+      return entry;
+    }
+
+    const image = new Image();
+    entry = {
+      path: PLAYER_SPRITE_PATHS[dir],
+      image,
+      status: "idle",
+      failed: false
+    };
+    playerSpriteCache[dir] = entry;
+
+    image.onload = () => {
+      entry.status = "ready";
+      entry.failed = false;
+    };
+    image.onerror = () => {
+      entry.status = "error";
+      entry.failed = true;
+    };
+    image.src = entry.path;
+    entry.status = "loading";
+    return entry;
+  }
+
+  function getPlayerDirectionFromMotion() {
+    const vx = Number.isFinite(player.vx) ? player.vx : 0;
+    const vy = Number.isFinite(player.vy) ? player.vy : 0;
+    const aimX = Number.isFinite(player.lastAimX) ? player.lastAimX : 0;
+    const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
+    const moveMag = Math.abs(vx) + Math.abs(vy);
+
+    if (moveMag > 0.08) {
+      if (Math.abs(vx) >= Math.abs(vy)) {
+        playerFacingDirection = vx < 0 ? "left" : "right";
+      } else {
+        playerFacingDirection = vy < 0 ? "back" : "front";
+      }
+      return playerFacingDirection;
+    }
+
+    const aimMag = Math.abs(aimX) + Math.abs(aimY);
+    if (aimMag > 0.12) {
+      if (Math.abs(aimX) >= Math.abs(aimY)) {
+        playerFacingDirection = aimX < 0 ? "left" : "right";
+      } else {
+        playerFacingDirection = aimY < 0 ? "back" : "front";
+      }
+      return playerFacingDirection;
+    }
+
+    return playerFacingDirection;
+  }
+
+  function drawPlayerSpriteFallbackToFront(direction) {
+    const order = direction === "front" ? ["front"] : [direction, "front"];
+    for (let i = 0; i < order.length; i += 1) {
+      const state = getPlayerSpriteState(order[i]);
+      if (!state || state.status !== "ready") {
+        continue;
+      }
+
+      const image = state.image;
+      if (!image || !image.naturalWidth || !image.naturalHeight) {
+        continue;
+      }
+
+      const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
+      const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE;
+      const naturalAspect = image.naturalWidth / image.naturalHeight;
+      const clampedAspect = clamp(Number.isFinite(naturalAspect) ? naturalAspect : 0.7, 0.45, 0.95);
+      const spriteWidth = clamp(playerRadius * clampedAspect * PLAYER_SPRITE_HEIGHT_SCALE, playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min, playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max);
+
+      const x = player.x - spriteWidth * 0.5;
+      const y = player.y - spriteHeight * PLAYER_SPRITE_WIDTH_SCALE.topOffset;
+      const prevSmoothing = ctx.imageSmoothingEnabled;
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(image, x, y, spriteWidth, spriteHeight);
+      ctx.imageSmoothingEnabled = prevSmoothing;
+      return true;
+    }
+
+    return false;
+  }
 
   function getFxQualityCaps() {
     const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
@@ -4351,9 +4455,30 @@
       return;
     }
 
+    const direction = getPlayerDirectionFromMotion();
+    const drewSprite = drawPlayerSpriteFallbackToFront(direction);
+    if (!drewSprite) {
+      drawPlayerCog(accent, visualTheme);
+    }
+    drawPlayerAimLine();
+  }
+
+  function drawPlayerAimLine() {
     const x = player.x;
     const y = player.y;
+    const aimX = Number.isFinite(player.lastAimX) ? player.lastAimX : 0;
+    const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 3);
+    ctx.lineTo(x + aimX * 14, y + aimY * 14 - 3);
+    ctx.stroke();
+  }
 
+  function drawPlayerCog(accent, visualTheme = null) {
+    const x = player.x;
+    const y = player.y;
     const bodyW = player.radius * 1.65;
     const bodyH = player.radius * 1.95;
     const bodyX = x - bodyW * 0.5;
@@ -4445,15 +4570,6 @@
     ctx.arc(0, 2.5, 4.5, Math.PI * 1.1, Math.PI * 2, false);
     ctx.stroke();
     ctx.restore();
-
-    const aimX = player.lastAimX;
-    const aimY = player.lastAimY;
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x, y - 3);
-    ctx.lineTo(x + aimX * 14, y + aimY * 14 - 3);
-    ctx.stroke();
   }
 
   function drawParticles() {
