@@ -166,14 +166,23 @@
     right: "./ChatGPT Image Feb 16, 2026, 05_58_25 PM.png",
     back: "./ChatGPT Image Feb 16, 2026, 05_46_16 PM.png"
   });
-  const playerSpriteCache = Object.create(null);
-  let playerFacingDirection = "front";
-  const PLAYER_SPRITE_HEIGHT_SCALE = 4.2;
+  const PLAYER_SPRITE_ALPHA_THRESHOLD = 10;
+  const PLAYER_SPRITE_HEIGHT_SCALE = 5;
   const PLAYER_SPRITE_WIDTH_SCALE = {
     min: 1.7,
-    max: 2.8,
+    max: 4.2,
     topOffset: 0.76
   };
+  const PLAYER_SPRITE_STANCE_SCALE = Object.freeze({
+    front: 1.02,
+    back: 1.02,
+    left: 1.04,
+    right: 1.04
+  });
+  const playerSpriteMeasureCanvas = typeof document === "undefined" ? null : document.createElement("canvas");
+  const playerSpriteMeasureCtx = playerSpriteMeasureCanvas && playerSpriteMeasureCanvas.getContext("2d");
+  const playerSpriteCache = Object.create(null);
+  let playerFacingDirection = "front";
 
   function getPlayerSpriteState(direction) {
     const dir = PLAYER_SPRITE_PATHS[direction] ? direction : "front";
@@ -192,6 +201,16 @@
     playerSpriteCache[dir] = entry;
 
     image.onload = () => {
+      const measuredTrim = computeTrimmedSpriteRect(image);
+      const naturalWidth = Number.isFinite(image.naturalWidth) ? image.naturalWidth : 0;
+      const naturalHeight = Number.isFinite(image.naturalHeight) ? image.naturalHeight : 0;
+      const fallbackRect = naturalWidth > 0 && naturalHeight > 0
+        ? { x: 0, y: 0, w: naturalWidth, h: naturalHeight, aspect: naturalWidth / naturalHeight }
+        : null;
+      entry.trimRect = measuredTrim || fallbackRect;
+      entry.trimAspect = entry.trimRect && entry.trimRect.w > 0 && entry.trimRect.h > 0
+        ? entry.trimRect.w / entry.trimRect.h
+        : 1;
       entry.status = "ready";
       entry.failed = false;
     };
@@ -203,6 +222,60 @@
     image.src = encodeURI(versionedPath);
     entry.status = "loading";
     return entry;
+  }
+
+  function computeTrimmedSpriteRect(image) {
+    if (!playerSpriteMeasureCanvas || !playerSpriteMeasureCtx || !image) {
+      return null;
+    }
+    const imageWidth = Number.isFinite(image.naturalWidth) ? Math.floor(image.naturalWidth) : 0;
+    const imageHeight = Number.isFinite(image.naturalHeight) ? Math.floor(image.naturalHeight) : 0;
+    if (imageWidth <= 1 || imageHeight <= 1) {
+      return null;
+    }
+
+    playerSpriteMeasureCanvas.width = imageWidth;
+    playerSpriteMeasureCanvas.height = imageHeight;
+    playerSpriteMeasureCtx.setTransform(1, 0, 0, 1, 0, 0);
+    playerSpriteMeasureCtx.clearRect(0, 0, imageWidth, imageHeight);
+    playerSpriteMeasureCtx.drawImage(image, 0, 0, imageWidth, imageHeight);
+
+    const imageData = playerSpriteMeasureCtx.getImageData(0, 0, imageWidth, imageHeight).data;
+    let minX = imageWidth;
+    let minY = imageHeight;
+    let maxX = -1;
+    let maxY = -1;
+    const threshold = PLAYER_SPRITE_ALPHA_THRESHOLD;
+    for (let y = 0; y < imageHeight; y += 1) {
+      const rowBase = y * imageWidth * 4;
+      for (let x = 0; x < imageWidth; x += 1) {
+        const alpha = imageData[rowBase + x * 4 + 3];
+        if (alpha > threshold) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      return null;
+    }
+
+    const trimWidth = maxX - minX + 1;
+    const trimHeight = maxY - minY + 1;
+    if (trimWidth <= 0 || trimHeight <= 0) {
+      return null;
+    }
+
+    return {
+      x: minX,
+      y: minY,
+      w: trimWidth,
+      h: trimHeight,
+      aspect: trimWidth / trimHeight
+    };
   }
 
   function getPlayerDirectionFromMotion() {
@@ -236,6 +309,7 @@
 
   function drawPlayerSpriteFallbackToFront(direction, accent, visualTheme = null) {
     const order = direction === "front" ? ["front"] : [direction, "front"];
+    const stanceScale = PLAYER_SPRITE_STANCE_SCALE[direction] || 1.02;
     for (let i = 0; i < order.length; i += 1) {
       const state = getPlayerSpriteState(order[i]);
       if (!state || state.status !== "ready") {
@@ -243,22 +317,28 @@
       }
 
       const image = state.image;
-      if (!image || !image.naturalWidth || !image.naturalHeight) {
+      if (!image || !image.naturalWidth || !image.naturalHeight || !state.trimRect) {
         continue;
       }
 
       const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
-      const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE;
-      const naturalAspect = image.naturalWidth / image.naturalHeight;
-      const clampedAspect = clamp(Number.isFinite(naturalAspect) ? naturalAspect : 0.7, 0.45, 0.95);
-      const spriteWidth = clamp(playerRadius * clampedAspect * PLAYER_SPRITE_HEIGHT_SCALE, playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min, playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max);
+      const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale;
+      const spriteWidth = clamp(
+        playerRadius * (state.trimAspect || 1) * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale,
+        player.radius * PLAYER_SPRITE_WIDTH_SCALE.min,
+        playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max
+      );
 
       const x = player.x - spriteWidth * 0.5;
       const y = player.y - spriteHeight * PLAYER_SPRITE_WIDTH_SCALE.topOffset;
       const prevSmoothing = ctx.imageSmoothingEnabled;
+      const sx = state.trimRect.x;
+      const sy = state.trimRect.y;
+      const sw = state.trimRect.w;
+      const sh = state.trimRect.h;
 
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(image, x, y, spriteWidth, spriteHeight);
+      ctx.drawImage(image, sx, sy, sw, sh, x, y, spriteWidth, spriteHeight);
       ctx.imageSmoothingEnabled = prevSmoothing;
       return true;
     }
