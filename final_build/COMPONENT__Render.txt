@@ -5,11 +5,11 @@ Purpose:
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
 - Support directional player model swap for visuals:
-  - Idle/front/left/right/back player sprites are loaded lazily from root-level PNG files:
-    - `./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png` (front)
-    - `./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png` (left)
-    - `./ChatGPT Image Feb 16, 2026, 05_58_25 PM.png` (right)
-    - `./ChatGPT Image Feb 16, 2026, 05_46_16 PM.png` (back)
+  - Player sprites are currently referenced by legacy root-level filenames in `src/render.js` and are being migrated to:
+    - `assets/characters/player/main/front.png`
+    - `assets/characters/player/main/back.png`
+    - `assets/characters/player/main/left.png`
+    - `assets/characters/player/main/right.png`
   - Sprite URLs are loaded via `encodeURI(path + "?v=20260216-3")` to force fresh fetches after updated assets.
   - Direction is resolved from movement velocity and aim fallback.
   - Missing or failed sprite loads fall back to a built-in directional procedural character that uses a cog-style head and per-orientation body profile.
