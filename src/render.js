@@ -241,9 +241,19 @@
   };
 
   function getActivePlayerShootDirection() {
-    const keys = AIPU.input && AIPU.input.keys;
+    const input = AIPU.input || {};
+    const keys = input && input.keys;
     if (!keys) {
       return "";
+    }
+
+    const shootPressOrder = Array.isArray(input.shootPressOrder) ? input.shootPressOrder : [];
+    for (let i = shootPressOrder.length - 1; i >= 0; i -= 1) {
+      const shootKey = shootPressOrder[i];
+      const shootDirection = PLAYER_SHOOT_KEY_DIRECTIONS[shootKey];
+      if (shootDirection && keys[shootKey]) {
+        return shootDirection;
+      }
     }
 
     for (let i = 0; i < PLAYER_SHOOT_KEYS.length; i += 1) {
@@ -5116,7 +5126,9 @@
     if (!drewSprite) {
       drawPlayerProceduralSprite(direction, accent, visualTheme);
     }
-    drawPlayerAimLine();
+    if (isPlayerShootInputActive()) {
+      drawPlayerAimLine();
+    }
   }
 
   function drawEnemySprite(enemy) {

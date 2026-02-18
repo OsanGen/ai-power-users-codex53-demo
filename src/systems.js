@@ -411,6 +411,13 @@
   }
 
   const SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const NUMPAD_SHOOT_KEYS = Object.freeze(["Numpad8", "Numpad2", "Numpad4", "Numpad6"]);
+  const NUMPAD_TO_ARROW_SHOOT_KEYS = Object.freeze({
+    Numpad8: "ArrowUp",
+    Numpad2: "ArrowDown",
+    Numpad4: "ArrowLeft",
+    Numpad6: "ArrowRight"
+  });
 
   function clearInputState() {
     for (const key in keys) {
@@ -419,6 +426,9 @@
       }
     }
     AIPU.input.lastShootKey = "";
+    if (Array.isArray(AIPU.input.shootPressOrder)) {
+      AIPU.input.shootPressOrder.length = 0;
+    }
   }
 
   function formatUiText(key, fallback, values = null) {
@@ -460,7 +470,10 @@
   function isArrowKey(event) {
     const key = typeof event.key === "string" ? event.key : "";
     const code = typeof event.code === "string" ? event.code : "";
-    return key.startsWith("Arrow") || code.startsWith("Arrow");
+    if (key.startsWith("Arrow") || code.startsWith("Arrow")) {
+      return true;
+    }
+    return NUMPAD_SHOOT_KEYS.includes(code);
   }
 
   function isSinglePress(event) {
@@ -475,6 +488,10 @@
     const code = typeof eventCode === "string" ? eventCode : "";
     if (code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD") {
       return code;
+    }
+
+    if (code === "KeyI" || code === "KeyJ" || code === "KeyK" || code === "KeyL") {
+      return "";
     }
 
     const key = toUpperAsciiSingleChar(typeof eventKey === "string" ? eventKey : "");
@@ -500,6 +517,10 @@
       return code;
     }
 
+    if (NUMPAD_TO_ARROW_SHOOT_KEYS[code]) {
+      return NUMPAD_TO_ARROW_SHOOT_KEYS[code];
+    }
+
     if (typeof eventKey === "string") {
       if (eventKey === "ArrowUp") {
         return "ArrowUp";
@@ -511,6 +532,18 @@
         return "ArrowLeft";
       }
       if (eventKey === "ArrowRight") {
+        return "ArrowRight";
+      }
+      if (eventKey === "Up") {
+        return "ArrowUp";
+      }
+      if (eventKey === "Down") {
+        return "ArrowDown";
+      }
+      if (eventKey === "Left") {
+        return "ArrowLeft";
+      }
+      if (eventKey === "Right") {
         return "ArrowRight";
       }
     }
@@ -526,6 +559,46 @@
     return resolveShootDirectionCode(event && event.code, event && event.key);
   }
 
+  function getShootPressOrder() {
+    return Array.isArray(AIPU.input.shootPressOrder) ? AIPU.input.shootPressOrder : [];
+  }
+
+  function registerShootPress(shootCode) {
+    if (!isShootDirectionCode(shootCode)) {
+      return;
+    }
+
+    const shootPressOrder = getShootPressOrder();
+    const existingIndex = shootPressOrder.indexOf(shootCode);
+    if (existingIndex !== -1) {
+      shootPressOrder.splice(existingIndex, 1);
+    }
+    shootPressOrder.push(shootCode);
+  }
+
+  function unregisterShootPress(shootCode) {
+    if (!isShootDirectionCode(shootCode)) {
+      return;
+    }
+
+    const shootPressOrder = getShootPressOrder();
+    const existingIndex = shootPressOrder.indexOf(shootCode);
+    if (existingIndex !== -1) {
+      shootPressOrder.splice(existingIndex, 1);
+    }
+  }
+
+  function getMostRecentActiveShootDirectionKey() {
+    const shootPressOrder = getShootPressOrder();
+    for (let i = shootPressOrder.length - 1; i >= 0; i -= 1) {
+      const keyName = shootPressOrder[i];
+      if (keys[keyName]) {
+        return keyName;
+      }
+    }
+    return "";
+  }
+
   function setInputKeyState(event, isDown) {
     const key = typeof event.key === "string" ? event.key : "";
     const code = typeof event.code === "string" ? event.code : "";
@@ -537,7 +610,15 @@
 
     const shootCode = resolveShootDirectionCode(code, key);
     if (shootCode) {
+      const wasDown = !!keys[shootCode];
       keys[shootCode] = isDown;
+      if (isDown) {
+        if (!wasDown) {
+          registerShootPress(shootCode);
+        }
+      } else if (wasDown) {
+        unregisterShootPress(shootCode);
+      }
       return;
     }
   }
@@ -1769,6 +1850,11 @@
   }
 
   function getActiveShootDirectionKey() {
+    const recentKey = getMostRecentActiveShootDirectionKey();
+    if (recentKey) {
+      return recentKey;
+    }
+
     for (let i = 0; i < SHOOT_KEYS.length; i += 1) {
       const keyName = SHOOT_KEYS[i];
       if (keys[keyName]) {

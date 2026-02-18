@@ -173,7 +173,8 @@
 
   const input = {
     keys: Object.create(null),
-    lastShootKey: "ArrowUp",
+    lastShootKey: "",
+    shootPressOrder: [],
     reducedMotionQuery:
       typeof window.matchMedia === "function" ? window.matchMedia("(prefers-reduced-motion: reduce)") : null,
     prefersReducedMotion: false
