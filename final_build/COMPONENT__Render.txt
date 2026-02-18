@@ -14,7 +14,7 @@ Purpose:
   - Enemy sprites resolve by `enemy.type` to:
     - `assets/characters/enemies/<enemyType>/idle.png`
     - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
-  - Sprite URLs are cache-busted with `?v=20260218-1`.
+  - Sprite URLs are cache-busted with `?v=20260218-8`.
   - Direction is resolved from active shoot input + aim first, then movement velocity, then aim fallback.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
 
@@ -28,6 +28,7 @@ Outputs:
 - A single frame on `canvas`.
 - Overlay content for title, upgrade cards, bomb briefing, lesson/death lesson, floor intro/clear, and run summary.
 - Background and world layers with per-floor visual theme data.
+- Machine-readable snapshot output through `AIPU.render.renderGameToText()` (consumed by `window.render_game_to_text`).
 
 State/Edges:
 - Uses `ctx.textAlign`/`textBaseline` state carefully and resets at block exits.
@@ -79,8 +80,13 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`?v=20260216-5`) to force updated bundles on deployment.
-- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-1"`) to avoid stale image caching across art updates.
+- `index.html` script tags use cache-bust tokens (`?v=20260218-8`) to force updated bundles on deployment.
+  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-8"`) to avoid stale image caching across art updates.
+  - Shoot-frame resolution now includes directional aliases so both canonical and alternate filenames are accepted:
+    - `front`: `shoot_front.png` / `shoot_down.png`
+    - `back`: `shoot_back.png` / `shoot_up.png`
+    - `left`: `shoot_left.png` / `shoot_a.png`
+    - `right`: `shoot_right.png` / `shoot_d.png`
 
 Acceptance Checks:
 - No state transitions altered by rendering.
@@ -103,3 +109,5 @@ Acceptance Checks:
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
   - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
+- Deterministic automation compatibility:
+  - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
