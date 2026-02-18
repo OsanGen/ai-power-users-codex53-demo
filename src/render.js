@@ -145,7 +145,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260218-8";
+  const CHARACTER_ART_CACHE_BUST = "v=20260218-9";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -210,11 +210,17 @@
   const playerSpriteMeasureCtx = playerSpriteMeasureCanvas && playerSpriteMeasureCanvas.getContext("2d");
   const characterSpriteCache = Object.create(null);
   const PLAYER_SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const PLAYER_FRAME_FALLBACKS = Object.freeze({
+    front: Object.freeze(["front.png", "Front.png"]),
+    back: Object.freeze(["back.png"]),
+    left: Object.freeze(["left.png"]),
+    right: Object.freeze(["right.png"])
+  });
   const PLAYER_SHOOT_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["shoot_front.png", "shoot_down.png"]),
-    back: Object.freeze(["shoot_back.png", "shoot_up.png"]),
-    left: Object.freeze(["shoot_left.png", "shoot_a.png"]),
-    right: Object.freeze(["shoot_right.png", "shoot_d.png"])
+    front: Object.freeze(["shoot_front.png", "shoot_down.png", "Down_Shoot.png", "down_shoot.png"]),
+    back: Object.freeze(["shoot_back.png", "shoot_up.png", "UP_shoot.png", "up_shoot.png"]),
+    left: Object.freeze(["shoot_left.png", "shoot_a.png", "Left_shoot.png", "left_shoot.png"]),
+    right: Object.freeze(["shoot_right.png", "shoot_d.png", "Right_shoot.png", "right_shoot.png"])
   });
   let playerFacingDirection = "front";
   let playerIsShootingFacing = false;
@@ -260,20 +266,20 @@
     const preferredFrameSet = useShootFrameSet ? CHARACTER_ART.player.shootFrames : CHARACTER_ART.player.frames;
     const preferredFrame = preferredFrameSet && preferredFrameSet[resolvedDirection] ? preferredFrameSet[resolvedDirection] : null;
     const fallbackFrame = CHARACTER_ART.player.frames[resolvedDirection];
+    const aliasFrames = useShootFrameSet
+      ? PLAYER_SHOOT_FRAME_FALLBACKS[resolvedDirection]
+      : PLAYER_FRAME_FALLBACKS[resolvedDirection];
     const candidates = [];
 
     if (preferredFrame) {
       candidates.push(`${CHARACTER_ART.player.bucketDir}/${preferredFrame}`);
     }
 
-    if (useShootFrameSet) {
-      const aliasFrames = PLAYER_SHOOT_FRAME_FALLBACKS[resolvedDirection];
-      if (Array.isArray(aliasFrames)) {
-        for (let i = 0; i < aliasFrames.length; i += 1) {
-          const aliasFrame = aliasFrames[i];
-          if (aliasFrame && aliasFrame !== preferredFrame) {
-            candidates.push(`${CHARACTER_ART.player.bucketDir}/${aliasFrame}`);
-          }
+    if (Array.isArray(aliasFrames)) {
+      for (let i = 0; i < aliasFrames.length; i += 1) {
+        const aliasFrame = aliasFrames[i];
+        if (aliasFrame && aliasFrame !== preferredFrame) {
+          candidates.push(`${CHARACTER_ART.player.bucketDir}/${aliasFrame}`);
         }
       }
     }

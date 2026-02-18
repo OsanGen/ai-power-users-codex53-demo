@@ -10,11 +10,12 @@ Purpose:
     - `assets/characters/player/main/back.png`
     - `assets/characters/player/main/left.png`
     - `assets/characters/player/main/right.png`
+    - movement alias fallback for front now includes legacy `Front.png` to support the renamed repo asset.
     - legacy root filenames remain as resolver fallback during migration.
   - Enemy sprites resolve by `enemy.type` to:
     - `assets/characters/enemies/<enemyType>/idle.png`
     - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
-  - Sprite URLs are cache-busted with `?v=20260218-8`.
+  - Sprite URLs are cache-busted with `?v=20260218-9`.
   - Direction is resolved from active shoot input + aim first, then movement velocity, then aim fallback.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
 
@@ -80,13 +81,14 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`?v=20260218-8`) to force updated bundles on deployment.
-  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-8"`) to avoid stale image caching across art updates.
-  - Shoot-frame resolution now includes directional aliases so both canonical and alternate filenames are accepted:
-    - `front`: `shoot_front.png` / `shoot_down.png`
-    - `back`: `shoot_back.png` / `shoot_up.png`
-    - `left`: `shoot_left.png` / `shoot_a.png`
-    - `right`: `shoot_right.png` / `shoot_d.png`
+- `index.html` script tags use cache-bust tokens (`?v=20260218-9`) to force updated bundles on deployment.
+  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-9"`) to avoid stale image caching across art updates.
+  - Player movement resolution now includes front movement alias `Front.png` in addition to `front.png`.
+  - Shoot-frame resolution now includes renamed-case aliases so direction maps for current assets:
+    - `front`: `shoot_front.png` / `shoot_down.png` / `Down_Shoot.png` / `down_shoot.png`
+    - `back`: `shoot_back.png` / `shoot_up.png` / `UP_shoot.png` / `up_shoot.png`
+    - `left`: `shoot_left.png` / `shoot_a.png` / `Left_shoot.png` / `left_shoot.png`
+    - `right`: `shoot_right.png` / `shoot_d.png` / `Right_shoot.png` / `right_shoot.png`
 
 Acceptance Checks:
 - No state transitions altered by rendering.
@@ -106,6 +108,7 @@ Acceptance Checks:
   - Update/draw pass runs with line/rect drawing in the world transform and does not mutate gameplay collections.
 - Sprite routing behavior:
   - `drawPlayer()` first attempts bucket/legacy resolved directional player art, then falls back to procedural.
+  - `buildPlayerSpriteCandidates()` now checks movement aliases for renamed movement and shooting assets.
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
   - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
