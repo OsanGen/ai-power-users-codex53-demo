@@ -145,7 +145,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260218-9";
+  const CHARACTER_ART_CACHE_BUST = "v=20260218-12";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -164,16 +164,17 @@
     player: Object.freeze({
       bucketDir: "./assets/characters/player/main",
       frames: Object.freeze({
-        front: "front.png",
+        front: "Front.png",
         back: "back.png",
         left: "left.png",
         right: "right.png"
       }),
+      dualFrames: Object.freeze(["DUAL.png", "dual.png"]),
       shootFrames: Object.freeze({
-        front: "shoot_front.png",
-        back: "shoot_back.png",
-        left: "shoot_left.png",
-        right: "shoot_right.png"
+        front: "Down_Shoot.png",
+        back: "UP_shoot.png",
+        left: "Left_shoot.png",
+        right: "Right_shoot.png"
       }),
       legacy: Object.freeze({
         front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
@@ -210,33 +211,63 @@
   const playerSpriteMeasureCtx = playerSpriteMeasureCanvas && playerSpriteMeasureCanvas.getContext("2d");
   const characterSpriteCache = Object.create(null);
   const PLAYER_SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const PLAYER_SHOOT_KEY_DIRECTIONS = Object.freeze({
+    ArrowUp: "back",
+    ArrowDown: "front",
+    ArrowLeft: "left",
+    ArrowRight: "right"
+  });
   const PLAYER_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["front.png", "Front.png"]),
+    front: Object.freeze(["front.png"]),
     back: Object.freeze(["back.png"]),
     left: Object.freeze(["left.png"]),
     right: Object.freeze(["right.png"])
   });
+  const PLAYER_ANIMATION_MODE_SWITCH_FRAMES = 1;
   const PLAYER_SHOOT_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["shoot_front.png", "shoot_down.png", "Down_Shoot.png", "down_shoot.png"]),
-    back: Object.freeze(["shoot_back.png", "shoot_up.png", "UP_shoot.png", "up_shoot.png"]),
-    left: Object.freeze(["shoot_left.png", "shoot_a.png", "Left_shoot.png", "left_shoot.png"]),
-    right: Object.freeze(["shoot_right.png", "shoot_d.png", "Right_shoot.png", "right_shoot.png"])
+    front: Object.freeze(["shoot_front.png", "shoot_down.png", "down_shoot.png"]),
+    back: Object.freeze(["shoot_back.png", "shoot_up.png", "up_shoot.png"]),
+    left: Object.freeze(["shoot_left.png", "shoot_a.png", "left_shoot.png"]),
+    right: Object.freeze(["shoot_right.png", "shoot_d.png", "right_shoot.png"])
   });
   let playerFacingDirection = "front";
   let playerIsShootingFacing = false;
+  const playerSpriteModeState = {
+    requestedMode: "move",
+    requestedDirection: "front",
+    activeMode: "move",
+    activeDirection: "front",
+    holdFrames: PLAYER_ANIMATION_MODE_SWITCH_FRAMES
+  };
 
-  function isPlayerShootInputActive() {
+  function getActivePlayerShootDirection() {
     const keys = AIPU.input && AIPU.input.keys;
     if (!keys) {
-      return false;
+      return "";
     }
 
     for (let i = 0; i < PLAYER_SHOOT_KEYS.length; i += 1) {
-      if (keys[PLAYER_SHOOT_KEYS[i]]) {
-        return true;
+      const shootKey = PLAYER_SHOOT_KEYS[i];
+      if (keys[shootKey]) {
+        const shootDirection = PLAYER_SHOOT_KEY_DIRECTIONS[shootKey];
+        if (shootDirection) {
+          return shootDirection;
+        }
       }
     }
-    return false;
+
+    const lastShootKey = AIPU.input && typeof AIPU.input.lastShootKey === "string" ? AIPU.input.lastShootKey : "";
+    if (keys[lastShootKey]) {
+      const lastShootDirection = PLAYER_SHOOT_KEY_DIRECTIONS[lastShootKey];
+      if (lastShootDirection) {
+        return lastShootDirection;
+      }
+    }
+    return "";
+  }
+
+  function isPlayerShootInputActive() {
+    return !!getActivePlayerShootDirection();
   }
 
   function normalizeDirection(direction) {
@@ -261,15 +292,23 @@
     return unique;
   }
 
-  function buildPlayerSpriteCandidates(direction, useShootFrameSet = false) {
+  function buildPlayerSpriteCandidates(direction, useShootFrameSet = false, useDualFrame = false) {
     const resolvedDirection = normalizeDirection(direction);
+    const preferredDualFrame = useDualFrame ? CHARACTER_ART.player.dualFrames : "";
     const preferredFrameSet = useShootFrameSet ? CHARACTER_ART.player.shootFrames : CHARACTER_ART.player.frames;
     const preferredFrame = preferredFrameSet && preferredFrameSet[resolvedDirection] ? preferredFrameSet[resolvedDirection] : null;
-    const fallbackFrame = CHARACTER_ART.player.frames[resolvedDirection];
     const aliasFrames = useShootFrameSet
       ? PLAYER_SHOOT_FRAME_FALLBACKS[resolvedDirection]
       : PLAYER_FRAME_FALLBACKS[resolvedDirection];
     const candidates = [];
+
+    if (Array.isArray(preferredDualFrame)) {
+      for (let i = 0; i < preferredDualFrame.length; i += 1) {
+        if (preferredDualFrame[i]) {
+          candidates.push(`${CHARACTER_ART.player.bucketDir}/${preferredDualFrame[i]}`);
+        }
+      }
+    }
 
     if (preferredFrame) {
       candidates.push(`${CHARACTER_ART.player.bucketDir}/${preferredFrame}`);
@@ -284,8 +323,11 @@
       }
     }
 
-    if (fallbackFrame && fallbackFrame !== preferredFrame) {
-      candidates.push(`${CHARACTER_ART.player.bucketDir}/${fallbackFrame}`);
+    if (!useShootFrameSet) {
+      const fallbackFrame = CHARACTER_ART.player.frames[resolvedDirection];
+      if (fallbackFrame) {
+        candidates.push(`${CHARACTER_ART.player.bucketDir}/${fallbackFrame}`);
+      }
     }
 
     return candidates.concat([
@@ -365,10 +407,11 @@
     return entry;
   }
 
-  function getPlayerSpriteState(direction, useShootFrameSet = false) {
+  function getPlayerSpriteState(direction, useShootFrameSet = false, useDualFrame = false) {
     const resolvedDirection = normalizeDirection(direction);
-    const cacheKey = `player:${useShootFrameSet ? "shoot" : "move"}:${resolvedDirection}`;
-    return getCharacterSpriteState(cacheKey, buildPlayerSpriteCandidates(resolvedDirection, useShootFrameSet), true);
+    const mode = useDualFrame ? "dual" : useShootFrameSet ? "shoot" : "move";
+    const cacheKey = `player:${mode}:${resolvedDirection}`;
+    return getCharacterSpriteState(cacheKey, buildPlayerSpriteCandidates(resolvedDirection, useShootFrameSet, useDualFrame), true);
   }
 
   function getEnemySpriteState(enemyType) {
@@ -515,15 +558,12 @@
     const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
     const aimMag = Math.abs(aimX) + Math.abs(aimY);
     const moveMag = Math.abs(vx) + Math.abs(vy);
-    const isShooting = isPlayerShootInputActive() && aimMag > 0.12;
+    const shootDirection = getActivePlayerShootDirection();
+    const isShooting = !!shootDirection;
 
     if (isShooting) {
       playerIsShootingFacing = true;
-      if (Math.abs(aimX) >= Math.abs(aimY)) {
-        playerFacingDirection = aimX < 0 ? "left" : "right";
-      } else {
-        playerFacingDirection = aimY < 0 ? "back" : "front";
-      }
+      playerFacingDirection = shootDirection;
       return playerFacingDirection;
     }
 
@@ -551,12 +591,80 @@
     return playerFacingDirection;
   }
 
-  function drawPlayerSprite(direction, accent, visualTheme = null) {
+  function getDirectionalBurstMode() {
+    if (!isPlayerShootInputActive()) {
+      return "normal";
+    }
+
+    if (!systems || typeof systems.getDirectionalBurstStatus !== "function") {
+      return "normal";
+    }
+
+    try {
+      const burstStatus = systems.getDirectionalBurstStatus();
+      const mode = burstStatus && typeof burstStatus.mode === "string" ? burstStatus.mode : "normal";
+      return mode === "dual" || mode === "omni" ? mode : "normal";
+    } catch (error) {
+      void error;
+      return "normal";
+    }
+  }
+
+  function resolvePlayerSpriteMode() {
+    if (!isPlayerShootInputActive()) {
+      return "move";
+    }
+    const burstMode = getDirectionalBurstMode();
+    return burstMode === "dual" || burstMode === "omni" ? burstMode : "shoot";
+  }
+
+  function resolvePlayerSpriteFrameState() {
+    const direction = getPlayerDirectionFromMotion();
+    const targetMode = resolvePlayerSpriteMode();
+    const sameMode = playerSpriteModeState.requestedMode === targetMode;
+    const sameDirection = playerSpriteModeState.requestedDirection === direction;
+    const changed = !sameMode || !sameDirection;
+
+    if (changed) {
+      playerSpriteModeState.requestedMode = targetMode;
+      playerSpriteModeState.requestedDirection = direction;
+      playerSpriteModeState.holdFrames = 0;
+      return {
+        mode: playerSpriteModeState.activeMode,
+        direction: playerSpriteModeState.activeDirection
+      };
+    }
+
+    if (playerSpriteModeState.holdFrames < PLAYER_ANIMATION_MODE_SWITCH_FRAMES) {
+      playerSpriteModeState.holdFrames += 1;
+    }
+
+    if (
+      (playerSpriteModeState.activeMode !== targetMode)
+      || (playerSpriteModeState.activeDirection !== direction)
+    ) {
+      if (playerSpriteModeState.holdFrames >= PLAYER_ANIMATION_MODE_SWITCH_FRAMES) {
+        playerSpriteModeState.activeMode = targetMode;
+        playerSpriteModeState.activeDirection = direction;
+      }
+    } else {
+      playerSpriteModeState.holdFrames = PLAYER_ANIMATION_MODE_SWITCH_FRAMES;
+    }
+
+    return {
+      mode: playerSpriteModeState.activeMode,
+      direction: playerSpriteModeState.activeDirection
+    };
+  }
+
+  function drawPlayerSprite(direction, accent, spriteMode = "move", visualTheme = null) {
     const order = direction === "front" ? ["front"] : [direction, "front"];
     const resolvedDirection = normalizeDirection(direction);
+    const useShootFrameSet = spriteMode === "shoot";
+    const useDualFrame = spriteMode === "dual" || spriteMode === "omni";
     const stanceScale = PLAYER_SPRITE_STANCE_SCALE[resolvedDirection] || 1.02;
     for (let i = 0; i < order.length; i += 1) {
-      const state = getPlayerSpriteState(order[i], playerIsShootingFacing);
+      const state = getPlayerSpriteState(order[i], useShootFrameSet, useDualFrame);
       if (!state || state.status !== "ready" || !state.image || !state.trimRect) {
         continue;
       }
@@ -5002,8 +5110,9 @@
       return;
     }
 
-    const direction = getPlayerDirectionFromMotion();
-    const drewSprite = drawPlayerSprite(direction, accent, visualTheme);
+    const frameState = resolvePlayerSpriteFrameState();
+    const direction = frameState.direction;
+    const drewSprite = drawPlayerSprite(direction, accent, frameState.mode, visualTheme);
     if (!drewSprite) {
       drawPlayerProceduralSprite(direction, accent, visualTheme);
     }

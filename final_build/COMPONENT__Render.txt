@@ -6,17 +6,26 @@ Purpose:
 - Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
 - Support directional player model swap and automatic enemy art routing:
   - Player sprites resolve by bucket from:
-    - `assets/characters/player/main/front.png`
-    - `assets/characters/player/main/back.png`
-    - `assets/characters/player/main/left.png`
-    - `assets/characters/player/main/right.png`
-    - movement alias fallback for front now includes legacy `Front.png` to support the renamed repo asset.
-    - legacy root filenames remain as resolver fallback during migration.
+    - `assets/characters/player/main/Front.png` (front primary)
+    - `assets/characters/player/main/back.png` (back primary)
+    - `assets/characters/player/main/left.png` (left primary)
+    - `assets/characters/player/main/right.png` (right primary)
+    - movement fallback uses canonical names first, then legacy root filenames during migration.
+  - Player shoot sprites resolve by bucket from:
+    - `assets/characters/player/main/Down_Shoot.png` (front shoot primary)
+    - `assets/characters/player/main/UP_shoot.png` (back shoot primary)
+    - `assets/characters/player/main/Left_shoot.png` (left shoot primary)
+    - `assets/characters/player/main/Right_shoot.png` (right shoot primary)
+    - canonical shoot aliases are checked next (`shoot_front.png`, `shoot_back.png`, `shoot_left.png`, `shoot_right.png`), then legacy root fallbacks.
+  - Player burst sprites resolve by `AIPU.systems.getDirectionalBurstStatus()`:
+    - `dual`/`omni` states force `assets/characters/player/main/DUAL.png` (falls back to `dual.png`).
+    - Otherwise movement/shoot frame logic continues as above.
+    - Burst gating is render-state-stable to reduce one-frame sprite jitter.
   - Enemy sprites resolve by `enemy.type` to:
     - `assets/characters/enemies/<enemyType>/idle.png`
     - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
-  - Sprite URLs are cache-busted with `?v=20260218-9`.
-  - Direction is resolved from active shoot input + aim first, then movement velocity, then aim fallback.
+  - Sprite URLs are cache-busted with `?v=20260218-12`.
+  - Shoot/move mode is resolved from active `Arrow*` keys (and `AIPU.input.lastShootKey` fallback) first, then movement velocity, then aim fallback.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
 
 Inputs:
@@ -81,14 +90,10 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`?v=20260218-9`) to force updated bundles on deployment.
-  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-9"`) to avoid stale image caching across art updates.
-  - Player movement resolution now includes front movement alias `Front.png` in addition to `front.png`.
-  - Shoot-frame resolution now includes renamed-case aliases so direction maps for current assets:
-    - `front`: `shoot_front.png` / `shoot_down.png` / `Down_Shoot.png` / `down_shoot.png`
-    - `back`: `shoot_back.png` / `shoot_up.png` / `UP_shoot.png` / `up_shoot.png`
-    - `left`: `shoot_left.png` / `shoot_a.png` / `Left_shoot.png` / `left_shoot.png`
-    - `right`: `shoot_right.png` / `shoot_d.png` / `Right_shoot.png` / `right_shoot.png`
+  - `index.html` script tags use cache-bust tokens (`?v=20260218-12`) to force updated bundles on deployment.
+  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-12"`) to avoid stale image caching across art updates.
+  - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
+  - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
 Acceptance Checks:
 - No state transitions altered by rendering.
@@ -108,7 +113,7 @@ Acceptance Checks:
   - Update/draw pass runs with line/rect drawing in the world transform and does not mutate gameplay collections.
 - Sprite routing behavior:
   - `drawPlayer()` first attempts bucket/legacy resolved directional player art, then falls back to procedural.
-  - `buildPlayerSpriteCandidates()` now checks movement aliases for renamed movement and shooting assets.
+  - `buildPlayerSpriteCandidates()` now resolves labeled movement/shoot frames first, then canonical aliases, then legacy root fallback.
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
   - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
