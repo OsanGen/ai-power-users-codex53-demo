@@ -277,6 +277,9 @@
   }
 
   function isPlayerShootInputActive() {
+    if (!game || game.state !== GameState.PLAYING) {
+      return false;
+    }
     return !!getActivePlayerShootDirection();
   }
 
@@ -300,6 +303,21 @@
       unique.push(value);
     }
     return unique;
+  }
+
+  function arePathListsEqual(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) {
+      return false;
+    }
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let i = 0; i < a.length; i += 1) {
+      if (a[i] !== b[i]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   function buildPlayerSpriteCandidates(direction, useShootFrameSet = false, useDualFrame = false) {
@@ -361,6 +379,7 @@
   function getCharacterSpriteState(cacheKey, candidatePaths, useTrimmedBounds) {
     let entry = characterSpriteCache[cacheKey];
     const paths = dedupePaths(candidatePaths);
+    const shouldReset = !entry || !arePathListsEqual(entry.paths, paths);
 
     if (!entry) {
       entry = {
@@ -383,19 +402,27 @@
       characterSpriteCache[cacheKey] = entry;
     }
 
-    if (entry.paths.length === 0 && paths.length > 0) {
+    if (shouldReset) {
       entry.paths = paths;
-    }
-    if (entry.paths.length === 0 && paths.length === 0 && entry.status === "idle") {
-      entry.status = "missing";
-      entry.failed = true;
-      entry.errorPaths.push("path-unresolved");
-      return entry;
+      entry.path = "";
+      entry.pathWithVersion = "";
+      entry.failed = false;
+      entry.image = null;
+      entry.trimRect = null;
+      entry.trimAspect = 1;
+      entry.naturalWidth = 0;
+      entry.naturalHeight = 0;
+      entry.errorPaths = [];
+      entry.nextPathIndex = 0;
+      if (paths.length === 0) {
+        entry.status = "missing";
+        entry.failed = true;
+        entry.errorPaths.push("path-unresolved");
+        return entry;
+      }
+      entry.status = "idle";
     }
 
-    if (entry.paths.length < paths.length) {
-      entry.paths = paths;
-    }
     if (entry.useTrimmedBounds !== useTrimmedBounds) {
       entry.useTrimmedBounds = useTrimmedBounds;
       if (entry.status === "ready" && entry.trimRect && !entry.useTrimmedBounds && entry.image) {

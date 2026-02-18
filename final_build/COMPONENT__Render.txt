@@ -117,5 +117,6 @@ Acceptance Checks:
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
   - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
+  - Sprite cache state invalidates when resolved candidate path sets change so stale path order/content can never pin a previous image after art rename or input-mode swap.
 - Deterministic automation compatibility:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
