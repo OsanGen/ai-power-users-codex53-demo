@@ -145,7 +145,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
-  const PLAYER_SPRITE_CACHE_BUST = "v=20260216-3";
+  const CHARACTER_ART_CACHE_BUST = "v=20260218-1";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -160,11 +160,32 @@
   };
   const fxPreviousEnemyIds = new Set();
   const fxEnemyPositions = new Map();
-  const PLAYER_SPRITE_PATHS = Object.freeze({
-    front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
-    left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
-    right: "./ChatGPT Image Feb 16, 2026, 05_58_25 PM.png",
-    back: "./ChatGPT Image Feb 16, 2026, 05_46_16 PM.png"
+  const CHARACTER_ART = Object.freeze({
+    player: Object.freeze({
+      bucketDir: "./assets/characters/player/main",
+      frames: Object.freeze({
+        front: "front.png",
+        back: "back.png",
+        left: "left.png",
+        right: "right.png"
+      }),
+      legacy: Object.freeze({
+        front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
+        left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
+        right: "./ChatGPT Image Feb 16, 2026, 05_58_25 PM.png",
+        back: "./ChatGPT Image Feb 16, 2026, 05_46_16 PM.png"
+      })
+    }),
+    enemy: Object.freeze({
+      bucketDir: "./assets/characters/enemies",
+      idle: "idle.png",
+      fallback: "default.png"
+    })
+  });
+  const ENEMY_SPRITE_SCALE = Object.freeze({
+    minWidthScale: 0.8,
+    maxWidthScale: 3.2,
+    heightScale: 2.2
   });
   const PLAYER_SPRITE_ALPHA_THRESHOLD = 10;
   const PLAYER_SPRITE_HEIGHT_SCALE = 5;
@@ -181,47 +202,213 @@
   });
   const playerSpriteMeasureCanvas = typeof document === "undefined" ? null : document.createElement("canvas");
   const playerSpriteMeasureCtx = playerSpriteMeasureCanvas && playerSpriteMeasureCanvas.getContext("2d");
-  const playerSpriteCache = Object.create(null);
+  const characterSpriteCache = Object.create(null);
+  const PLAYER_SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
   let playerFacingDirection = "front";
 
-  function getPlayerSpriteState(direction) {
-    const dir = PLAYER_SPRITE_PATHS[direction] ? direction : "front";
-    let entry = playerSpriteCache[dir];
-    if (entry) {
+  function isPlayerShootInputActive() {
+    const keys = AIPU.input && AIPU.input.keys;
+    if (!keys) {
+      return false;
+    }
+
+    for (let i = 0; i < PLAYER_SHOOT_KEYS.length; i += 1) {
+      if (keys[PLAYER_SHOOT_KEYS[i]]) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function normalizeDirection(direction) {
+    return CHARACTER_ART.player.frames[direction] ? direction : "front";
+  }
+
+  function normalizeEnemyType(enemyType) {
+    return typeof enemyType === "string" ? enemyType.trim() : "";
+  }
+
+  function dedupePaths(paths) {
+    const seen = new Set();
+    const unique = [];
+    for (let i = 0; i < paths.length; i += 1) {
+      const value = typeof paths[i] === "string" ? paths[i].trim() : "";
+      if (!value || seen.has(value)) {
+        continue;
+      }
+      seen.add(value);
+      unique.push(value);
+    }
+    return unique;
+  }
+
+  function buildPlayerSpriteCandidates(direction) {
+    const resolvedDirection = normalizeDirection(direction);
+    const frame = CHARACTER_ART.player.frames[resolvedDirection];
+    return [
+      `${CHARACTER_ART.player.bucketDir}/${frame}`,
+      CHARACTER_ART.player.legacy[resolvedDirection]
+    ];
+  }
+
+  function buildEnemySpriteCandidates(enemyType) {
+    const normalizedType = normalizeEnemyType(enemyType);
+    if (!normalizedType) {
+      return [];
+    }
+
+    const enemyBase = `${CHARACTER_ART.enemy.bucketDir}/${normalizedType}`;
+    return [
+      `${enemyBase}/${CHARACTER_ART.enemy.idle}`,
+      `${enemyBase}/${CHARACTER_ART.enemy.fallback}`
+    ];
+  }
+
+  function getCharacterSpriteState(cacheKey, candidatePaths, useTrimmedBounds) {
+    let entry = characterSpriteCache[cacheKey];
+    const paths = dedupePaths(candidatePaths);
+
+    if (!entry) {
+      entry = {
+        key: cacheKey,
+        cacheKey,
+        status: "idle",
+        paths,
+        path: "",
+        pathWithVersion: "",
+        failed: false,
+        image: null,
+        trimRect: null,
+        trimAspect: 1,
+        naturalWidth: 0,
+        naturalHeight: 0,
+        errorPaths: [],
+        nextPathIndex: 0,
+        useTrimmedBounds
+      };
+      characterSpriteCache[cacheKey] = entry;
+    }
+
+    if (entry.paths.length === 0 && paths.length > 0) {
+      entry.paths = paths;
+    }
+    if (entry.paths.length === 0 && paths.length === 0 && entry.status === "idle") {
+      entry.status = "missing";
+      entry.failed = true;
+      entry.errorPaths.push("path-unresolved");
       return entry;
     }
 
+    if (entry.paths.length < paths.length) {
+      entry.paths = paths;
+    }
+    if (entry.useTrimmedBounds !== useTrimmedBounds) {
+      entry.useTrimmedBounds = useTrimmedBounds;
+      if (entry.status === "ready" && entry.trimRect && !entry.useTrimmedBounds && entry.image) {
+        const naturalWidth = Number.isFinite(entry.image.naturalWidth) ? entry.image.naturalWidth : 0;
+        const naturalHeight = Number.isFinite(entry.image.naturalHeight) ? entry.image.naturalHeight : 0;
+        const fallbackRect = naturalWidth > 0 && naturalHeight > 0
+          ? { x: 0, y: 0, w: naturalWidth, h: naturalHeight, aspect: naturalWidth / naturalHeight }
+          : null;
+        entry.trimRect = fallbackRect;
+        entry.trimAspect = fallbackRect && fallbackRect.w > 0 && fallbackRect.h > 0
+          ? fallbackRect.w / fallbackRect.h
+          : 1;
+      }
+    }
+
+    if (entry.status === "idle" && entry.paths.length > 0) {
+      loadNextSpriteCandidate(entry);
+    }
+    return entry;
+  }
+
+  function getPlayerSpriteState(direction) {
+    const resolvedDirection = normalizeDirection(direction);
+    return getCharacterSpriteState(`player:${resolvedDirection}`, buildPlayerSpriteCandidates(resolvedDirection), true);
+  }
+
+  function getEnemySpriteState(enemyType) {
+    const normalizedType = normalizeEnemyType(enemyType);
+    return getCharacterSpriteState(`enemy:${normalizedType}`, buildEnemySpriteCandidates(normalizedType), false);
+  }
+
+  function loadNextSpriteCandidate(entry) {
+    if (!entry || entry.paths.length === 0) {
+      entry.status = "missing";
+      entry.failed = true;
+      return;
+    }
+    if (entry.status === "loading" || entry.status === "ready") {
+      return;
+    }
+
+    const path = entry.paths[entry.nextPathIndex];
+    if (typeof path !== "string" || !path) {
+      entry.status = "missing";
+      entry.failed = true;
+      return;
+    }
+
     const image = new Image();
-    entry = {
-      path: PLAYER_SPRITE_PATHS[dir],
-      image,
-      status: "idle",
-      failed: false
-    };
-    playerSpriteCache[dir] = entry;
+    image.decoding = "async";
+    const expectedPath = path;
+    const pathWithVersion = `${path}?${CHARACTER_ART_CACHE_BUST}`;
+    entry.path = path;
+    entry.pathWithVersion = pathWithVersion;
+    entry.image = image;
+    entry.status = "loading";
+    entry.failed = false;
+    const candidateIndex = entry.nextPathIndex;
 
     image.onload = () => {
-      const measuredTrim = computeTrimmedSpriteRect(image);
+      if (entry.status !== "loading" || entry.path !== expectedPath || entry.nextPathIndex !== candidateIndex) {
+        return;
+      }
+
+      const measuredTrim = entry.useTrimmedBounds ? computeTrimmedSpriteRect(image) : null;
       const naturalWidth = Number.isFinite(image.naturalWidth) ? image.naturalWidth : 0;
       const naturalHeight = Number.isFinite(image.naturalHeight) ? image.naturalHeight : 0;
       const fallbackRect = naturalWidth > 0 && naturalHeight > 0
         ? { x: 0, y: 0, w: naturalWidth, h: naturalHeight, aspect: naturalWidth / naturalHeight }
         : null;
+
+      entry.naturalWidth = naturalWidth;
+      entry.naturalHeight = naturalHeight;
       entry.trimRect = measuredTrim || fallbackRect;
       entry.trimAspect = entry.trimRect && entry.trimRect.w > 0 && entry.trimRect.h > 0
         ? entry.trimRect.w / entry.trimRect.h
         : 1;
+      if (!entry.trimRect || entry.naturalWidth <= 0 || entry.naturalHeight <= 0) {
+        entry.status = "missing";
+        entry.failed = true;
+        entry.errorPaths.push(path);
+        return;
+      }
+
       entry.status = "ready";
       entry.failed = false;
     };
+
     image.onerror = () => {
-      entry.status = "error";
+      if (entry.status !== "loading" || entry.path !== expectedPath || entry.nextPathIndex !== candidateIndex) {
+        return;
+      }
+
+      entry.errorPaths.push(path);
+      entry.nextPathIndex += 1;
+      if (entry.nextPathIndex < entry.paths.length) {
+        entry.status = "idle";
+        loadNextSpriteCandidate(entry);
+        return;
+      }
+
+      entry.status = "missing";
       entry.failed = true;
+      entry.image = null;
     };
-    const versionedPath = `${entry.path}?${PLAYER_SPRITE_CACHE_BUST}`;
-    image.src = encodeURI(versionedPath);
-    entry.status = "loading";
-    return entry;
+
+    image.src = encodeURI(pathWithVersion);
   }
 
   function computeTrimmedSpriteRect(image) {
@@ -283,7 +470,17 @@
     const vy = Number.isFinite(player.vy) ? player.vy : 0;
     const aimX = Number.isFinite(player.lastAimX) ? player.lastAimX : 0;
     const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
+    const aimMag = Math.abs(aimX) + Math.abs(aimY);
     const moveMag = Math.abs(vx) + Math.abs(vy);
+
+    if (isPlayerShootInputActive() && aimMag > 0.12) {
+      if (Math.abs(aimX) >= Math.abs(aimY)) {
+        playerFacingDirection = aimX < 0 ? "left" : "right";
+      } else {
+        playerFacingDirection = aimY < 0 ? "back" : "front";
+      }
+      return playerFacingDirection;
+    }
 
     if (moveMag > 0.08) {
       if (Math.abs(vx) >= Math.abs(vy)) {
@@ -294,7 +491,6 @@
       return playerFacingDirection;
     }
 
-    const aimMag = Math.abs(aimX) + Math.abs(aimY);
     if (aimMag > 0.12) {
       if (Math.abs(aimX) >= Math.abs(aimY)) {
         playerFacingDirection = aimX < 0 ? "left" : "right";
@@ -307,17 +503,17 @@
     return playerFacingDirection;
   }
 
-  function drawPlayerSpriteFallbackToFront(direction, accent, visualTheme = null) {
+  function drawPlayerSprite(direction, accent, visualTheme = null) {
     const order = direction === "front" ? ["front"] : [direction, "front"];
-    const stanceScale = PLAYER_SPRITE_STANCE_SCALE[direction] || 1.02;
+    const resolvedDirection = normalizeDirection(direction);
+    const stanceScale = PLAYER_SPRITE_STANCE_SCALE[resolvedDirection] || 1.02;
     for (let i = 0; i < order.length; i += 1) {
       const state = getPlayerSpriteState(order[i]);
-      if (!state || state.status !== "ready") {
+      if (!state || state.status !== "ready" || !state.image || !state.trimRect) {
         continue;
       }
-
       const image = state.image;
-      if (!image || !image.naturalWidth || !image.naturalHeight || !state.trimRect) {
+      if (!image.naturalWidth || !image.naturalHeight) {
         continue;
       }
 
@@ -343,7 +539,7 @@
       return true;
     }
 
-    return drawPlayerProceduralSprite(direction, accent, visualTheme);
+    return false;
   }
 
   function drawPlayerCogGlyph(cx, cy, radius, accent, visualTheme = null) {
@@ -4678,7 +4874,12 @@
 
   function drawEnemies(accent) {
     for (const enemy of enemies) {
+      if (drawEnemySprite(enemy)) {
+        continue;
+      }
+
       const alpha = enemy.hurtFlash > 0 ? 1 : 0.98;
+      const enemyType = typeof enemy.type === "string" ? enemy.type : "";
       const body = enemy.hurtFlash > 0 ? TOKENS.white : rgba(accent, alpha);
       const outline = TOKENS.ink;
 
@@ -4690,12 +4891,12 @@
       const y = enemy.y;
       const r = enemy.radius;
 
-      if (enemy.type === "notification_swarm") {
+      if (enemyType === "notification_swarm") {
         fillRoundRect(x - r, y - r, r * 2, r * 2, 4);
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 4);
         ctx.fillStyle = TOKENS.ink;
         ctx.fillRect(x - 3, y - 4, 6, 8);
-      } else if (enemy.type === "flank_drone") {
+      } else if (enemyType === "flank_drone") {
         ctx.beginPath();
         ctx.moveTo(x, y - r);
         ctx.lineTo(x + r, y);
@@ -4707,27 +4908,27 @@
         ctx.beginPath();
         ctx.arc(x, y, r * 0.36, 0, Math.PI * 2);
         ctx.stroke();
-      } else if (enemy.type === "speaker_wraith") {
+      } else if (enemyType === "speaker_wraith") {
         fillRoundRect(x - r, y - r, r * 2, r * 2, 8);
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 8);
         ctx.beginPath();
         ctx.arc(x, y, r * 0.45, 0, Math.PI * 2);
         ctx.stroke();
-      } else if (enemy.type === "chair_knight") {
+      } else if (enemyType === "chair_knight") {
         fillRoundRect(x - r, y - r, r * 2, r * 2, 6);
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 6);
         ctx.strokeRect(x - r * 0.55, y - r * 1.15, r * 1.1, r * 0.45);
-      } else if (enemy.type === "reach_shadow") {
+      } else if (enemyType === "reach_shadow") {
         ctx.fillStyle = rgba(TOKENS.ink, 0.85);
         fillRoundRect(x - r, y - r, r * 2, r * 2, 999);
         ctx.strokeStyle = TOKENS.white;
         ctx.strokeRect(x - 4, y - 4, 8, 8);
-      } else if (enemy.type === "double") {
+      } else if (enemyType === "double") {
         ctx.fillStyle = TOKENS.ink;
         fillRoundRect(x - r, y - r, r * 2, r * 2, 8);
         ctx.strokeStyle = accent;
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 8);
-      } else if (enemy.type.includes("rabbit")) {
+      } else if (enemyType.includes("rabbit")) {
         fillRoundRect(x - r, y - r, r * 2, r * 2, 10);
         strokeRoundRect(x - r, y - r, r * 2, r * 2, 10);
         ctx.fillStyle = TOKENS.white;
@@ -4754,11 +4955,46 @@
     }
 
     const direction = getPlayerDirectionFromMotion();
-    const drewSprite = drawPlayerSpriteFallbackToFront(direction, accent, visualTheme);
+    const drewSprite = drawPlayerSprite(direction, accent, visualTheme);
     if (!drewSprite) {
       drawPlayerProceduralSprite(direction, accent, visualTheme);
     }
     drawPlayerAimLine();
+  }
+
+  function drawEnemySprite(enemy) {
+    const enemyType = normalizeEnemyType(enemy && enemy.type);
+    const state = getEnemySpriteState(enemyType);
+    if (!state || state.status !== "ready" || !state.image || !state.trimRect) {
+      return false;
+    }
+
+    const image = state.image;
+    if (!image.naturalWidth || !image.naturalHeight) {
+      return false;
+    }
+
+    const x = Number.isFinite(enemy.x) ? enemy.x : 0;
+    const y = Number.isFinite(enemy.y) ? enemy.y : 0;
+    const r = Number.isFinite(enemy.radius) && enemy.radius > 0 ? enemy.radius : 12;
+    const spriteHeight = r * ENEMY_SPRITE_SCALE.heightScale;
+    const spriteWidth = clamp(
+      spriteHeight * state.trimAspect,
+      r * ENEMY_SPRITE_SCALE.minWidthScale,
+      r * ENEMY_SPRITE_SCALE.maxWidthScale
+    );
+    const drawX = x - spriteWidth * 0.5;
+    const drawY = y - spriteHeight * 0.5;
+    const sx = state.trimRect.x;
+    const sy = state.trimRect.y;
+    const sw = state.trimRect.w;
+    const sh = state.trimRect.h;
+
+    const prevSmoothing = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(image, sx, sy, sw, sh, drawX, drawY, spriteWidth, spriteHeight);
+    ctx.imageSmoothingEnabled = prevSmoothing;
+    return true;
   }
 
   function drawPlayerAimLine() {
@@ -5807,6 +6043,68 @@
     };
   }
 
+  function getSpriteLoadState() {
+    const entries = Object.values(characterSpriteCache);
+    const byCharacter = Object.create(null);
+    let ready = 0;
+    let loading = 0;
+    let missing = 0;
+    let failed = 0;
+    let idle = 0;
+    const missingPaths = [];
+
+    for (let i = 0; i < entries.length; i += 1) {
+      const entry = entries[i];
+      const status = entry.status || "idle";
+      switch (status) {
+        case "ready":
+          ready += 1;
+          break;
+        case "loading":
+          loading += 1;
+          break;
+        case "missing":
+          missing += 1;
+          break;
+        case "idle":
+          idle += 1;
+          break;
+        default:
+          break;
+      }
+
+      if (entry.failed) {
+        failed += 1;
+      }
+      if (entry.errorPaths && entry.errorPaths.length > 0) {
+        missingPaths.push({
+          key: entry.key || "",
+          paths: entry.errorPaths.slice(0)
+        });
+      }
+
+      byCharacter[entry.key] = {
+        status,
+        path: entry.path || "",
+        paths: entry.paths.slice(0),
+        failed: !!entry.failed,
+        imageLoaded: !!entry.image
+      };
+    }
+
+    return {
+      cacheBust: CHARACTER_ART_CACHE_BUST,
+      total: entries.length,
+      ready,
+      loading,
+      missing,
+      idle,
+      failed,
+      missingPaths,
+      byCharacter
+    };
+  }
+
   AIPU.renderCache = {
     invalidate: invalidateRenderCache,
     markFloor: markRenderCacheFloor,
@@ -5824,6 +6122,7 @@
     fillRoundRect,
     strokeRoundRect,
     roundRectPath,
-    isTitleSequenceComplete
+    isTitleSequenceComplete,
+    getSpriteLoadState
   };
 })();

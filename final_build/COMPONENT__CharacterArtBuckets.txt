@@ -1,41 +1,41 @@
 Character Art Bucket Contract Component
 
 Purpose:
-- Define the canonical directory-based asset source of truth for character visuals.
-- Enable drop-in replacement of character art by adding/replacing PNGs in fixed folder buckets.
-- Keep renderer behavior safe during migration by allowing fallback behavior in render logic when present (handled in renderer implementation phase).
+- Define the canonical directory source of truth for character sprites.
+- Enable drop-in character art updates by replacing PNGs in fixed folder buckets.
+- Keep rendering safe via resolver fallback so folders can be authored before assets are complete.
 
 Inputs:
 - Files on disk under `/Users/abelsanchez/CODEX/WONDERLAND/assets/characters/`.
 - Player bucket: `assets/characters/player/main/`.
 - Enemy buckets: `assets/characters/enemies/<enemyType>/` for each `ENEMY_DEFS` key.
-- Optional fallback files in enemy buckets (`default.png`).
 
 Outputs:
-- Canonical sprite paths for player and enemy art once renderer routing is wired.
-- Folder-level discoverability for authoring checks (presence-only audit).
+- Canonical sprite paths for player and enemy rendering in `src/render.js`.
+- Stable bucket structure for authoring and deployment (`.gitkeep` for empty folders).
 
 State:
-- No runtime state is stored in this component.
-- Canonical files are persisted directly in the filesystem:
+- No runtime state is persisted by this component.
+- Persisted assets:
   - Player: `front.png`, `back.png`, `left.png`, `right.png`.
   - Enemy: `idle.png` (primary), `default.png` (optional fallback).
-- `.gitkeep` files preserve empty folders in git.
 
 Behavior and Edge Cases:
-- Player mapping is 1:1 to directions.
+- Player mapping is 1:1 to movement-facing directions.
 - Enemy mapping is by `enemy.type`.
-- Missing file/bucket should not fail runtime if renderer handles resolver + procedural fallback.
-- Missing/extra file names are ignored by the contract.
-- Directory existence is sufficient during authoring; image load success is handled by renderer.
+- Missing folders/files do not fail runtime because `src/render.js` falls back to procedural rendering when candidate paths cannot resolve.
+- Legacy root player sprites are retained as fallback candidates in the resolver during migration.
+- Extra file names are ignored.
 
 Dependencies:
-- `src/render.js` (future sprite resolver + cache routing layer).
+- `src/render.js` (character sprite resolver + cache + fallback).
 - `src/content.js` (`ENEMY_DEFS` defines valid `enemyType` keys).
-- `src/systems.js` (`enemy.type` assignment from `waveCfg.enemyType`).
+- `src/systems.js` (`enemy.type` assignment from wave configs).
 
 Acceptance Checks:
 - `/Users/abelsanchez/CODEX/WONDERLAND/assets/characters/player/main/` exists and contains `front.png`, `back.png`, `left.png`, `right.png`.
 - Enemy directories exist for all 16 types in `ENEMY_DEFS`:
-  - `signal_echo`, `rabbit_glimpse`, `notification_swarm`, `name_glitch_shade`, `flank_drone`, `speaker_wraith`, `chair_knight`, `hammer_rabbit`, `loop_ghost`, `decay_mote`, `double`, `apex_rabbit`, `cell_blob`, `reach_shadow`, `evolution_rabbit`, `drift_hound`, `arc_turret`.
-- All newly created character directories include `.gitkeep` when no art files are present.
+  - `signal_echo`, `rabbit_glimpse`, `notification_swarm`, `name_glitch_shade`, `flank_drone`,
+    `speaker_wraith`, `chair_knight`, `hammer_rabbit`, `loop_ghost`, `decay_mote`, `double`,
+    `apex_rabbit`, `cell_blob`, `reach_shadow`, `evolution_rabbit`, `drift_hound`, `arc_turret`.
+- Every enemy/player directory includes `.gitkeep` while empty.

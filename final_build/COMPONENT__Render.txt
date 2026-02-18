@@ -4,15 +4,19 @@ Purpose:
 - Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
-- Support directional player model swap for visuals:
-  - Player sprites are currently referenced by legacy root-level filenames in `src/render.js` and are being migrated to:
+- Support directional player model swap and automatic enemy art routing:
+  - Player sprites resolve by bucket from:
     - `assets/characters/player/main/front.png`
     - `assets/characters/player/main/back.png`
     - `assets/characters/player/main/left.png`
     - `assets/characters/player/main/right.png`
-  - Sprite URLs are loaded via `encodeURI(path + "?v=20260216-3")` to force fresh fetches after updated assets.
-  - Direction is resolved from movement velocity and aim fallback.
-  - Missing or failed sprite loads fall back to a built-in directional procedural character that uses a cog-style head and per-orientation body profile.
+    - legacy root filenames remain as resolver fallback during migration.
+  - Enemy sprites resolve by `enemy.type` to:
+    - `assets/characters/enemies/<enemyType>/idle.png`
+    - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
+  - Sprite URLs are cache-busted with `?v=20260218-1`.
+  - Direction is resolved from active shoot input + aim first, then movement velocity, then aim fallback.
+  - Missing or failed sprite loads fallback to built-in directional procedural rendering.
 
 Inputs:
 - Render state (`AIPU.state.game`, `AIPU.state.player`, entity collections).
@@ -75,9 +79,8 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`?v=20260216-2`) to force render bundle refresh on deployment.
-  - `index.html` script tags now use cache-bust tokens (`?v=20260216-3`) to ensure updated render and main bundles load.
-  - Player sprite URLs are additionally cache-busted by version in `src/render.js` (`PLAYER_SPRITE_CACHE_BUST = "v=20260216-3"`) to avoid stale image caching across deploys.
+- `index.html` script tags use cache-bust tokens (`?v=20260216-5`) to force updated bundles on deployment.
+- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-1"`) to avoid stale image caching across art updates.
 
 Acceptance Checks:
 - No state transitions altered by rendering.
@@ -95,3 +98,8 @@ Acceptance Checks:
   - Hit events trigger pooled micro sparks near enemy impact points.
   - Death events trigger a ring dissolve and shard-like particles.
   - Update/draw pass runs with line/rect drawing in the world transform and does not mutate gameplay collections.
+- Sprite routing behavior:
+  - `drawPlayer()` first attempts bucket/legacy resolved directional player art, then falls back to procedural.
+  - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
+  - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
+  - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.

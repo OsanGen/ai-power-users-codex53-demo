@@ -2175,8 +2175,16 @@
     return clamp(chance, 0.05, 0.34);
   }
 
+  function isDebugEnabled() {
+    return !!game.showDebugStats;
+  }
+
+  function getSafeCoordinate(value, fallback) {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
   function logDamageDebug(reason, payload = null) {
-    if (!game.showDebugStats) {
+    if (!isDebugEnabled()) {
       return;
     }
     const context = {
@@ -2193,11 +2201,14 @@
 
   function applyPlayerDamage(amount, sourceX, sourceY, sourceType = "unknown") {
     const resolvedAmount = Number.isFinite(amount) ? amount : 0;
+    const safeSourceX = getSafeCoordinate(sourceX, player.x);
+    const safeSourceY = getSafeCoordinate(sourceY, player.y);
+
     if (resolvedAmount <= 0) {
       logDamageDebug("invalidDamageAmount", {
         sourceType,
-        sourceX,
-        sourceY,
+        sourceX: safeSourceX,
+        sourceY: safeSourceY,
         amount
       });
       return false;
@@ -2212,8 +2223,8 @@
     ) {
       logDamageDebug("damageBlockedByState", {
         sourceType,
-        sourceX,
-        sourceY,
+        sourceX: safeSourceX,
+        sourceY: safeSourceY,
         amount: resolvedAmount
       });
       return false;
@@ -2227,8 +2238,8 @@
       emitBurst(player.x, player.y, currentAccent(), 10, 175);
       logDamageDebug("shieldAbsorbed", {
         sourceType,
-        sourceX,
-        sourceY,
+        sourceX: safeSourceX,
+        sourceY: safeSourceY,
         amount: resolvedAmount,
         remainingShields: player.shieldCharges
       });
@@ -2238,8 +2249,8 @@
     if (!Number.isFinite(player.hearts) || !Number.isFinite(player.maxHearts) || player.maxHearts <= 0) {
       logDamageDebug("invalidPlayerHpState", {
         sourceType,
-        sourceX,
-        sourceY,
+        sourceX: safeSourceX,
+        sourceY: safeSourceY,
         amount: resolvedAmount,
         playerHearts: player.hearts,
         playerMaxHearts: player.maxHearts
@@ -2257,8 +2268,8 @@
       startDeathAnim();
       logDamageDebug("playerDeath", {
         sourceType,
-        sourceX,
-        sourceY,
+        sourceX: safeSourceX,
+        sourceY: safeSourceY,
         previousHearts,
         afterHearts: player.hearts,
         amount: resolvedAmount
@@ -2268,7 +2279,7 @@
 
     player.invuln = invulnDuration;
 
-    const away = unitVector(player.x - sourceX, player.y - sourceY);
+    const away = unitVector(player.x - safeSourceX, player.y - safeSourceY);
     player.x += away.x * 18;
     player.y += away.y * 18;
     player.x = clamp(player.x, WORLD.x + player.radius, WORLD.x + WORLD.w - player.radius);
@@ -2277,8 +2288,8 @@
     emitBurst(player.x, player.y, TOKENS.white, 14, 200);
     logDamageDebug("playerDamaged", {
       sourceType,
-      sourceX,
-      sourceY,
+      sourceX: safeSourceX,
+      sourceY: safeSourceY,
       previousHearts,
       afterHearts: player.hearts,
       amount: resolvedAmount
@@ -2396,11 +2407,13 @@
       return;
     }
 
-    if (game.showDebugStats) {
+    if (isDebugEnabled()) {
+      const floor = currentFloor();
+      const floorId = floor && Number.isFinite(floor.id) ? floor.id : game.currentFloorIndex + 1;
       if (result.type === "fallback") {
-        console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (${result.effectText})`);
+        console.log(`[upgrade] floor ${floorId}: picked ${option.name} (fallback: ${result.effectText})`);
       } else {
-        console.log(`[upgrade] floor ${currentFloor().id}: picked ${option.name} (stack ${result.newStack}/${result.maxStacks})`);
+        console.log(`[upgrade] floor ${floorId}: picked ${option.name} (stack ${result.newStack}/${result.maxStacks})`);
       }
     }
 

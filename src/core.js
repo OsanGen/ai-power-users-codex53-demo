@@ -237,8 +237,16 @@
   }
 
   function unitVector(x, y) {
-    const len = Math.hypot(x, y) || 1;
-    return { x: x / len, y: y / len };
+    const vx = Number(x);
+    const vy = Number(y);
+    if (!Number.isFinite(vx) || !Number.isFinite(vy)) {
+      return { x: 0, y: 0 };
+    }
+    const len = Math.hypot(vx, vy);
+    if (!len || !Number.isFinite(len)) {
+      return { x: 0, y: 0 };
+    }
+    return { x: vx / len, y: vy / len };
   }
 
   function circleHit(ax, ay, ar, bx, by, br) {
@@ -267,13 +275,19 @@
     if (keyName === "ArrowDown") return { x: 0, y: 1 };
     if (keyName === "ArrowLeft") return { x: -1, y: 0 };
     if (keyName === "ArrowRight") return { x: 1, y: 0 };
-    return { x: 0, y: -1 };
+    return { x: 0, y: 0 };
   }
 
   function hexToRgb(hex) {
+    if (typeof hex !== "string") {
+      return { r: 0, g: 0, b: 0 };
+    }
     const clean = hex.replace("#", "");
     const value = clean.length === 3 ? clean.split("").map((c) => c + c).join("") : clean;
     const int = Number.parseInt(value, 16);
+    if (Number.isNaN(int)) {
+      return { r: 0, g: 0, b: 0 };
+    }
     return {
       r: (int >> 16) & 255,
       g: (int >> 8) & 255,

@@ -1,0 +1,35 @@
+Core Utilities Component
+
+Purpose:
+- Own shared constants, mutable runtime state defaults, and cross-module utility helpers in `AIPU`.
+- Provide low-level math, input mapping, and rendering primitives used by gameplay/render layers.
+
+Inputs:
+- DOM elements from the game shell (`#game`, overlays, share modal controls).
+- Initial player/enemy state defaults and global constants (`AIPU.constants`, `AIPU.state`, `AIPU.input`).
+- Utility inputs from callers in `systems.js`, `render.js`, `share.js`, `main.js`.
+
+Outputs:
+- Mutable singletons attached to `AIPU`:
+  - `AIPU.dom`, `AIPU.ctx`, `AIPU.constants`, `AIPU.state`, `AIPU.input`, `AIPU.utils`.
+- Utility behaviors:
+  - `clamp`, `lerp`, `easeOutCubic`, `easeInOutSine`, `approach`.
+  - `randomFrom`, `shuffleArray`, `rand`.
+  - `unitVector` normalization.
+  - `circleHit`, `pointInRect`, `getMouseCanvasPosition`.
+  - `arrowKeyToVector`, `hexToRgb`, `rgba`, `accentColor`.
+
+State/Edges:
+- `AIPU.state` defines default world/player/enemy state and render-cache metadata before gameplay begins.
+- `AIPU.input` stores key states and reduced-motion media query state.
+- `unitVector` now gracefully handles malformed/zero vectors to avoid NaN in downstream movement and knockback math.
+- `arrowKeyToVector` now returns neutral `{ x: 0, y: 0 }` for unexpected keys, preventing accidental upward shooting vector fallback.
+- `hexToRgb` now returns black on malformed values instead of throwing.
+
+Dependencies:
+- None external; pure bootstrap utilities consumed by other modules.
+
+Acceptance Checks:
+- No caller receives NaN from `unitVector` for malformed inputs.
+- Unknown shoot keys resolve to no-direction vector, avoiding unintended directional shooting.
+- Color utility calls with malformed input fail closed to black rather than throwing.

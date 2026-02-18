@@ -354,6 +354,28 @@ Share copy generation:
 - Static and dynamic offscreen layers cached per floor/accent
 - Invalidation on floor/state transitions via `AIPU.renderCache`
 
+### Art folder contract
+
+Character art now resolves from folders first, with legacy fallback for player files.
+
+- Base paths:
+  - Player: `assets/characters/player/main/`
+  - Enemy: `assets/characters/enemies/<enemyType>/`
+- Required player files:
+  - `front.png`, `back.png`, `left.png`, `right.png`
+- Optional enemy files:
+  - `idle.png` (primary)
+  - `default.png` (fallback if `idle.png` is missing)
+- Fallback behavior:
+  - Missing files resolve through fallback candidates.
+  - No valid image path falls back to procedural rendering for that entity.
+  - Path cache is versioned for hard refreshes using `v=20260216-5`.
+- Debug:
+  - `AIPU.render.getSpriteLoadState()` returns runtime sprite cache counters and missed-path diagnostics.
+- Adding new character types or replacements:
+  - Add the correct folder under `assets/characters/enemies/<enemyType>/`.
+  - Drop `idle.png` (and optional `default.png`) to enable auto-routing on next frame load.
+
 ### HUD elements
 
 - Hearts + optional shield pill
