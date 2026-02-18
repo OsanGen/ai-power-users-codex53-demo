@@ -735,6 +735,50 @@
         wave("notification_swarm", 20, 124, 0.7, 2.55, 1.1, 1.55)
       ]
     },
+    {
+      id: 14,
+      name: "Gradient Catastrophe",
+      durationSeconds: 132,
+      accent: "blue",
+      overlayTitle: "Floor 14 - Gradient Catastrophe",
+      overlaySubtitle: "Too steep, and everything explodes.",
+      heartType: "bloom",
+      heartSpawn: { initialCount: 1, baseRate: 0.052, clutchBoostStart: 28 },
+      enemyWaves: [
+        wave("evolution_rabbit", 0, 132, 0.12, 0.32, 1.0, 1.22),
+        wave("speaker_wraith", 0, 132, 0.18, 0.6, 1.0, 1.32),
+        wave("cell_blob", 20, 132, 0.34, 0.95, 1.0, 1.26, ["canSplit"]),
+        wave("decay_mote", 30, 96, 0.52, 1.72, 1.12, 1.52),
+        wave("reach_shadow", 60, 132, 0.16, 0.5, 1.0, 1.0),
+        wave("drift_hound", 60, 132, 0.2, 1.02, 1.04, 1.62, ["spawnsBehindPlayer"]),
+        wave("notification_swarm", 28, 132, 0.55, 1.75, 1.08, 1.48),
+        wave("drift_hound", 72, 132, 0.06, 0.26, 1.02, 1.24, ["spawnsBehindPlayer"]),
+        wave("reach_shadow", 120, 132, 0.16, 0.24, 1.0, 1.0)
+      ]
+    },
+    {
+      id: 15,
+      name: "Convergence Proof",
+      durationSeconds: 140,
+      accent: "mint",
+      overlayTitle: "Floor 15 - Convergence Proof",
+      overlaySubtitle: "One loop. One run. Prove it.",
+      heartType: "final",
+      heartSpawn: { initialCount: 1, baseRate: 0.05, clutchBoostStart: 30 },
+      enemyWaves: [
+        wave("double", 0, 56, 0.16, 0.52, 1.1, 1.38),
+        wave("flank_drone", 10, 56, 0.16, 0.45, 1.0, 1.24, ["spawnsBehindPlayer"]),
+        wave("reach_shadow", 44, 140, 0.22, 0.78, 1.0, 1.0),
+        wave("speaker_wraith", 44, 140, 0.22, 0.78, 1.0, 1.34),
+        wave("cell_blob", 58, 140, 0.38, 1.18, 1.02, 1.28, ["canSplit"]),
+        wave("evolution_rabbit", 84, 140, 0.14, 0.4, 1.05, 1.25),
+        wave("apex_rabbit", 84, 140, 0.1, 0.32, 1.18, 1.55),
+        wave("decay_mote", 96, 140, 0.7, 2.05, 1.2, 1.6),
+        wave("drift_hound", 76, 140, 0.16, 1.28, 1.06, 1.72, ["spawnsBehindPlayer"]),
+        wave("arc_turret", 84, 140, 0.2, 1.0, 1.12, 1.64),
+        wave("notification_swarm", 66, 140, 0.5, 2.1, 1.18, 1.58)
+      ]
+    },
   ];
 
   const TITLE_SEQUENCE = {

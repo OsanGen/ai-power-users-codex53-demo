@@ -12,7 +12,8 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Validate late-floor 10–15 tuning pass/fail: spawn-score metric is monotonically increasing 10→15 and wave endTime constraints hold.
 - /Users/abelsanchez/CODEX/WONDERLAND/deploy | completed | Verified live GH Pages payload: floor IDs 1–13 and teach cards 1–13 synchronized in remote `src/content.js` and `narrative.js`.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Headless transition smoke check verified: forced floor 10 path reaches PLAYING via UPGRADE_SELECT→LESSON_SLIDE→FLOOR_INTRO with no state errors.
-- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Reduce progression to 13 floors by removing Floor 14 and Floor 15 entries from `FLOORS`; preserve floor 1–13 data unchanged.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/content.js | completed | Restored Floor 14 and Floor 15 definitions in `FLOORS` to recover full 1–15 progression after user-reported level loss.
+- /Users/abelsanchez/CODEX/WONDERLAND/index.html | completed | Bumped script cache token to `v=20260218-1` so clients fetch restored 1–15 floor content immediately.
 - /Users/abelsanchez/CODEX/WONDERLAND/user_test | completed | User to validate manual floor 10 start from title/console and collect first-pass tuning notes using checkpoint or direct startRun(10).
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Implemented world-only background strip-warp distortion (PROMPT 7) in `updateDynamicLayer()` with WORLD clipping, reduced-motion gating, per-floor orientation, and quality/floor trippy-based amplitude caps.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Implemented floor identity FX packs (1–15), expanded `hasDynamicFloorVisuals` to 1..15, and added pack-driven floor skin static/dynamic dispatch with explicit late-floor (`10–13`) theme + motion overlays.
