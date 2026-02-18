@@ -468,6 +468,27 @@
     return code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD";
   }
 
+  function isShootDirectionCode(code) {
+    return code === "ArrowUp" || code === "ArrowDown" || code === "ArrowLeft" || code === "ArrowRight" || isMovementCode(code);
+  }
+
+  function getShootDirectionCode(event) {
+    const code = typeof event.code === "string" ? event.code : "";
+    if (isShootDirectionCode(code)) {
+      return code;
+    }
+
+    const key = typeof event.key === "string" ? event.key : "";
+    if (key.length === 1) {
+      const movementCode = `Key${key.toUpperCase()}`;
+      if (isMovementCode(movementCode)) {
+        return movementCode;
+      }
+    }
+
+    return "";
+  }
+
   function setInputKeyState(event, isDown) {
     const key = typeof event.key === "string" ? event.key : "";
     const code = typeof event.code === "string" ? event.code : "";
@@ -664,7 +685,7 @@
     if (appSubtitleEl) {
       appSubtitleEl.textContent = formatUiText(
         "appSubtitle",
-        "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor."
+        "Move and shoot with WASD. Arrow keys also shoot. Learn one concept per floor."
       );
     }
 
@@ -742,6 +763,11 @@
     const lower = key.toLowerCase();
 
     setInputKeyState(event, true);
+
+    const shootKey = getShootDirectionCode(event);
+    if (shootKey) {
+      AIPU.input.lastShootKey = shootKey;
+    }
 
     if (isArrowKey(event)) {
       const arrow = key.startsWith("Arrow") ? key : code;
@@ -1709,10 +1735,10 @@
       return arrowKeyToVector(AIPU.input.lastShootKey);
     }
 
-    if (keys.ArrowUp) return { x: 0, y: -1 };
-    if (keys.ArrowDown) return { x: 0, y: 1 };
-    if (keys.ArrowLeft) return { x: -1, y: 0 };
-    if (keys.ArrowRight) return { x: 1, y: 0 };
+    if (keys.ArrowUp || keys.KeyW) return { x: 0, y: -1 };
+    if (keys.ArrowDown || keys.KeyS) return { x: 0, y: 1 };
+    if (keys.ArrowLeft || keys.KeyA) return { x: -1, y: 0 };
+    if (keys.ArrowRight || keys.KeyD) return { x: 1, y: 0 };
 
     return null;
   }

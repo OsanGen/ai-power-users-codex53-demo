@@ -275,6 +275,10 @@
     if (keyName === "ArrowDown") return { x: 0, y: 1 };
     if (keyName === "ArrowLeft") return { x: -1, y: 0 };
     if (keyName === "ArrowRight") return { x: 1, y: 0 };
+    if (keyName === "KeyW") return { x: 0, y: -1 };
+    if (keyName === "KeyS") return { x: 0, y: 1 };
+    if (keyName === "KeyA") return { x: -1, y: 0 };
+    if (keyName === "KeyD") return { x: 1, y: 0 };
     return { x: 0, y: 0 };
   }
 
@@ -308,11 +312,139 @@
     return constants.TOKENS.blue;
   }
 
+  const QA_MODULE_GRAPH = Object.freeze({
+    core: Object.freeze({
+      writes: Object.freeze(["AIPU.dom", "AIPU.ctx", "AIPU.constants", "AIPU.state", "AIPU.input", "AIPU.utils"]),
+      reads: Object.freeze(["window", "document"])
+    }),
+    content: Object.freeze({
+      writes: Object.freeze(["AIPU.content"]),
+      reads: Object.freeze(["AIPU.utils", "AIPU.state", "AIPU.upgrades", "window.AI_POWER_USER_NARRATIVE"])
+    }),
+    upgrades: Object.freeze({
+      writes: Object.freeze(["AIPU.upgrades", "AIPU.state.player", "AIPU.state.game"]),
+      reads: Object.freeze(["AIPU.constants", "AIPU.content", "AIPU.utils"])
+    }),
+    share: Object.freeze({
+      writes: Object.freeze(["AIPU.share"]),
+      reads: Object.freeze(["AIPU.dom", "AIPU.constants", "AIPU.content"])
+    }),
+    systems: Object.freeze({
+      writes: Object.freeze(["AIPU.systems", "AIPU.state", "AIPU.input.keys"]),
+      reads: Object.freeze(["AIPU.dom", "AIPU.constants", "AIPU.content", "AIPU.upgrades", "AIPU.share", "AIPU.utils"])
+    }),
+    render: Object.freeze({
+      writes: Object.freeze(["AIPU.render", "AIPU.renderCache"]),
+      reads: Object.freeze(["AIPU.constants", "AIPU.state", "AIPU.content", "AIPU.upgrades", "AIPU.systems", "AIPU.utils"])
+    }),
+    main: Object.freeze({
+      writes: Object.freeze(["window.advanceTime", "window.render_game_to_text"]),
+      reads: Object.freeze(["AIPU.systems", "AIPU.render", "AIPU.share"])
+    })
+  });
+
+  function toSafeNumber(value, fallback = 0) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  }
+
+  function buildCollectionSummary(collection, limit = 6, mapper = null) {
+    const list = Array.isArray(collection) ? collection : [];
+    const safeLimit = Math.max(0, Math.floor(toSafeNumber(limit, 6)));
+    const sample = [];
+    for (let i = 0; i < list.length && i < safeLimit; i += 1) {
+      if (typeof mapper === "function") {
+        sample.push(mapper(list[i], i));
+      } else {
+        sample.push(list[i]);
+      }
+    }
+    return { count: list.length, sample };
+  }
+
+  function getQaCollections(limit = 6) {
+    const systems = AIPU.systems;
+    const fromSystems = systems && typeof systems.getCollections === "function" ? systems.getCollections() : null;
+    const active = fromSystems || {
+      activeWaves: state.activeWaves || [],
+      bullets: state.bullets || [],
+      enemyBullets: state.enemyBullets || [],
+      enemies: state.enemies || [],
+      pickups: state.pickups || [],
+      particles: state.particles || []
+    };
+
+    return {
+      activeWaves: buildCollectionSummary(active.activeWaves, limit, (wave) => ({
+        enemyType: wave && typeof wave.enemyType === "string" ? wave.enemyType : "",
+        startTime: toSafeNumber(wave && wave.startTime, 0),
+        endTime: toSafeNumber(wave && wave.endTime, 0)
+      })),
+      bullets: buildCollectionSummary(active.bullets, limit, (bullet) => ({
+        x: toSafeNumber(bullet && bullet.x, 0),
+        y: toSafeNumber(bullet && bullet.y, 0),
+        vx: toSafeNumber(bullet && bullet.vx, 0),
+        vy: toSafeNumber(bullet && bullet.vy, 0)
+      })),
+      enemyBullets: buildCollectionSummary(active.enemyBullets, limit, (bullet) => ({
+        x: toSafeNumber(bullet && bullet.x, 0),
+        y: toSafeNumber(bullet && bullet.y, 0),
+        vx: toSafeNumber(bullet && bullet.vx, 0),
+        vy: toSafeNumber(bullet && bullet.vy, 0)
+      })),
+      enemies: buildCollectionSummary(active.enemies, limit, (enemy) => ({
+        type: enemy && typeof enemy.type === "string" ? enemy.type : "",
+        x: toSafeNumber(enemy && enemy.x, 0),
+        y: toSafeNumber(enemy && enemy.y, 0),
+        hp: toSafeNumber(enemy && enemy.hp, 0)
+      })),
+      pickups: buildCollectionSummary(active.pickups, limit, (pickup) => ({
+        x: toSafeNumber(pickup && pickup.x, 0),
+        y: toSafeNumber(pickup && pickup.y, 0)
+      })),
+      particles: buildCollectionSummary(active.particles, limit)
+    };
+  }
+
+  function getQaStateSnapshot(limit = 6) {
+    const gameState = state && state.game ? state.game : {};
+    const playerState = state && state.player ? state.player : {};
+    const floor = AIPU.systems && typeof AIPU.systems.currentFloor === "function" ? AIPU.systems.currentFloor() : null;
+    return {
+      coordinateSystem: "origin-top-left,+x-right,+y-down",
+      game: {
+        state: gameState.state || "",
+        floorIndex: toSafeNumber(gameState.currentFloorIndex, 0),
+        floorId: floor && Number.isFinite(floor.id) ? floor.id : null,
+        floorTimer: toSafeNumber(gameState.floorTimer, 0),
+        floorElapsed: toSafeNumber(gameState.floorElapsed, 0),
+        kills: toSafeNumber(gameState.kills, 0),
+        globalTime: toSafeNumber(gameState.globalTime, 0)
+      },
+      player: {
+        x: toSafeNumber(playerState.x, 0),
+        y: toSafeNumber(playerState.y, 0),
+        vx: toSafeNumber(playerState.vx, 0),
+        vy: toSafeNumber(playerState.vy, 0),
+        hearts: toSafeNumber(playerState.hearts, 0),
+        maxHearts: toSafeNumber(playerState.maxHearts, 0),
+        invuln: toSafeNumber(playerState.invuln, 0),
+        fireCooldown: toSafeNumber(playerState.fireCooldown, 0)
+      },
+      collections: getQaCollections(limit)
+    };
+  }
+
   AIPU.dom = dom;
   AIPU.ctx = ctx;
   AIPU.constants = constants;
   AIPU.state = state;
   AIPU.input = input;
+  AIPU.qa = Object.freeze({
+    getModuleGraph: () => QA_MODULE_GRAPH,
+    getCollections: (limit = 6) => getQaCollections(limit),
+    getStateSnapshot: (limit = 6) => getQaStateSnapshot(limit)
+  });
   AIPU.utils = {
     clamp,
     lerp,

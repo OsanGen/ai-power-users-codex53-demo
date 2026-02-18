@@ -169,6 +169,12 @@
         left: "left.png",
         right: "right.png"
       }),
+      shootFrames: Object.freeze({
+        front: "shoot_front.png",
+        back: "shoot_back.png",
+        left: "shoot_left.png",
+        right: "shoot_right.png"
+      }),
       legacy: Object.freeze({
         front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
         left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
@@ -203,8 +209,9 @@
   const playerSpriteMeasureCanvas = typeof document === "undefined" ? null : document.createElement("canvas");
   const playerSpriteMeasureCtx = playerSpriteMeasureCanvas && playerSpriteMeasureCanvas.getContext("2d");
   const characterSpriteCache = Object.create(null);
-  const PLAYER_SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const PLAYER_SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyW", "KeyA", "KeyS", "KeyD"]);
   let playerFacingDirection = "front";
+  let playerIsShootingFacing = false;
 
   function isPlayerShootInputActive() {
     const keys = AIPU.input && AIPU.input.keys;
@@ -242,13 +249,24 @@
     return unique;
   }
 
-  function buildPlayerSpriteCandidates(direction) {
+  function buildPlayerSpriteCandidates(direction, useShootFrameSet = false) {
     const resolvedDirection = normalizeDirection(direction);
-    const frame = CHARACTER_ART.player.frames[resolvedDirection];
-    return [
-      `${CHARACTER_ART.player.bucketDir}/${frame}`,
+    const preferredFrameSet = useShootFrameSet ? CHARACTER_ART.player.shootFrames : CHARACTER_ART.player.frames;
+    const preferredFrame = preferredFrameSet && preferredFrameSet[resolvedDirection] ? preferredFrameSet[resolvedDirection] : null;
+    const fallbackFrame = CHARACTER_ART.player.frames[resolvedDirection];
+    const candidates = [];
+
+    if (preferredFrame) {
+      candidates.push(`${CHARACTER_ART.player.bucketDir}/${preferredFrame}`);
+    }
+
+    if (fallbackFrame && fallbackFrame !== preferredFrame) {
+      candidates.push(`${CHARACTER_ART.player.bucketDir}/${fallbackFrame}`);
+    }
+
+    return candidates.concat([
       CHARACTER_ART.player.legacy[resolvedDirection]
-    ];
+    ]);
   }
 
   function buildEnemySpriteCandidates(enemyType) {
@@ -323,9 +341,10 @@
     return entry;
   }
 
-  function getPlayerSpriteState(direction) {
+  function getPlayerSpriteState(direction, useShootFrameSet = false) {
     const resolvedDirection = normalizeDirection(direction);
-    return getCharacterSpriteState(`player:${resolvedDirection}`, buildPlayerSpriteCandidates(resolvedDirection), true);
+    const cacheKey = `player:${useShootFrameSet ? "shoot" : "move"}:${resolvedDirection}`;
+    return getCharacterSpriteState(cacheKey, buildPlayerSpriteCandidates(resolvedDirection, useShootFrameSet), true);
   }
 
   function getEnemySpriteState(enemyType) {
@@ -472,8 +491,10 @@
     const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
     const aimMag = Math.abs(aimX) + Math.abs(aimY);
     const moveMag = Math.abs(vx) + Math.abs(vy);
+    const isShooting = isPlayerShootInputActive() && aimMag > 0.12;
 
-    if (isPlayerShootInputActive() && aimMag > 0.12) {
+    if (isShooting) {
+      playerIsShootingFacing = true;
       if (Math.abs(aimX) >= Math.abs(aimY)) {
         playerFacingDirection = aimX < 0 ? "left" : "right";
       } else {
@@ -483,6 +504,7 @@
     }
 
     if (moveMag > 0.08) {
+      playerIsShootingFacing = false;
       if (Math.abs(vx) >= Math.abs(vy)) {
         playerFacingDirection = vx < 0 ? "left" : "right";
       } else {
@@ -492,6 +514,7 @@
     }
 
     if (aimMag > 0.12) {
+      playerIsShootingFacing = false;
       if (Math.abs(aimX) >= Math.abs(aimY)) {
         playerFacingDirection = aimX < 0 ? "left" : "right";
       } else {
@@ -500,6 +523,7 @@
       return playerFacingDirection;
     }
 
+    playerIsShootingFacing = false;
     return playerFacingDirection;
   }
 
@@ -508,7 +532,7 @@
     const resolvedDirection = normalizeDirection(direction);
     const stanceScale = PLAYER_SPRITE_STANCE_SCALE[resolvedDirection] || 1.02;
     for (let i = 0; i < order.length; i += 1) {
-      const state = getPlayerSpriteState(order[i]);
+      const state = getPlayerSpriteState(order[i], playerIsShootingFacing);
       if (!state || state.status !== "ready" || !state.image || !state.trimRect) {
         continue;
       }
@@ -6105,6 +6129,140 @@
     };
   }
 
+  function roundTo(value, digits = 2) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return 0;
+    }
+    const power = Math.pow(10, Math.max(0, Math.floor(digits)));
+    return Math.round(numeric * power) / power;
+  }
+
+  function getRenderCollectionsForText() {
+    if (systems && typeof systems.getCollections === "function") {
+      const resolved = systems.getCollections();
+      if (resolved && typeof resolved === "object") {
+        return resolved;
+      }
+    }
+    return {
+      activeWaves,
+      bullets,
+      enemyBullets,
+      enemies,
+      pickups,
+      particles
+    };
+  }
+
+  function buildRenderGameTextState(sampleLimit = 8) {
+    const maxItems = Math.max(1, Math.floor(Number(sampleLimit) || 8));
+    const floor = systems && typeof systems.currentFloor === "function" ? systems.currentFloor() : null;
+    const collections = getRenderCollectionsForText();
+    const safeState = game && typeof game === "object" ? game : {};
+    const safePlayer = player && typeof player === "object" ? player : {};
+    const safeEnemies = Array.isArray(collections.enemies) ? collections.enemies : [];
+    const safeBullets = Array.isArray(collections.bullets) ? collections.bullets : [];
+    const safeEnemyBullets = Array.isArray(collections.enemyBullets) ? collections.enemyBullets : [];
+    const safePickups = Array.isArray(collections.pickups) ? collections.pickups : [];
+
+    const enemySample = [];
+    for (let i = 0; i < safeEnemies.length && i < maxItems; i += 1) {
+      const enemy = safeEnemies[i];
+      enemySample.push({
+        type: normalizeEnemyType(enemy && enemy.type),
+        x: roundTo(enemy && enemy.x, 2),
+        y: roundTo(enemy && enemy.y, 2),
+        hp: roundTo(enemy && enemy.hp, 2),
+        radius: roundTo(enemy && enemy.radius, 2)
+      });
+    }
+
+    const bulletSample = [];
+    for (let i = 0; i < safeBullets.length && i < maxItems; i += 1) {
+      const bullet = safeBullets[i];
+      bulletSample.push({
+        x: roundTo(bullet && bullet.x, 2),
+        y: roundTo(bullet && bullet.y, 2),
+        vx: roundTo(bullet && bullet.vx, 2),
+        vy: roundTo(bullet && bullet.vy, 2)
+      });
+    }
+
+    const enemyBulletSample = [];
+    for (let i = 0; i < safeEnemyBullets.length && i < maxItems; i += 1) {
+      const bullet = safeEnemyBullets[i];
+      enemyBulletSample.push({
+        x: roundTo(bullet && bullet.x, 2),
+        y: roundTo(bullet && bullet.y, 2),
+        vx: roundTo(bullet && bullet.vx, 2),
+        vy: roundTo(bullet && bullet.vy, 2)
+      });
+    }
+
+    const pickupSample = [];
+    for (let i = 0; i < safePickups.length && i < maxItems; i += 1) {
+      const pickup = safePickups[i];
+      pickupSample.push({
+        x: roundTo(pickup && pickup.x, 2),
+        y: roundTo(pickup && pickup.y, 2),
+        radius: roundTo(pickup && pickup.radius, 2)
+      });
+    }
+
+    return {
+      schemaVersion: 1,
+      coordinateSystem: "origin-top-left,+x-right,+y-down",
+      mode: safeState.state || "",
+      floor: {
+        index: Number.isFinite(safeState.currentFloorIndex) ? safeState.currentFloorIndex : 0,
+        id: floor && Number.isFinite(floor.id) ? floor.id : null,
+        timer: roundTo(safeState.floorTimer, 3),
+        elapsed: roundTo(safeState.floorElapsed, 3)
+      },
+      player: {
+        x: roundTo(safePlayer.x, 2),
+        y: roundTo(safePlayer.y, 2),
+        vx: roundTo(safePlayer.vx, 2),
+        vy: roundTo(safePlayer.vy, 2),
+        radius: roundTo(safePlayer.radius, 2),
+        hearts: roundTo(safePlayer.hearts, 2),
+        maxHearts: roundTo(safePlayer.maxHearts, 2),
+        invuln: roundTo(safePlayer.invuln, 3),
+        fireCooldown: roundTo(safePlayer.fireCooldown, 3),
+        aim: {
+          x: roundTo(safePlayer.lastAimX, 3),
+          y: roundTo(safePlayer.lastAimY, 3)
+        }
+      },
+      collections: {
+        enemies: { count: safeEnemies.length, sample: enemySample },
+        bullets: { count: safeBullets.length, sample: bulletSample },
+        enemyBullets: { count: safeEnemyBullets.length, sample: enemyBulletSample },
+        pickups: { count: safePickups.length, sample: pickupSample },
+        particles: { count: Array.isArray(collections.particles) ? collections.particles.length : 0 },
+        activeWaves: { count: Array.isArray(collections.activeWaves) ? collections.activeWaves.length : 0 }
+      },
+      debug: {
+        renderCache: getRenderCacheStats(),
+        sprites: getSpriteLoadState()
+      }
+    };
+  }
+
+  function renderGameToText() {
+    try {
+      return JSON.stringify(buildRenderGameTextState());
+    } catch (error) {
+      void error;
+      return JSON.stringify({
+        schemaVersion: 1,
+        mode: game && game.state ? game.state : "",
+        error: "render_game_to_text_failed"
+      });
+    }
+  }
+
   AIPU.renderCache = {
     invalidate: invalidateRenderCache,
     markFloor: markRenderCacheFloor,
@@ -6123,6 +6281,7 @@
     strokeRoundRect,
     roundRectPath,
     isTitleSequenceComplete,
-    getSpriteLoadState
+    getSpriteLoadState,
+    renderGameToText
   };
 })();
