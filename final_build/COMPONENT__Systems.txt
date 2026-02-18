@@ -33,7 +33,11 @@ Outputs:
 State/Edges:
 - Input model:
   - Tracks movement and action keys in `AIPU.input.keys`.
-  - Normalizes movement key handling by `event.code` and supports single-press guards.
+  - Normalizes key handling from `event.code` plus fallback single-char `event.key` to canonical movement/shoot codes.
+  - Movement is `WASD` (`KeyW/KeyA/KeyS/KeyD`), while shoot direction is read from arrow keys (`ArrowUp/ArrowDown/ArrowLeft/ArrowRight`).
+  - Stops writing raw/non-canonical key strings into `AIPU.input.keys` during input capture, which prevents unexpected overlap between gameplay systems.
+  - Removes legacy alias writes (e.g., trailing-letter keys) so arrow input cannot mutate unrelated key slots.
+  - `lastShootKey` is reset on global input clear and refreshed on any canonical shoot-key release (`event.code` or `event.key` fallback) to avoid stale direction carrying over when keys are released.
 - State gates:
   - BOMB_BRIEFING, LESSON_SLIDE, DEATH_LESSON, UPGRADE_SELECT, FLOOR_INTRO, and FLOOR_CLEAR are non-combat overlay/input-break states for shooting.
   - `updatePlayerShooting` exits early unless `game.state === PLAYING`.

@@ -410,12 +410,15 @@
     return isShareModalOpen() || isTextModalOpen();
   }
 
+  const SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+
   function clearInputState() {
     for (const key in keys) {
       if (Object.prototype.hasOwnProperty.call(keys, key)) {
         keys[key] = false;
       }
     }
+    AIPU.input.lastShootKey = "";
   }
 
   function formatUiText(key, fallback, values = null) {
@@ -464,55 +467,78 @@
     return !event.repeat;
   }
 
-  function isMovementCode(code) {
-    return code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD";
+  function toUpperAsciiSingleChar(value) {
+    return typeof value === "string" && value.length === 1 ? value.toUpperCase() : "";
   }
 
-  function isShootDirectionCode(code) {
-    return code === "ArrowUp" || code === "ArrowDown" || code === "ArrowLeft" || code === "ArrowRight" || isMovementCode(code);
-  }
-
-  function getShootDirectionCode(event) {
-    const code = typeof event.code === "string" ? event.code : "";
-    if (isShootDirectionCode(code)) {
+  function resolveMovementCode(eventCode, eventKey) {
+    const code = typeof eventCode === "string" ? eventCode : "";
+    if (code === "KeyW" || code === "KeyA" || code === "KeyS" || code === "KeyD") {
       return code;
     }
 
-    const key = typeof event.key === "string" ? event.key : "";
-    if (key.length === 1) {
-      const movementCode = `Key${key.toUpperCase()}`;
-      if (isMovementCode(movementCode)) {
-        return movementCode;
+    const key = toUpperAsciiSingleChar(typeof eventKey === "string" ? eventKey : "");
+    if (key === "W") {
+      return "KeyW";
+    }
+    if (key === "A") {
+      return "KeyA";
+    }
+    if (key === "S") {
+      return "KeyS";
+    }
+    if (key === "D") {
+      return "KeyD";
+    }
+
+    return "";
+  }
+
+  function resolveShootDirectionCode(eventCode, eventKey) {
+    const code = typeof eventCode === "string" ? eventCode : "";
+    if (code === "ArrowUp" || code === "ArrowDown" || code === "ArrowLeft" || code === "ArrowRight") {
+      return code;
+    }
+
+    if (typeof eventKey === "string") {
+      if (eventKey === "ArrowUp") {
+        return "ArrowUp";
+      }
+      if (eventKey === "ArrowDown") {
+        return "ArrowDown";
+      }
+      if (eventKey === "ArrowLeft") {
+        return "ArrowLeft";
+      }
+      if (eventKey === "ArrowRight") {
+        return "ArrowRight";
       }
     }
 
     return "";
   }
 
+  function isShootDirectionCode(code) {
+    return code === "ArrowUp" || code === "ArrowDown" || code === "ArrowLeft" || code === "ArrowRight";
+  }
+
+  function getShootDirectionCode(event) {
+    return resolveShootDirectionCode(event && event.code, event && event.key);
+  }
+
   function setInputKeyState(event, isDown) {
     const key = typeof event.key === "string" ? event.key : "";
     const code = typeof event.code === "string" ? event.code : "";
-
-    if (isMovementCode(code)) {
-      keys[code] = isDown;
-      const movementLetter = code.slice(-1);
-      keys[movementLetter] = isDown;
-      keys[movementLetter.toLowerCase()] = isDown;
+    const movementCode = resolveMovementCode(code, key);
+    if (movementCode) {
+      keys[movementCode] = isDown;
       return;
     }
 
-    if (key.length === 1) {
-      const movementCodeFallback = `Key${key.toUpperCase()}`;
-      if (isMovementCode(movementCodeFallback)) {
-        keys[movementCodeFallback] = isDown;
-        keys[key.toUpperCase()] = isDown;
-        keys[key.toLowerCase()] = isDown;
-        return;
-      }
-    }
-
-    if (key) {
-      keys[key] = isDown;
+    const shootCode = resolveShootDirectionCode(code, key);
+    if (shootCode) {
+      keys[shootCode] = isDown;
+      return;
     }
   }
 
@@ -685,7 +711,7 @@
     if (appSubtitleEl) {
       appSubtitleEl.textContent = formatUiText(
         "appSubtitle",
-        "Move and shoot with WASD. Arrow keys also shoot. Learn one concept per floor."
+        "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor."
       );
     }
 
@@ -767,13 +793,6 @@
     const shootKey = getShootDirectionCode(event);
     if (shootKey) {
       AIPU.input.lastShootKey = shootKey;
-    }
-
-    if (isArrowKey(event)) {
-      const arrow = key.startsWith("Arrow") ? key : code;
-      if (arrow.startsWith("Arrow")) {
-        AIPU.input.lastShootKey = arrow;
-      }
     }
 
     if (key === "`" || key === "~") {
@@ -866,6 +885,11 @@
 
   window.addEventListener("keyup", (event) => {
     setInputKeyState(event, false);
+    const shootCode = getShootDirectionCode(event);
+    if (isShootDirectionCode(shootCode)) {
+      const nextShootKey = getActiveShootDirectionKey();
+      AIPU.input.lastShootKey = nextShootKey;
+    }
   });
 
   window.addEventListener("blur", () => {
@@ -1731,16 +1755,27 @@
   }
 
   function getShootDirection() {
-    if (keys[AIPU.input.lastShootKey]) {
-      return arrowKeyToVector(AIPU.input.lastShootKey);
+    const activeShootKey = getActiveShootDirectionKey();
+    if (isShootDirectionCode(activeShootKey) && keys[activeShootKey]) {
+      return arrowKeyToVector(activeShootKey);
     }
 
-    if (keys.ArrowUp || keys.KeyW) return { x: 0, y: -1 };
-    if (keys.ArrowDown || keys.KeyS) return { x: 0, y: 1 };
-    if (keys.ArrowLeft || keys.KeyA) return { x: -1, y: 0 };
-    if (keys.ArrowRight || keys.KeyD) return { x: 1, y: 0 };
+    const lastShootKey = isShootDirectionCode(AIPU.input.lastShootKey) ? AIPU.input.lastShootKey : "";
+    if (lastShootKey && keys[lastShootKey]) {
+      return arrowKeyToVector(lastShootKey);
+    }
 
     return null;
+  }
+
+  function getActiveShootDirectionKey() {
+    for (let i = 0; i < SHOOT_KEYS.length; i += 1) {
+      const keyName = SHOOT_KEYS[i];
+      if (keys[keyName]) {
+        return keyName;
+      }
+    }
+    return "";
   }
 
   function updateSpawns(dt) {
