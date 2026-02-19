@@ -30,6 +30,8 @@ State/Edges:
 - `getWhatYouLearnedBullets()` deduplicates upgrade-derived lesson concepts and pads with generic fallback lines.
 - Floors 10–15 now scale with increasing overlap and introduce two new archetypes (`drift_hound`, `arc_turret`) from floor 12 onward.
 - Difficulty progression for floors 10–15 is content-tuned so a simple spawn/speed-weighted pressure metric increases each floor with the late-floor archetype waves.
+- Floors 2+ receive an injected dual-homing threat wave via `installDualEnemyWaves()` so the `dual` enemy appears frequently from Floor 2 onward.
+- Floors 2+ now receive two injected dual waves per floor (early and mid-late pressure windows) with floor-scaled frequency and speed multipliers to keep homing pressure visually and behaviorally frequent.
 
 Dependencies:
 - `AIPU.utils.clamp`
@@ -44,3 +46,5 @@ Acceptance Checks:
 - Teach card table includes one entry per floor for 1..15 and supports fallbacks for missing visuals.
 - New enemy archetypes are safe: `drift_hound` uses existing `phase` movement and `arc_turret` uses existing `ranged` behavior.
 - Floor 10–15 metrics are kept constrained by wave duration and tuned for staircase pressure from 10→15.
+- Dual enemy injection schedules are de-duplicated by `enemyType === "dual"` and should produce active dual waves on all floors 2..15 without floor 1 impact.
+- Dual wave windows are intentionally staggered by floor phase to increase pressure retention while preserving spawn cadence balance for other archetypes.

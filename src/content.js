@@ -522,6 +522,128 @@
     };
   }
 
+  const DUAL_WAVE_START_FLOOR = 2;
+  const DUAL_WAVE_WINDOWS = Object.freeze([
+    Object.freeze({
+      startRatio: 0.15,
+      durationRatio: 0.32,
+      startRateBonus: 0,
+      endRateBonus: 0,
+      speedStartBonus: 0,
+      speedEndBonus: 0
+    }),
+    Object.freeze({
+      startRatio: 0.58,
+      durationRatio: 0.18,
+      startRateBonus: 0.16,
+      endRateBonus: 0.22,
+      speedStartBonus: 0.08,
+      speedEndBonus: 0.14
+    })
+  ]);
+  const DUAL_WAVE_START_MIN_SECONDS = 6;
+  const DUAL_WAVE_END_PAD_SECONDS = 4;
+  const DUAL_WAVE_MIN_DURATION_SECONDS = 5;
+  const DUAL_WAVE_RATE_START_MIN = 0.34;
+  const DUAL_WAVE_RATE_START_MAX = 1.14;
+  const DUAL_WAVE_RATE_END_MIN = 0.94;
+  const DUAL_WAVE_RATE_END_MAX = 1.86;
+  const DUAL_WAVE_RATE_START_SCALE = 0.56;
+  const DUAL_WAVE_RATE_END_SCALE = 0.92;
+  const DUAL_SPEED_START_MIN = 1.0;
+  const DUAL_SPEED_START_MAX = 1.42;
+  const DUAL_SPEED_END_MIN = 1.16;
+  const DUAL_SPEED_END_MAX = 1.72;
+
+  function buildDualEnemyWave(floor, windowSpec, floorScale) {
+    const floorId = Number.isFinite(floor && floor.id) ? Math.floor(floor.id) : NaN;
+    const floorDuration = Number.isFinite(floor && floor.durationSeconds) ? Math.floor(floor.durationSeconds) : 0;
+    if (floorId < DUAL_WAVE_START_FLOOR || floorDuration < 12) {
+      return null;
+    }
+
+    const startTime = clamp(
+      Math.round(floorDuration * windowSpec.startRatio),
+      DUAL_WAVE_START_MIN_SECONDS,
+      Math.max(DUAL_WAVE_START_MIN_SECONDS, floorDuration - DUAL_WAVE_END_PAD_SECONDS - DUAL_WAVE_MIN_DURATION_SECONDS)
+    );
+    const waveDuration = clamp(
+      Math.round(floorDuration * windowSpec.durationRatio),
+      DUAL_WAVE_MIN_DURATION_SECONDS,
+      Math.max(DUAL_WAVE_MIN_DURATION_SECONDS, floorDuration - DUAL_WAVE_END_PAD_SECONDS - startTime)
+    );
+    const endTime = clamp(
+      startTime + waveDuration,
+      startTime + 2,
+      Math.max(startTime + 2, floorDuration - DUAL_WAVE_END_PAD_SECONDS)
+    );
+    if (endTime - startTime < 1.5) {
+      return null;
+    }
+
+    return wave(
+      "dual",
+      startTime,
+      endTime,
+      clamp(DUAL_WAVE_RATE_START_MIN + floorScale * DUAL_WAVE_RATE_START_SCALE + windowSpec.startRateBonus, DUAL_WAVE_RATE_START_MIN, DUAL_WAVE_RATE_START_MAX),
+      clamp(DUAL_WAVE_RATE_END_MIN + floorScale * DUAL_WAVE_RATE_END_SCALE + windowSpec.endRateBonus, DUAL_WAVE_RATE_END_MIN, DUAL_WAVE_RATE_END_MAX),
+      clamp(DUAL_SPEED_START_MIN + floorScale * 0.42 + windowSpec.speedStartBonus, DUAL_SPEED_START_MIN, DUAL_SPEED_START_MAX),
+      clamp(DUAL_SPEED_END_MIN + floorScale * 0.56 + windowSpec.speedEndBonus, DUAL_SPEED_END_MIN, DUAL_SPEED_END_MAX),
+      ["spawnsBehindPlayer"]
+    );
+  }
+
+  function buildDualEnemyWaves(floor) {
+    const floorId = Number.isFinite(floor && floor.id) ? Math.floor(floor.id) : NaN;
+    const floorDuration = Number.isFinite(floor && floor.durationSeconds) ? Math.floor(floor.durationSeconds) : 0;
+    if (floorId < DUAL_WAVE_START_FLOOR || floorDuration < 12) {
+      return [];
+    }
+
+    const totalFloors = Math.max(1, FLOORS.length - DUAL_WAVE_START_FLOOR);
+    const floorScale = clamp((floorId - DUAL_WAVE_START_FLOOR) / totalFloors, 0, 1);
+
+    const waves = [];
+    for (let i = 0; i < DUAL_WAVE_WINDOWS.length; i += 1) {
+      const waveConfig = DUAL_WAVE_WINDOWS[i];
+      if (!waveConfig || typeof waveConfig !== "object") {
+        continue;
+      }
+
+      const dualWave = buildDualEnemyWave(floor, waveConfig, floorScale);
+      if (dualWave) {
+        waves.push(dualWave);
+      }
+    }
+
+    return waves;
+  }
+
+  function installDualEnemyWaves() {
+    for (const floor of FLOORS) {
+      if (!floor || !Array.isArray(floor.enemyWaves)) {
+        continue;
+      }
+
+      const hasDualWave = floor.enemyWaves.some((entry) => entry && entry.enemyType === "dual");
+      if (hasDualWave) {
+        continue;
+      }
+
+      const dualWaves = buildDualEnemyWaves(floor);
+      if (!Array.isArray(dualWaves) || dualWaves.length === 0) {
+        continue;
+      }
+
+      for (const waveEntry of dualWaves) {
+        floor.enemyWaves.push(waveEntry);
+      }
+      floor.enemyWaves.sort((a, b) =>
+        (Number.isFinite(a.startTime) ? a.startTime : 0) - (Number.isFinite(b.startTime) ? b.startTime : 0)
+      );
+    }
+  }
+
   const FLOORS = [
     {
       id: 1,
@@ -781,6 +903,8 @@
     },
   ];
 
+  installDualEnemyWaves();
+
   const TITLE_SEQUENCE = {
     fadeInEnd: 1.2,
     panelInStart: 0.4,
@@ -821,6 +945,13 @@
     loop_ghost: { hp: 2, size: 13, speed: 98, behavior: "chase", touchDamage: 1 },
     decay_mote: { hp: 1, size: 8, speed: 152, behavior: "swarm", touchDamage: 1 },
     double: { hp: 5, size: 15, speed: 116, behavior: "mirror", touchDamage: 1 },
+    dual: {
+      hp: 1,
+      size: 13,
+      speed: 198,
+      behavior: "homing_missile",
+      touchDamage: 0
+    },
     apex_rabbit: { hp: 6, size: 17, speed: 126, behavior: "charge", touchDamage: 2 },
     cell_blob: { hp: 2, size: 11, speed: 88, behavior: "blob", touchDamage: 1 },
     reach_shadow: { hp: 3, size: 13, speed: 0, behavior: "wallhand", touchDamage: 2 },

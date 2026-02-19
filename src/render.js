@@ -145,7 +145,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260218-12";
+  const CHARACTER_ART_CACHE_BUST = "v=20260219-2";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -473,6 +473,18 @@
       return;
     }
 
+    function advanceToNextCandidateOrMissing() {
+      entry.nextPathIndex += 1;
+      if (entry.nextPathIndex < entry.paths.length) {
+        entry.status = "idle";
+        loadNextSpriteCandidate(entry);
+        return;
+      }
+      entry.status = "missing";
+      entry.failed = true;
+      entry.image = null;
+    }
+
     const image = new Image();
     image.decoding = "async";
     const expectedPath = path;
@@ -503,9 +515,8 @@
         ? entry.trimRect.w / entry.trimRect.h
         : 1;
       if (!entry.trimRect || entry.naturalWidth <= 0 || entry.naturalHeight <= 0) {
-        entry.status = "missing";
-        entry.failed = true;
         entry.errorPaths.push(path);
+        advanceToNextCandidateOrMissing();
         return;
       }
 
@@ -519,16 +530,7 @@
       }
 
       entry.errorPaths.push(path);
-      entry.nextPathIndex += 1;
-      if (entry.nextPathIndex < entry.paths.length) {
-        entry.status = "idle";
-        loadNextSpriteCandidate(entry);
-        return;
-      }
-
-      entry.status = "missing";
-      entry.failed = true;
-      entry.image = null;
+      advanceToNextCandidateOrMissing();
     };
 
     image.src = encodeURI(pathWithVersion);
@@ -714,7 +716,7 @@
       const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale;
       const spriteWidth = clamp(
         playerRadius * (state.trimAspect || 1) * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale,
-        player.radius * PLAYER_SPRITE_WIDTH_SCALE.min,
+        playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min,
         playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max
       );
 
@@ -5071,6 +5073,11 @@
         continue;
       }
 
+      if (isHomingMissileEnemy(enemy)) {
+        drawHomingMissileEnemyProcedural(enemy, accent);
+        continue;
+      }
+
       const alpha = enemy.hurtFlash > 0 ? 1 : 0.98;
       const enemyType = typeof enemy.type === "string" ? enemy.type : "";
       const body = enemy.hurtFlash > 0 ? TOKENS.white : rgba(accent, alpha);
@@ -5139,6 +5146,162 @@
       ctx.fillRect(x - 6, y - 2, 3, 3);
       ctx.fillRect(x + 3, y - 2, 3, 3);
     }
+  }
+
+  function isHomingMissileEnemy(enemy) {
+    return !!enemy && (enemy.type === "dual" || enemy.behavior === "homing_missile");
+  }
+
+  function drawHomingMissileEnemyProcedural(enemy, accent) {
+    const x = Number.isFinite(enemy.x) ? enemy.x : 0;
+    const y = Number.isFinite(enemy.y) ? enemy.y : 0;
+    const r = Number.isFinite(enemy.radius) && enemy.radius > 0 ? enemy.radius : 12;
+    const vx = Number.isFinite(enemy.vx) ? enemy.vx : 0;
+    const vy = Number.isFinite(enemy.vy) ? enemy.vy : 0;
+    const localSeed = Number.isFinite(enemy.localSeed) ? enemy.localSeed : 0;
+    const dirX = (Math.abs(vx) + Math.abs(vy)) > 0.02
+      ? vx
+      : (Number.isFinite(player.x) ? player.x - x : 0);
+    const dirY = (Math.abs(vx) + Math.abs(vy)) > 0.02
+      ? vy
+      : (Number.isFinite(player.y) ? player.y - y : 0);
+    const dirLength = Math.hypot(dirX, dirY) || 1;
+    const angle = Math.atan2(dirY, dirX);
+    const speed = Math.hypot(vx, vy);
+    const speedPulse = clamp(speed / Math.max(r * 8, 1), 0.08, 1);
+    const tail = r * (2.15 + speedPulse * 1.4);
+    const body = r * 0.64;
+    const tip = r * 0.52;
+    const core = Math.max(r * 0.4, 2);
+    const now = Number.isFinite(game.globalTime) ? game.globalTime : 0;
+    const jitterSeed = localSeed + now * 16 + x * 0.001 + y * 0.001;
+    const jitterX = Math.sin(jitterSeed) * (0.35 + speedPulse * 1.15);
+    const jitterY = Math.cos(jitterSeed * 1.14) * (0.22 + speedPulse * 0.95);
+    const skinPulse = (Math.sin(now * 24 + localSeed * 4) + 1) * 0.5;
+    const headPulse = (Math.sin(now * 31 + localSeed * 2 + x * 0.02) + 1) * 0.5;
+    const trailPulse = (Math.sin(now * 28 + localSeed * 2.2) + 1) * 0.5;
+    const fearPulse = (Math.sin(now * 46 + localSeed * 3.3) + 1) * 0.5;
+    const fracturePulse = (Math.sin(now * 41 + localSeed * 1.7) + 1) * 0.5;
+
+    ctx.save();
+    ctx.translate(x + jitterX, y + jitterY);
+    ctx.rotate(angle);
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = rgba(TOKENS.pink, clamp(0.18 + trailPulse * 0.28 + speedPulse * 0.18 + fearPulse * 0.12, 0.18, 0.62));
+    fillRoundRect(-tail * 1.05, -body * 1.05, tail + body * 1.05, body * 2.05, body * 0.72);
+
+    for (let i = 0; i < 10; i += 1) {
+      const t = i / 9;
+      const seamX = -tail * (0.04 + t * 0.8);
+      const seamY = Math.sin(now * 48 + localSeed * 2.4 + t * 7.1) * (core * (0.28 + speedPulse * 0.12));
+      const seamW = Math.max(0.9, core * (0.22 + t * 0.21));
+      const seamH = core * (0.34 + t * 0.1);
+      ctx.fillStyle = rgba(i % 2 === 0 ? TOKENS.ink : accent, clamp(0.28 - t * 0.12, 0.08, 0.42));
+      fillRoundRect(seamX, seamY - seamH * 0.55, seamW, seamH * 0.45, seamH * 0.2);
+    }
+
+    for (let i = 0; i < 6; i += 1) {
+      const t = i / 5;
+      const finX = -tail * (0.1 + t * 0.72);
+      const finY = (-1 + (i % 2) * 2) * (core * (0.56 - t * 0.19) + Math.sin(now * 38 + localSeed * 1.9 + t * 2.3) * core * 0.13);
+      const finW = core * (0.65 + t * 0.45);
+      const finH = core * 0.26 * (1 + fracturePulse * 0.4);
+      ctx.strokeStyle = rgba(TOKENS.ink, clamp(0.13 + t * 0.08 + skinPulse * 0.2, 0.11, 0.34));
+      ctx.lineWidth = clamp(0.4 + 0.18 * i, 0.5, 1.3);
+      ctx.beginPath();
+      ctx.moveTo(finX, finY);
+      ctx.lineTo(finX - finW, finY + (i % 2 === 0 ? 0.12 : -0.12) * core);
+      ctx.lineTo(finX - finW * 0.64, finY + finH);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = rgba(TOKENS.pink, clamp(0.12 + fearPulse * 0.21, 0.12, 0.39));
+    for (let i = 0; i < 8; i += 1) {
+      const t = i / 7;
+      const emberX = -tail * (0.2 + t * 0.74);
+      const emberY = Math.cos(now * 56 + localSeed * 2.8 + t * 5.5) * (core * (0.18 + speedPulse * 0.1));
+      const emberW = Math.max(0.6, core * 0.18 * (1 - t * 0.35));
+      const emberH = emberW * 0.75;
+      fillRoundRect(emberX, emberY - emberH * 0.5, emberW, emberH, emberW * 0.36);
+    }
+
+    ctx.fillStyle = rgba(TOKENS.ink, 0.2);
+    fillRoundRect(-tail * 1.08, -body * 1.2, tail * 1.02, body * 1.85, body * 0.22);
+
+    ctx.fillStyle = rgba(TOKENS.pink, clamp(0.06 + fracturePulse * 0.2, 0.06, 0.22));
+    fillRoundRect(-tail * 0.95, -core * 1.1, tail * 0.6, core * 0.18, core * 0.08);
+
+    ctx.strokeStyle = rgba(accent, clamp(0.14 + skinPulse * 0.26, 0.14, 0.38));
+    ctx.lineWidth = clamp(0.4 + trailPulse * 0.4, 0.4, 0.9);
+    ctx.beginPath();
+    ctx.moveTo(-tail * 0.55, -body * 0.14);
+    ctx.lineTo(body * 0.72, -core * 0.08);
+    ctx.lineTo(-tail * 0.52, -body * 0.02);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.strokeStyle = rgba(TOKENS.pink, clamp(0.18 + speedPulse * 0.3, 0.15, 0.44));
+    ctx.lineWidth = clamp(0.45 + speedPulse * 0.55, 0.45, 1.1);
+    ctx.beginPath();
+    ctx.moveTo(-tail * 0.3, 0);
+    ctx.lineTo(body * 0.83, 0.09);
+    ctx.lineTo(-tail * 0.26, 0.22);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.fillStyle = rgba(TOKENS.pink, clamp(0.18 + trailPulse * 0.28 + speedPulse * 0.16, 0.15, 0.52));
+    fillRoundRect(-tail * 1.05, -body * 0.92, tail + body * 1.02, body * 1.85, body * 0.68);
+
+    ctx.fillStyle = rgba(accent, 0.98);
+    fillRoundRect(-tail * 0.8, -body * (0.28 + speedPulse * 0.1), tail * 0.9 + body * 0.52, body * (0.54 + speedPulse * 0.15), body * (0.31 + speedPulse * 0.2));
+
+    ctx.fillStyle = TOKENS.pink;
+    fillRoundRect(-body * 0.44, -core * 0.68, body * 0.88, core * 1.37, core * 0.56);
+    const pulse = skinPulse;
+    for (let i = 0; i < 6; i += 1) {
+      const t = i / 4;
+      const ringX = -tail * (0.06 + t * 0.62);
+      const ringR = Math.max(1.6, core * (0.35 + t * 0.15));
+      const ringAlpha = clamp(0.07 + pulse * 0.15 + t * 0.04 + speedPulse * 0.08, 0.07, 0.38);
+      ctx.fillStyle = rgba(TOKENS.pink, ringAlpha);
+      fillRoundRect(ringX - ringR * 0.5, -ringR * 0.2, ringR, ringR * 0.4, ringR);
+    }
+
+    ctx.strokeStyle = rgba(TOKENS.ink, clamp(0.18 + speedPulse * 0.22, 0.18, 0.56));
+    ctx.lineWidth = clamp(0.75 + speedPulse * 0.7, 0.8, 2.4);
+    ctx.beginPath();
+    ctx.moveTo(body + core, -core * 0.85);
+    ctx.lineTo(body + tip * 1.66, -core * 0.15);
+    ctx.lineTo(body + core, core * 0.85);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(body + tip + core * 0.26, 0);
+    ctx.lineTo(body + core * 0.55, -core * (0.42 + headPulse * 0.2));
+    ctx.lineTo(body - body * 0.1, -core * (0.22 + headPulse * 0.08));
+    ctx.lineTo(body + core * 0.55, core * (0.42 + headPulse * 0.2));
+    ctx.closePath();
+    ctx.fillStyle = accent;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(body + tip * 1.45, 0);
+    ctx.lineTo(body + tip * 0.86, -tip * (0.52 + headPulse * 0.12));
+    ctx.lineTo(body + tip * 0.44, 0);
+    ctx.lineTo(body + tip * 0.86, tip * (0.52 + headPulse * 0.12));
+    ctx.closePath();
+    ctx.fillStyle = TOKENS.white;
+    ctx.fill();
+
+    ctx.fillStyle = rgba(TOKENS.pink, clamp(0.3 + headPulse * 0.5, 0.35, 0.86));
+    const eyeOffset = core * 0.34;
+    ctx.fillRect(-core * 0.24, -eyeOffset, 2.2, eyeOffset * 0.9);
+    ctx.fillRect(core * 0.12, -eyeOffset, 2.2, eyeOffset * 0.9);
+
+    ctx.restore();
   }
 
   function drawPlayer(accent, visualTheme = null) {
@@ -5458,7 +5621,7 @@
 
     const bombCopy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy() : BOMB_BRIEFING_FALLBACK;
     const bombAbilityName = bombCopy && bombCopy.abilityName ? bombCopy.abilityName : BOMB_BRIEFING_FALLBACK.abilityName;
-    const totalCharges = Math.max(1, Number.isFinite(game.bombChargesPerFloor) ? game.bombChargesPerFloor : 1);
+    const totalCharges = Math.max(0, Number.isFinite(game.bombChargesPerFloor) ? game.bombChargesPerFloor : 0);
     const remainingCharges = clamp(
       Number.isFinite(game.bombChargesRemaining) ? game.bombChargesRemaining : totalCharges,
       0,

@@ -91,7 +91,7 @@ Dependencies:
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
   - `index.html` script tags use cache-bust tokens (`?v=20260218-12`) to force updated bundles on deployment.
-  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260218-12"`) to avoid stale image caching across art updates.
+  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260219-2"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
@@ -116,7 +116,12 @@ Acceptance Checks:
   - `buildPlayerSpriteCandidates()` now resolves labeled movement/shoot frames first, then canonical aliases, then legacy root fallback.
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
+  - Homing missiles (`dual`) use a reinforced procedural visual fallback with darker, jittered trail geometry and pulse-coupled detail, so they remain visibly distinct and more threatening when sprites are missing.
+  - Homing missile fallback was strengthened further with a staggered broken-fin silhouette, ember drift, and cracked line accents in `drawHomingMissileEnemyProcedural` to increase perceived threat without affecting movement/impact semantics.
   - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
   - Sprite cache state invalidates when resolved candidate path sets change so stale path order/content can never pin a previous image after art rename or input-mode swap.
+  - Malformed sprite candidates now advance through the same fallback chain as network/path load failures instead of terminating at the first invalid decode candidate.
+  - Player sprite width clamp uses normalized safe radius (`playerRadius`) consistently for both min and max bounds.
 - Deterministic automation compatibility:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
+- Sprite cache busting for character art is now `v=20260219-2`; script tags should remain aligned in `index.html` to guarantee dual wave/visual updates are loaded by clients.
