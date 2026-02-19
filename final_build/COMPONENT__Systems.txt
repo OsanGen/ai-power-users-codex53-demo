@@ -33,8 +33,9 @@ Outputs:
 State/Edges:
 - Input model:
   - Tracks movement and action keys in `AIPU.input.keys`.
-  - Normalizes key handling from `event.code` plus fallback single-char `event.key` to canonical movement/shoot codes.
+  - Normalizes key handling from `event.code` with fallback aliases for legacy `event.key` values (`Up`/`Down`/`Left`/`Right`) and single-char movement fallback.
   - Movement is `WASD` (`KeyW/KeyA/KeyS/KeyD`), while shoot direction is read from arrow keys (`ArrowUp/ArrowDown/ArrowLeft/ArrowRight`).
+  - Numpad directional controls (`Numpad8/2/4/6`) are normalized to arrow directions for shooting where the browser reports keypad codes.
   - Stops writing raw/non-canonical key strings into `AIPU.input.keys` during input capture, which prevents unexpected overlap between gameplay systems.
   - Removes legacy alias writes (e.g., trailing-letter keys) so arrow input cannot mutate unrelated key slots.
   - `lastShootKey` is reset on global input clear and refreshed on any canonical shoot-key release (`event.code` or `event.key` fallback) to avoid stale direction carrying over when keys are released.
@@ -42,11 +43,17 @@ State/Edges:
   - BOMB_BRIEFING, LESSON_SLIDE, DEATH_LESSON, UPGRADE_SELECT, FLOOR_INTRO, and FLOOR_CLEAR are non-combat overlay/input-break states for shooting.
   - `updatePlayerShooting` exits early unless `game.state === PLAYING`.
   - `updatePlayerMovement` and camera-independent gameplay updates continue as designed in noncombat states already using explicit state checks.
+  - Space-bomb activation is gated by a resolved floor-id path (`current floor` → `game.currentFloorIndex` fallback), and no bomb activation can occur before unlock floor or when floor charge allocation is 0.
+- Reset invariants:
+  - `toTitle()` clears canonical input state (`keys`, `lastShootKey`, `shootPressOrder`) before state reset to prevent latched movement/shoot keys across run boundaries.
+  - `resetCollections()` clears `activeWaves` in addition to pooled entity arrays to prevent stale spawn schedules after title/restart transitions.
+  - `player.attackDisableTimer` is reset in title transitions and floor/game state starts so lockout does not persist across run reset paths.
 - Burst system:
   - Tracks hold time only while directional shoot key is held in PLAYING.
   - Enforces floor unlock rules for dual/omni modes.
 - Damage pipeline:
   - `handleCollisions()` now routes collisions through `applyPlayerDamage` and records skipped/blocked hit events when debug mode is enabled.
+  - Homing missiles (`behavior: "homing_missile"`, including `type: "dual"`) no longer apply touch damage directly on contact; they instead explode visually, are removed, and trigger a fixed-duration player fire lockout.
   - `applyPlayerDamage()` validates damage source values and player health/shield state before mutating HP.
   - `applyPlayerDamage()` now clamps malformed source coordinates to player position so knockback math never receives `NaN`.
   - Upgrade selection debug output is now guarded through the shared debug flag and includes a floor id fallback when floor context is missing.
@@ -71,3 +78,7 @@ Acceptance Checks:
 - Death flow continues to DEATH_LESSON first and then GAME_OVER on explicit confirm input.
 - All pooled objects are fully reset before reuse; render-facing fields remain unchanged (`x`, `y`, `vx`, `vy`, `radius`, `hp`, `hp` etc.) and no gameplay tuning or UI copy changes.
 - Headless floor-start smoke check: forcing startRun(10) reaches UPGRADE_SELECT → LESSON_SLIDE → FLOOR_INTRO → PLAYING with no runtime transition errors.
+- Calling `toTitle()` after injecting pressed keys leaves all input channels cleared (`keys` false, `lastShootKey` empty, `shootPressOrder` empty).
+- Calling `toTitle()` from PLAYING leaves `activeWaves` count at `0` in `render_game_to_text` snapshots.
+- Calling `triggerBomb()` while `game.bombChargesPerFloor` is `0` never mutates enemies or charge state, and floor-locked floors below `BOMB_UNLOCK_FLOOR` reject activation even if charges are stale.
+- Homing-missile collision path keeps `applyPlayerDamage` from being called on `dual` impacts, yet always emits contact feedback and forces `attackDisableTimer` to the configured lockout duration.

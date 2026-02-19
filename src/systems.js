@@ -22,6 +22,7 @@
     DUAL_SHOT_UNLOCK_FLOOR,
     OMNI_SHOT_UNLOCK_FLOOR,
     REAR_SHOT_NOTICE_DURATION,
+    BOMB_UNLOCK_FLOOR,
     BOMB_BRIEFING_ACCEPT_COUNT,
     BOMB_CHARGES_BASE,
     BOMB_CHARGES_UPGRADED,
@@ -58,6 +59,7 @@
   const MAX_ACCUMULATED_TIME = 0.25;
   const BOMB_FLASH_DURATION = 0.22;
   const OVERLAY_ADVANCE_LOCK_MS = 120;
+  const HOMING_MISSILE_ATTACK_DISABLE_SECONDS = 3;
   const ENTITY_POOL_CONFIG = {
     bullets: 96,
     enemyBullets: 192,
@@ -1033,6 +1035,7 @@
   }
 
   function resetCollections() {
+    activeWaves.length = 0;
     clearCollection(bullets, releasePlayerBullet);
     clearCollection(enemyBullets, releaseEnemyBullet);
     clearCollection(enemies, releaseEnemy);
@@ -1215,6 +1218,7 @@
   }
 
   function toTitle() {
+    clearInputState();
     game.state = GameState.TITLE;
     simAccumulator = 0;
     if (AIPU.renderCache && typeof AIPU.renderCache.invalidate === "function") {
@@ -1266,10 +1270,12 @@
     player.hearts = BASE_MAX_HP;
     player.shieldCharges = 0;
     player.shieldBreakFlash = 0;
+    player.attackDisableTimer = 0;
     resetPlayerPosition();
   }
 
   function startRun(forcedStartFloor = null) {
+    player.attackDisableTimer = 0;
     game.kills = 0;
     game.gameOverEntryHandled = false;
     game.bombBriefingSeenIntroThisRun = false;
@@ -1340,6 +1346,7 @@
     upgrades.syncPlayerMaxHP(false);
     player.invuln = 0;
     player.fireCooldown = 0;
+    player.attackDisableTimer = 0;
     player.shieldBreakFlash = 0;
     resetPlayerPosition();
     game.state = GameState.UPGRADE_SELECT;
@@ -1372,12 +1379,17 @@
     player.shieldBreakFlash = 0;
     player.invuln = 0;
     player.fireCooldown = 0;
-    game.bombChargesPerFloor =
-      floor.id >= BOMB_CHARGES_FINAL_FLOOR
-        ? BOMB_CHARGES_FINAL
-        : floor.id >= BOMB_CHARGES_UPGRADE_FLOOR
-          ? BOMB_CHARGES_UPGRADED
-          : BOMB_CHARGES_BASE;
+    player.attackDisableTimer = 0;
+    if (!isBombUnlocked(floor)) {
+      game.bombChargesPerFloor = 0;
+    } else {
+      game.bombChargesPerFloor =
+        floor.id >= BOMB_CHARGES_FINAL_FLOOR
+          ? BOMB_CHARGES_FINAL
+          : floor.id >= BOMB_CHARGES_UPGRADE_FLOOR
+            ? BOMB_CHARGES_UPGRADED
+            : BOMB_CHARGES_BASE;
+    }
     game.bombChargesRemaining = game.bombChargesPerFloor;
     game.bombFlashTimer = 0;
     game.upgradeConfirmCooldown = 0;
@@ -1441,6 +1453,10 @@
 
     if (player.fireCooldown > 0) {
       player.fireCooldown = Math.max(0, player.fireCooldown - dt);
+    }
+
+    if (player.attackDisableTimer > 0) {
+      player.attackDisableTimer = Math.max(0, player.attackDisableTimer - dt);
     }
 
     if (game.upgradeConfirmCooldown > 0) {
@@ -1564,6 +1580,14 @@
   }
 
   function triggerBomb() {
+    if (!isBombUnlocked()) {
+      return;
+    }
+
+    if (game.bombChargesPerFloor <= 0) {
+      return;
+    }
+
     if (game.state !== GameState.PLAYING || game.bombChargesRemaining <= 0) {
       return;
     }
@@ -1582,6 +1606,26 @@
 
     clearCollection(enemies, releaseEnemy);
     clearCollection(enemyBullets, releaseEnemyBullet);
+  }
+
+  function isBombUnlocked(floorOverride = null) {
+    const floorId = resolveFloorIdForBombGate(floorOverride);
+    return floorId >= BOMB_UNLOCK_FLOOR;
+  }
+
+  function resolveFloorIdForBombGate(floorOverride) {
+    if (Number.isFinite(Number(floorOverride))) {
+      return Math.max(1, Math.floor(Number(floorOverride)));
+    }
+
+    if (floorOverride && Number.isFinite(Number(floorOverride.id))) {
+      return Math.max(1, Math.floor(Number(floorOverride.id)));
+    }
+
+    const floor = currentFloor();
+    const floorIdFromCurrent = floor && Number.isFinite(Number(floor.id)) ? Math.floor(Number(floor.id)) : NaN;
+    const fallbackFloorId = Math.max(1, Math.floor(Number.isFinite(game.currentFloorIndex) ? game.currentFloorIndex + 1 : 1));
+    return Number.isFinite(floorIdFromCurrent) ? floorIdFromCurrent : fallbackFloorId;
   }
 
   function updatePlayerMovement(dt) {
@@ -1621,6 +1665,10 @@
 
     player.lastAimX = dir.x;
     player.lastAimY = dir.y;
+
+    if (player.attackDisableTimer > 0) {
+      return;
+    }
 
     if (player.fireCooldown > 0 || game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) {
       return;
@@ -2052,6 +2100,8 @@
         const wobble = Math.sin(enemy.age * 6 + enemy.localSeed) * 0.28;
         enemy.vx = lerp(enemy.vx, (chase.x + wobble) * enemy.speed, clamp(3.8 * dt, 0, 1));
         enemy.vy = lerp(enemy.vy, (chase.y - wobble) * enemy.speed, clamp(3.8 * dt, 0, 1));
+      } else if (enemy.behavior === "homing_missile") {
+        updateHomingMissile(enemy, chase, dt);
       } else if (enemy.behavior === "ranged") {
         const distance = Math.hypot(player.x - enemy.x, player.y - enemy.y);
         const desired = distance > 210 ? 1 : distance < 145 ? -1 : 0;
@@ -2130,6 +2180,26 @@
       enemy.chargeState = "idle";
       enemy.chargeTimer = rand(0.75, 1.35);
     }
+  }
+
+  function updateHomingMissile(enemy, chase, dt) {
+    const lock = clamp(8.4 * dt, 0, 1);
+    enemy.vx = lerp(enemy.vx, chase.x * enemy.speed, lock);
+    enemy.vy = lerp(enemy.vy, chase.y * enemy.speed, lock);
+  }
+
+  function applyPlayerAttackDisable(seconds = HOMING_MISSILE_ATTACK_DISABLE_SECONDS) {
+    const safeSeconds = Number.isFinite(seconds) ? seconds : HOMING_MISSILE_ATTACK_DISABLE_SECONDS;
+    player.attackDisableTimer = Math.max(player.attackDisableTimer, safeSeconds);
+  }
+
+  function isHomingMissileEnemy(enemy) {
+    return !!enemy && (enemy.behavior === "homing_missile" || enemy.type === "dual");
+  }
+
+  function handleHomingMissileImpact(enemy) {
+    emitBurst(enemy.x, enemy.y, TOKENS.pink, 18, 220);
+    applyPlayerAttackDisable(HOMING_MISSILE_ATTACK_DISABLE_SECONDS);
   }
 
   function spawnEnemyBullet(x, y, dirX, dirY, speed, damage) {
@@ -2231,8 +2301,16 @@
       }
     }
 
-    for (const enemy of enemies) {
+    for (let i = enemies.length - 1; i >= 0; i -= 1) {
+      const enemy = enemies[i];
       if (circleHit(player.x, player.y, player.radius, enemy.x, enemy.y, enemy.radius)) {
+        if (isHomingMissileEnemy(enemy)) {
+          handleHomingMissileImpact(enemy);
+          releaseEnemy(enemy);
+          enemies.splice(i, 1);
+          continue;
+        }
+
         const touchDamage = Number.isFinite(enemy.touchDamage) ? enemy.touchDamage : 1;
         const didDamage = applyPlayerDamage(touchDamage, enemy.x, enemy.y, "enemyContact");
         if (!didDamage && game.showDebugStats) {
