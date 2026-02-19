@@ -1575,7 +1575,16 @@
   }
 
   function update(deltaTime) {
+    if (!Number.isFinite(deltaTime) || deltaTime <= 0) {
+      return;
+    }
+
     const frameDt = Math.max(0, Math.min(deltaTime, MAX_ACCUMULATED_TIME));
+    if (!Number.isFinite(simAccumulator) || !Number.isFinite(frameDt)) {
+      simAccumulator = 0;
+      return;
+    }
+
     simAccumulator = Math.min(simAccumulator + frameDt, MAX_ACCUMULATED_TIME);
 
     while (simAccumulator >= SIM_STEP) {
@@ -1854,7 +1863,8 @@
   function resolveDirectionalBurstMode(holdSeconds = game.rearShotHoldTime, floorId = null) {
     const hold = Math.max(0, Number(holdSeconds) || 0);
     const fallbackFloorId = Math.max(1, game.currentFloorIndex + 1);
-    const activeFloorId = floorId == null ? (currentFloor() && currentFloor().id) || fallbackFloorId : Math.max(1, Number(floorId) || fallbackFloorId);
+    const rawFloorId = floorId == null ? currentFloor() && Number(currentFloor().id) : Number(floorId);
+    const activeFloorId = Number.isFinite(rawFloorId) ? Math.floor(rawFloorId) : fallbackFloorId;
 
     if (activeFloorId < DUAL_SHOT_UNLOCK_FLOOR) {
       return "normal";
@@ -2055,6 +2065,10 @@
 
   function updateSpawns(dt) {
     for (const waveCfg of activeWaves) {
+      if (!waveCfg || typeof waveCfg !== "object") {
+        continue;
+      }
+
       const waveEnemyType = waveCfg && typeof waveCfg.enemyType === "string" ? waveCfg.enemyType : "";
       const isDualWave = waveEnemyType === "dual";
       const spawnCap = isDualWave ? DUAL_SPAWN_SOFT_CAP : ENEMY_SPAWN_SOFT_CAP;
@@ -2063,15 +2077,33 @@
         continue;
       }
 
-      if (game.floorElapsed < waveCfg.startTime || game.floorElapsed > waveCfg.endTime) {
+      const waveStartTime = Number.isFinite(waveCfg.startTime) ? waveCfg.startTime : 0;
+      const waveEndTime = Number.isFinite(waveCfg.endTime) ? waveCfg.endTime : waveStartTime;
+
+      if (waveEndTime <= waveStartTime) {
         continue;
       }
 
-      const span = Math.max(0.001, waveCfg.endTime - waveCfg.startTime);
-      const phase = clamp((game.floorElapsed - waveCfg.startTime) / span, 0, 1);
-      const spawnRate = lerp(waveCfg.spawnRateStart, waveCfg.spawnRateEnd, phase);
+      if (game.floorElapsed < waveStartTime || game.floorElapsed > waveEndTime) {
+        continue;
+      }
 
-      waveCfg._accum += spawnRate * dt;
+      const span = Math.max(0.001, waveEndTime - waveStartTime);
+      const phase = clamp((game.floorElapsed - waveStartTime) / span, 0, 1);
+      const spawnRateStart = Number.isFinite(waveCfg.spawnRateStart) ? waveCfg.spawnRateStart : 1;
+      const spawnRateEnd = Number.isFinite(waveCfg.spawnRateEnd) ? waveCfg.spawnRateEnd : spawnRateStart;
+      const spawnRate = lerp(spawnRateStart, spawnRateEnd, phase);
+      const safeSpawnRate = Number.isFinite(spawnRate) ? Math.max(0, spawnRate) : 0;
+
+      if (!Number.isFinite(waveCfg._accum)) {
+        waveCfg._accum = 0;
+      }
+
+      waveCfg._accum += safeSpawnRate * dt;
+
+      if (waveCfg._accum <= 0) {
+        continue;
+      }
 
       while (waveCfg._accum >= 1) {
         if (enemies.length >= spawnCap) {
@@ -2084,21 +2116,32 @@
   }
 
   function spawnEnemyFromWave(waveCfg, phase) {
+    if (!waveCfg || typeof waveCfg !== "object") {
+      return;
+    }
+
     const fallbackEnemyDef = FALLBACK_ENEMY_DEFS[waveCfg.enemyType] || null;
     const def = ENEMY_DEFS[waveCfg.enemyType] || fallbackEnemyDef;
     if (!def) {
       return;
     }
 
+    const safePhase = clamp(Number.isFinite(phase) ? phase : 0, 0, 1);
     const specialFlags = waveCfg.specialFlags || [];
     const canSplit = hasFlag(specialFlags, "canSplit");
     const spawnsBehindPlayer = hasFlag(specialFlags, "spawnsBehindPlayer");
-    const speedMultiplier = lerp(waveCfg.speedMultiplierStart, waveCfg.speedMultiplierEnd, phase);
+    const speedMultiplierStart = Number.isFinite(waveCfg.speedMultiplierStart) ? waveCfg.speedMultiplierStart : 1;
+    const speedMultiplierEnd = Number.isFinite(waveCfg.speedMultiplierEnd) ? waveCfg.speedMultiplierEnd : speedMultiplierStart;
+    const speedMultiplier = lerp(speedMultiplierStart, speedMultiplierEnd, safePhase);
+    const safeSpeedMultiplier = Number.isFinite(speedMultiplier) ? Math.max(0, speedMultiplier) : 1;
     const shootCooldownOpenMin = Number.isFinite(def.shootCooldownOpenMin) ? def.shootCooldownOpenMin : 0.55;
     const shootCooldownOpenMax = Number.isFinite(def.shootCooldownOpenMax) ? def.shootCooldownOpenMax : 1.45;
     const shootCooldownMin = Number.isFinite(def.shootCooldownMin) ? def.shootCooldownMin : 0.9;
     const shootCooldownMax = Number.isFinite(def.shootCooldownMax) ? def.shootCooldownMax : 1.55;
     const firstShotDelay = Number.isFinite(def.firstShotDelay) ? def.firstShotDelay : 0;
+    const safeRadius = Number.isFinite(def.size) ? def.size : 12;
+    const safeSpeed = Number.isFinite(def.speed) ? def.speed : 140;
+    const safeTouchDamage = Number.isFinite(def.touchDamage) ? def.touchDamage : 1;
 
     const spawnPoint = findSpawnPoint(spawnsBehindPlayer, waveCfg.enemyType);
 
@@ -2110,11 +2153,11 @@
         x: spawnPoint.x,
         y: spawnPoint.y,
         side: spawnPoint.side,
-        radius: def.size,
+        radius: safeRadius,
         hp: def.hp,
         maxHp: def.hp,
-        speed: def.speed * speedMultiplier,
-        touchDamage: def.touchDamage,
+        speed: safeSpeed * safeSpeedMultiplier,
+        touchDamage: safeTouchDamage,
         vx: 0,
         vy: 0,
         age: 0,
@@ -2557,8 +2600,10 @@
   }
 
   function heartDropChance(floor) {
-    let chance = floor.heartSpawn.baseRate;
-    if (floor.heartSpawn.clutchBoostStart && game.floorTimer <= floor.heartSpawn.clutchBoostStart) {
+    const heartSpawn = floor && floor.heartSpawn ? floor.heartSpawn : null;
+    let chance = heartSpawn && Number.isFinite(heartSpawn.baseRate) ? heartSpawn.baseRate : 0.07;
+    const clutchBoostStart = heartSpawn && Number.isFinite(heartSpawn.clutchBoostStart) ? heartSpawn.clutchBoostStart : NaN;
+    if (Number.isFinite(clutchBoostStart) && game.floorTimer <= clutchBoostStart) {
       chance += 0.08;
     }
     return clamp(chance, 0.05, 0.34);

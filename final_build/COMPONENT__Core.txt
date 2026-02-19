@@ -12,24 +12,38 @@ Inputs:
 Outputs:
 - Mutable singletons attached to `AIPU`:
   - `AIPU.dom`, `AIPU.ctx`, `AIPU.constants`, `AIPU.state`, `AIPU.input`, `AIPU.utils`.
+- Read-only QA namespace attached to `AIPU`:
+  - `AIPU.qa.getModuleGraph()`
+  - `AIPU.qa.getCollections(limit)`
+  - `AIPU.qa.getStateSnapshot(limit)`
 - Utility behaviors:
   - `clamp`, `lerp`, `easeOutCubic`, `easeInOutSine`, `approach`.
   - `randomFrom`, `shuffleArray`, `rand`.
   - `unitVector` normalization.
   - `circleHit`, `pointInRect`, `getMouseCanvasPosition`.
   - `arrowKeyToVector`, `hexToRgb`, `rgba`, `accentColor`.
+  - `getElementById` and numeric sanitizer helper for bootstrap safety.
 
 State/Edges:
 - `AIPU.state` defines default world/player/enemy state and render-cache metadata before gameplay begins.
 - `AIPU.input` stores key states and reduced-motion media query state.
+- `AIPU.input.lastShootKey` starts as empty string and is managed by input events in `systems.js` to keep shooting direction inert until WASD is active.
+- `AIPU.dom` and `AIPU.ctx` initialize safely when `document`/canvas are unavailable; fallback dimensions default to `1024x768`.
+- `randomFrom` and `shuffleArray` return empty/null-safe outputs for malformed collections.
+- `rand` normalizes `min/max` with finite-number coercion and supports reversed bounds.
 - `unitVector` now gracefully handles malformed/zero vectors to avoid NaN in downstream movement and knockback math.
 - `arrowKeyToVector` now returns neutral `{ x: 0, y: 0 }` for unexpected keys, preventing accidental upward shooting vector fallback.
 - `hexToRgb` now returns black on malformed values instead of throwing.
+- `pointInRect` and `getMouseCanvasPosition` reject malformed geometry/events instead of throwing or producing invalid math.
+- `AIPU.qa` exposes snapshots only and does not mutate gameplay state.
 
 Dependencies:
 - None external; pure bootstrap utilities consumed by other modules.
 
 Acceptance Checks:
+- Bootstrapping with missing DOM does not throw and preserves runtime object creation for non-browser consumers.
 - No caller receives NaN from `unitVector` for malformed inputs.
 - Unknown shoot keys resolve to no-direction vector, avoiding unintended directional shooting.
 - Color utility calls with malformed input fail closed to black rather than throwing.
+- Geometry helpers degrade safely when canvas/elements are unavailable, so render/input paths remain stable.
+- QA namespace stays read-only and avoids side effects during polling.

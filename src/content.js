@@ -644,6 +644,75 @@
     }
   }
 
+  const SONG_FILE_PREFIX_SPACE = "./SONGS/LEVEL_ ";
+  const SONG_FILE_PREFIX_COMPACT = "./SONGS/LEVEL_";
+  const SONG_FILE_SUFFIX = "_15.wav";
+
+  function normalizeSongFloorId(floorIdOrLabel) {
+    const asNumber = floorIdOrLabel && Number.isFinite(Number(floorIdOrLabel.id))
+      ? Number(floorIdOrLabel.id)
+      : Number(floorIdOrLabel);
+    if (!Number.isFinite(asNumber)) {
+      return NaN;
+    }
+    return Math.floor(asNumber);
+  }
+
+  function buildSongCandidateFloorIds(floorIdOrLabel) {
+    const floorId = normalizeSongFloorId(floorIdOrLabel);
+    const floorCount = Number.isFinite(FLOORS.length) ? FLOORS.length : 15;
+    const fallbackFloorId = Number.isFinite(floorCount) && floorCount > 0 ? floorCount : 15;
+
+    if (!Number.isFinite(floorId) || floorId <= 0) {
+      return [1, fallbackFloorId];
+    }
+
+    const clampedFloor = Math.max(1, Math.min(Math.floor(floorId), Math.max(1, floorCount)));
+    const safeIds = [clampedFloor];
+    if (fallbackFloorId !== clampedFloor) {
+      safeIds.push(fallbackFloorId);
+    }
+    return safeIds;
+  }
+
+  function buildSongCandidatePaths(floorIdOrLabel) {
+    const candidateFloorIds = buildSongCandidateFloorIds(floorIdOrLabel);
+    const unique = new Set();
+    const candidates = [];
+
+    for (let i = 0; i < candidateFloorIds.length; i += 1) {
+      const floorId = candidateFloorIds[i];
+      if (!Number.isFinite(floorId)) {
+        continue;
+      }
+
+      const floorPathParts = [
+        `${SONG_FILE_PREFIX_SPACE}${floorId}${SONG_FILE_SUFFIX}`,
+        `${SONG_FILE_PREFIX_COMPACT}${floorId}${SONG_FILE_SUFFIX}`
+      ];
+
+      for (let p = 0; p < floorPathParts.length; p += 1) {
+        const candidate = floorPathParts[p];
+        if (typeof candidate !== "string" || candidate.length === 0 || unique.has(candidate)) {
+          continue;
+        }
+        unique.add(candidate);
+        candidates.push(candidate);
+      }
+    }
+
+    return candidates;
+  }
+
+  function getSongPathForFloor(floorIdOrLabel) {
+    const paths = buildSongCandidatePaths(floorIdOrLabel);
+    return paths.length > 0 ? paths[0] : null;
+  }
+
+  function getSongPathCandidatesForFloor(floorIdOrLabel) {
+    return buildSongCandidatePaths(floorIdOrLabel);
+  }
+
   const FLOORS = [
     {
       id: 1,
@@ -1019,6 +1088,8 @@
     getNarrativeFloorCopy,
     getNarrativeOutcomeCopy,
     getNarrativeUiText,
+    getSongPathForFloor,
+    getSongPathCandidatesForFloor,
     getBombBriefingCopy,
     getWhatYouLearnedBullets,
     getThreatGlossaryRows

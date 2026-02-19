@@ -3,31 +3,42 @@
 
   const AIPU = (window.AIPU = window.AIPU || {});
 
+  function toFinite(value, fallback = 0) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : fallback;
+  }
+
+  function getElementById(id) {
+    return typeof document !== "undefined" ? document.getElementById(id) : null;
+  }
+
   const dom = {
-    canvas: document.getElementById("game"),
-    gameFrame: document.getElementById("gameFrame"),
-    textModalEl: document.getElementById("textModal"),
-    lessonTextInputEl: document.getElementById("lessonTextInput"),
-    lessonTextSaveBtn: document.getElementById("lessonTextSaveBtn"),
-    lessonTextSampleBtn: document.getElementById("lessonTextSampleBtn"),
-    lessonTextCloseBtn: document.getElementById("lessonTextCloseBtn"),
-    shareModalEl: document.getElementById("shareModal"),
-    shareFloorEl: document.getElementById("shareFloor"),
-    shareTextEl: document.getElementById("shareText"),
-    shareCardPreviewEl: document.getElementById("shareCardPreview"),
-    shareCopyBtn: document.getElementById("shareCopyBtn"),
-    shareLinkedInBtn: document.getElementById("shareLinkedInBtn"),
-    shareDownloadBtn: document.getElementById("shareDownloadBtn"),
-    shareCloseBtn: document.getElementById("shareCloseBtn"),
-    shareDontAskEl: document.getElementById("shareDontAsk"),
-    overlayRestartBtn: document.getElementById("overlayRestartBtn")
+    canvas: getElementById("game"),
+    gameFrame: getElementById("gameFrame"),
+    textModalEl: getElementById("textModal"),
+    lessonTextInputEl: getElementById("lessonTextInput"),
+    lessonTextSaveBtn: getElementById("lessonTextSaveBtn"),
+    lessonTextSampleBtn: getElementById("lessonTextSampleBtn"),
+    lessonTextCloseBtn: getElementById("lessonTextCloseBtn"),
+    shareModalEl: getElementById("shareModal"),
+    shareFloorEl: getElementById("shareFloor"),
+    shareTextEl: getElementById("shareText"),
+    shareCardPreviewEl: getElementById("shareCardPreview"),
+    shareCopyBtn: getElementById("shareCopyBtn"),
+    shareLinkedInBtn: getElementById("shareLinkedInBtn"),
+    shareDownloadBtn: getElementById("shareDownloadBtn"),
+    shareCloseBtn: getElementById("shareCloseBtn"),
+    shareDontAskEl: getElementById("shareDontAsk"),
+    overlayRestartBtn: getElementById("overlayRestartBtn")
   };
 
-  const ctx = dom.canvas.getContext("2d");
+  const canvasWidth = toFinite(dom.canvas && dom.canvas.width, 1024);
+  const canvasHeight = toFinite(dom.canvas && dom.canvas.height, 768);
+  const ctx = dom.canvas && typeof dom.canvas.getContext === "function" ? dom.canvas.getContext("2d") : null;
 
   const constants = {
-    WIDTH: dom.canvas.width,
-    HEIGHT: dom.canvas.height,
+    WIDTH: canvasWidth,
+    HEIGHT: canvasHeight,
     SHARE_DONT_ASK_KEY: "dontAskShare",
     TOKENS: {
       yellow: "#f4d66d",
@@ -63,6 +74,7 @@
     ALL_DIRECTION_SHOT_TRIGGER_SECONDS: 10,
     DUAL_SHOT_UNLOCK_FLOOR: 2,
     OMNI_SHOT_UNLOCK_FLOOR: 8,
+    BOMB_UNLOCK_FLOOR: 2,
     REAR_SHOT_NOTICE_DURATION: 4.2,
     BASE_INVULN_TIME: 0.8,
     MAX_INVULN_TIME: 1.35,
@@ -157,6 +169,7 @@
       hearts: constants.BASE_MAX_HP,
       invuln: 0,
       fireCooldown: 0,
+      attackDisableTimer: 0,
       lastAimX: 0,
       lastAimY: -1,
       shieldCharges: 0,
@@ -218,14 +231,20 @@
   }
 
   function randomFrom(list) {
-    if (!list || list.length === 0) {
+    if (!Array.isArray(list) || list.length === 0) {
       return null;
     }
     return list[Math.floor(Math.random() * list.length)];
   }
 
   function shuffleArray(list) {
+    if (!Array.isArray(list)) {
+      return [];
+    }
     const copy = [...list];
+    if (copy.length < 2) {
+      return copy;
+    }
     for (let i = copy.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [copy[i], copy[j]] = [copy[j], copy[i]];
@@ -234,7 +253,11 @@
   }
 
   function rand(min, max) {
-    return min + Math.random() * (max - min);
+    const minValue = toFinite(min, 0);
+    const maxValue = toFinite(max, minValue);
+    const lo = Math.min(minValue, maxValue);
+    const hi = Math.max(minValue, maxValue);
+    return lo + Math.random() * (hi - lo);
   }
 
   function unitVector(x, y) {
@@ -258,11 +281,31 @@
   }
 
   function pointInRect(x, y, rect) {
-    return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+    const px = Number(x);
+    const py = Number(y);
+    if (!Number.isFinite(px) || !Number.isFinite(py)) {
+      return false;
+    }
+    if (!rect || !Number.isFinite(rect.x) || !Number.isFinite(rect.y) || !Number.isFinite(rect.w) || !Number.isFinite(rect.h)) {
+      return false;
+    }
+    return px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h;
   }
 
   function getMouseCanvasPosition(event) {
+    if (!dom.canvas || !event || !Number.isFinite(event.clientX) || !Number.isFinite(event.clientY)) {
+      return {
+        x: 0,
+        y: 0
+      };
+    }
     const rect = dom.canvas.getBoundingClientRect();
+    if (!rect || !Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+      return {
+        x: event.clientX,
+        y: event.clientY
+      };
+    }
     const scaleX = constants.WIDTH / rect.width;
     const scaleY = constants.HEIGHT / rect.height;
     return {

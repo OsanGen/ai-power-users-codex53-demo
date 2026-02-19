@@ -59,7 +59,13 @@ State/Edges:
   - `applyPlayerDamage()` now clamps malformed source coordinates to player position so knockback math never receives `NaN`.
   - Upgrade selection debug output is now guarded through the shared debug flag and includes a floor id fallback when floor context is missing.
   - Damage is treated as skipped only for explicit guard conditions and is traceable by reason in debug logs.
+- Simulation hardening:
+  - `update(deltaTime)` clamps oversized frame input into a bounded accumulator, ignores non-finite or non-positive deltas, and resets accumulator if internal timing state becomes invalid.
+  - `resolveDirectionalBurstMode(...)` safely parses numeric floor input before threshold checks.
+  - `heartDropChance(...)` defaults malformed floor heart-config fields and preserves stable clamp behavior.
 - Spawn control:
+  - `updateSpawns()` sanitizes malformed wave metadata and numeric fields (timing, rates, speed multipliers, speed, size, damage, hp) before computation and entity creation.
+  - `spawnEnemyFromWave()` ignores malformed wave objects and creates entities only from valid enemy definitions.
   - `updateSpawns()` enforces a regular-entity soft cap (`ENEMY_SPAWN_SOFT_CAP`) while allowing `dual` missiles to continue spawning during their wave windows up to a higher cap (`DUAL_SPAWN_SOFT_CAP`) so homing-missile visibility is preserved in dense combat frames.
 - Entity performance:
   - Uses reusable pools for bullets, enemy bullets, enemies, pickups, and particles.
@@ -87,6 +93,8 @@ Acceptance Checks:
 - Headless floor-start smoke check: forcing startRun(10) reaches UPGRADE_SELECT → LESSON_SLIDE → FLOOR_INTRO → PLAYING with no runtime transition errors.
 - Calling `toTitle()` after injecting pressed keys leaves all input channels cleared (`keys` false, `lastShootKey` empty, `shootPressOrder` empty).
 - Calling `toTitle()` from PLAYING leaves `activeWaves` count at `0` in `render_game_to_text` snapshots.
+- Calling `update()` with non-finite/zero-or-negative `deltaTime` does not mutate simulation state and leaves `simAccumulator` bounded and recoverable.
+- `updateSpawns()` ignores malformed wave objects; malformed numeric fields in `activeWaves` entries do not throw or stall.
 - Calling `triggerBomb()` while `game.bombChargesPerFloor` is `0` never mutates enemies or charge state, and floor-locked floors below `BOMB_UNLOCK_FLOOR` reject activation even if charges are stale.
 - Homing-missile collision path keeps `applyPlayerDamage` from being called on `dual` impacts, yet always emits contact feedback and forces `attackDisableTimer` to the configured lockout duration.
 - Dual-wave spawn pressure remains active when standard enemy count is saturated, so entering high-traffic states no longer suppresses `dual` wave spawns.

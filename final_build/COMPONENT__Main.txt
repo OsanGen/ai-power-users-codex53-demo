@@ -1,0 +1,35 @@
+Main Loop Component
+
+Purpose:
+- Own runtime bootstrap order and per-frame update/draw scheduling.
+- Bridge browser automation hooks to gameplay/render runtime without changing gameplay rules.
+
+Inputs:
+- `AIPU.systems.update(dt)` simulation tick.
+- `AIPU.render.draw()` frame render.
+- `AIPU.render.renderGameToText()` optional text serializer.
+- `AIPU.share.shareUI.bindEvents()` modal event wiring.
+- Browser timing APIs (`performance.now`, `requestAnimationFrame`).
+
+Outputs:
+- Active RAF loop for live gameplay.
+- `window.advanceTime(ms)` deterministic stepping hook for automation/testing.
+- `window.render_game_to_text()` JSON state snapshot delegating to renderer serializer.
+
+State/Edges:
+- Keeps normal RAF behavior for interactive play.
+- During manual stepping, RAF simulation updates are temporarily gated to avoid double-updates.
+- `advanceTime(ms)` uses fixed 60Hz simulation steps and renders once after stepping.
+- Positive `advanceTime(ms)` inputs use rounded 60Hz step counts (`Math.round`) with a minimum of 1 step to avoid deterministic undercount drift.
+- Invalid or zero `ms` inputs fail closed and do not throw.
+
+Dependencies:
+- `AIPU.systems`
+- `AIPU.render`
+- `AIPU.share`
+- `AIPU.dom`
+
+Acceptance Checks:
+- Game still boots via `AIPU.systems.toTitle()` and RAF loop.
+- `window.advanceTime(1000)` advances exactly 60 fixed simulation steps and returns `60`.
+- `window.render_game_to_text()` returns valid JSON string throughout all game states.

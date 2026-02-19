@@ -148,7 +148,7 @@ From `src/systems.js`:
 
 ### Shooting + directional burst mechanic
 
-- Shooting uses arrow direction (last pressed arrow retained).
+- Shooting uses `Arrow key` direction (last pressed shoot key retained).
 - Floor `1`: normal directional shots only.
 - Floors `2-7`: if the same shoot direction is held for `>= 2.0s` in `PLAYING`, each shot fires both forward and backward.
 - Floors `8-9`: if the same shoot direction is held for `>= 10.0s` in `PLAYING`, each shot fires in all four cardinal directions.
