@@ -1,0 +1,44 @@
+Audio Component
+
+Purpose:
+- Own floor-scoped background music playback and track fallback behavior.
+- Keep music handling separate from combat/render/state logic while reusing `AIPU.content` floor song resolution.
+
+Inputs:
+- `AIPU.content.getSongPathCandidatesForFloor` for floor->track candidate list resolution.
+- Floor lifecycle calls from `AIPU.systems`:
+  - `beginCurrentFloor` (start/continue current floor playback)
+  - `enterGameOver` (stop)
+  - `toTitle` (stop)
+  - `VICTORY` transition in `update()` (stop)
+
+Outputs:
+- `AIPU.audio` singleton with methods:
+  - `playForFloor(floorIdOrLabel)`
+  - `stop()`
+  - `setMuted(value)`
+  - `getState()`
+
+State:
+- `currentFloorId`
+- `currentSrc` / `activeSrc`
+- `isPlaying`
+- `isMuted`
+- `errorCount`
+- `lastError`
+
+Edge Cases:
+- Missing/invalid floor id falls through to null/first valid candidate or stop.
+- Missing track candidate path falls back through configured candidate list before reporting no playable track.
+- Multiple browser `play()`/decode errors are non-fatal and update `lastError`.
+- `stop()` clears playback source, resets state, and remains safe to call repeatedly.
+
+Dependencies:
+- HTMLAudioElement and browser autoplay policy constraints.
+- `AIPU.content` floor naming helpers in `/src/content.js`.
+
+Acceptance checks:
+- Entering a floor with available track starts looped background music.
+- Entering title/game over/victory stops track.
+- Missing tracks do not throw and are handled by candidate fallback/stop behavior.
+- `AIPU.audio.getState()` returns active source and status without mutating gameplay.

@@ -3,10 +3,17 @@ System Architecture Map
 - core.js
   - Exposes AIPU.constants, AIPU.dom, AIPU.state, AIPU.input tokens.
   - Owns enum-like constants for gameplay and overlay states.
+  - Exposes read-only QA diagnostics via `AIPU.qa` (state/collection snapshots + module graph).
 
 - content.js
   - Owns narrative lookup (title/bullets/overlays) and enemy lore.
   - Exposes getNarrativeTeachCard and getDeathLessonCard for overlay cards.
+
+- audio.js
+  - Owns floor-scoped background music playback.
+  - Resolves one or more candidate song paths per floor and switches tracks on floor transitions.
+  - Exposes `AIPU.audio` for controlled play/stop/mute and diagnostics.
+  - Handles missing files and playback failures without affecting simulation state.
 
 - systems.js
   - Owns input handling, state machine, spawn/kill/update simulation.
@@ -16,9 +23,11 @@ System Architecture Map
 - render.js
   - Owns all canvas rendering, including environment and overlays.
   - Reads state and game/systems helpers to draw HUD, lesson, death lesson, title, and world.
+  - Exposes text-state serializer via `AIPU.render.renderGameToText()`.
 
 - share.js
   - Owns share modal lifecycle and copy/image generation.
 
 - main.js
   - Boot sequence and game loop (requestAnimationFrame + update/draw wiring).
+  - Exposes deterministic QA hooks: `window.advanceTime(ms)` and `window.render_game_to_text()`.

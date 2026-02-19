@@ -60,6 +60,20 @@
   const BOMB_FLASH_DURATION = 0.22;
   const OVERLAY_ADVANCE_LOCK_MS = 120;
   const HOMING_MISSILE_ATTACK_DISABLE_SECONDS = 3;
+  const DUAL_WAVE_START_FLOOR = 2;
+  const DUAL_WAVE_MIN_DURATION_SECONDS = 12;
+  const DUAL_FALLBACK_WAVE_RATE_START_MIN = 0.34;
+  const DUAL_FALLBACK_WAVE_RATE_START_MAX = 1.14;
+  const DUAL_FALLBACK_WAVE_RATE_END_MIN = 0.94;
+  const DUAL_FALLBACK_WAVE_RATE_END_MAX = 1.86;
+  const DUAL_FALLBACK_RATE_SCALE = 0.56;
+  const DUAL_FALLBACK_END_RATE_SCALE = 0.92;
+  const DUAL_FALLBACK_SPEED_START = 1;
+  const DUAL_FALLBACK_SPEED_END = 1.16;
+  const DUAL_FALLBACK_SPEED_START_SECOND = 1.08;
+  const DUAL_FALLBACK_SPEED_END_SECOND = 1.3;
+  const ENEMY_SPAWN_SOFT_CAP = 58;
+  const DUAL_SPAWN_SOFT_CAP = 72;
   const ENTITY_POOL_CONFIG = {
     bullets: 96,
     enemyBullets: 192,
@@ -74,6 +88,15 @@
   const LESSON_TEXT_SAMPLE =
     "Inputs are numbers like counts and signals. Weights scale each input, then gates combine them to produce one guess. A tiny input change can flip a prediction.";
   const COGSEC_BULLET_COLORS = [TOKENS.yellow, TOKENS.blue, TOKENS.mint, TOKENS.pink];
+  const FALLBACK_ENEMY_DEFS = Object.freeze({
+    dual: {
+      hp: 1,
+      size: 13,
+      speed: 198,
+      behavior: "homing_missile",
+      touchDamage: 0
+    }
+  });
   let bulletColorCycleIndex = 0;
   let lessonSlideAdvanceLockUntil = 0;
   let deathLessonAdvanceLockUntil = 0;
@@ -1055,6 +1078,22 @@
     };
   }
 
+  function playFloorMusicForFloor(floor) {
+    const audio = AIPU.audio;
+    if (!audio || typeof audio.playForFloor !== "function") {
+      return;
+    }
+    audio.playForFloor(floor && floor.id != null ? floor.id : null);
+  }
+
+  function stopFloorMusic() {
+    const audio = AIPU.audio;
+    if (!audio || typeof audio.stop !== "function") {
+      return;
+    }
+    audio.stop();
+  }
+
   function startDeathAnim() {
     const floor = currentFloor() || FLOORS[0];
     const accent = accentColor((floor && floor.accent) || "yellow");
@@ -1169,6 +1208,7 @@
   }
 
   function enterGameOver(floorOverride = null) {
+    stopFloorMusic();
     game.state = GameState.GAME_OVER;
     if (game.gameOverEntryHandled) {
       return;
@@ -1219,6 +1259,7 @@
 
   function toTitle() {
     clearInputState();
+    stopFloorMusic();
     game.state = GameState.TITLE;
     simAccumulator = 0;
     if (AIPU.renderCache && typeof AIPU.renderCache.invalidate === "function") {
@@ -1357,6 +1398,7 @@
     if (!floor) {
       return;
     }
+    playFloorMusicForFloor(floor);
     if (AIPU.renderCache && typeof AIPU.renderCache.markFloor === "function") {
       AIPU.renderCache.markFloor(floor.id, floor.accent);
     }
@@ -1371,7 +1413,8 @@
 
     resetCollections();
 
-    activeWaves = floor.enemyWaves.map((w) => ({ ...w, _accum: 0 }));
+    activeWaves = ensureDualWaveFallbacks(floor, floor.enemyWaves)
+      .map((w) => ({ ...w, _accum: 0 }));
     upgrades.invalidateDerivedStats();
     upgrades.syncPlayerMaxHP(false);
     player.hearts = clamp(player.hearts + 1, 0, player.maxHearts);
@@ -1400,6 +1443,103 @@
     resetPlayerPosition();
 
     spawnInitialHearts(floor);
+  }
+
+  function ensureDualWaveFallbacks(floor, waveList) {
+    if (!floor || !Array.isArray(waveList)) {
+      waveList = [];
+    }
+
+    const floorId = Number.isFinite(floor && floor.id) ? Math.floor(floor.id) : NaN;
+    if (floorId < DUAL_WAVE_START_FLOOR) {
+      return waveList.slice();
+    }
+
+    const hasDualWave = waveList.some((waveCfg) => waveCfg && waveCfg.enemyType === "dual");
+    if (hasDualWave) {
+      return waveList.slice();
+    }
+
+    const fallbackWaves = buildFallbackDualWavesForFloor(floor);
+    if (!Array.isArray(fallbackWaves) || fallbackWaves.length === 0) {
+      return waveList.slice();
+    }
+
+    const merged = waveList.concat(fallbackWaves);
+    merged.sort((a, b) =>
+      (Number.isFinite(a.startTime) ? a.startTime : 0) - (Number.isFinite(b.startTime) ? b.startTime : 0)
+    );
+    return merged;
+  }
+
+  function buildFallbackDualWavesForFloor(floor) {
+    const floorId = Number.isFinite(floor && floor.id) ? Math.floor(floor.id) : NaN;
+    const floorDuration = Number.isFinite(floor && floor.durationSeconds)
+      ? Math.floor(floor.durationSeconds)
+      : 0;
+    if (!Number.isFinite(floorId) || floorDuration < DUAL_WAVE_MIN_DURATION_SECONDS) {
+      return [];
+    }
+
+    const totalFloorSpan = Math.max(1, (FLOORS && FLOORS.length ? FLOORS.length : 15) - DUAL_WAVE_START_FLOOR);
+    const floorScale = clamp((floorId - DUAL_WAVE_START_FLOOR) / totalFloorSpan, 0, 1);
+
+    const firstStart = clamp(Math.round(floorDuration * 0.15), 6, Math.max(6, floorDuration - 18));
+    const firstEnd = clamp(
+      firstStart + Math.max(Math.round(floorDuration * 0.32), 6),
+      firstStart + 2,
+      Math.max(firstStart + 2, floorDuration - 4)
+    );
+
+    const secondStart = clamp(Math.round(floorDuration * 0.58), Math.max(firstEnd + 4, 12), Math.max(12, floorDuration - 10));
+    const secondEnd = clamp(
+      secondStart + Math.max(Math.round(floorDuration * 0.18), 5),
+      secondStart + 2,
+      Math.max(secondStart + 2, floorDuration - 2)
+    );
+
+    if (firstEnd <= firstStart || secondEnd <= secondStart) {
+      return [];
+    }
+
+    return [
+      {
+        enemyType: "dual",
+        startTime: firstStart,
+        endTime: firstEnd,
+        spawnRateStart: clamp(
+          DUAL_FALLBACK_WAVE_RATE_START_MIN + floorScale * DUAL_FALLBACK_RATE_SCALE,
+          DUAL_FALLBACK_WAVE_RATE_START_MIN,
+          DUAL_FALLBACK_WAVE_RATE_START_MAX
+        ),
+        spawnRateEnd: clamp(
+          DUAL_FALLBACK_WAVE_RATE_END_MIN + floorScale * DUAL_FALLBACK_END_RATE_SCALE,
+          DUAL_FALLBACK_WAVE_RATE_END_MIN,
+          DUAL_FALLBACK_WAVE_RATE_END_MAX
+        ),
+        speedMultiplierStart: DUAL_FALLBACK_SPEED_START,
+        speedMultiplierEnd: DUAL_FALLBACK_SPEED_END,
+        specialFlags: ["spawnsBehindPlayer"]
+      },
+      {
+        enemyType: "dual",
+        startTime: secondStart,
+        endTime: secondEnd,
+        spawnRateStart: clamp(
+          DUAL_FALLBACK_WAVE_RATE_START_MIN + floorScale * DUAL_FALLBACK_RATE_SCALE + 0.16,
+          DUAL_FALLBACK_WAVE_RATE_START_MIN,
+          DUAL_FALLBACK_WAVE_RATE_START_MAX
+        ),
+        spawnRateEnd: clamp(
+          DUAL_FALLBACK_WAVE_RATE_END_MIN + floorScale * DUAL_FALLBACK_END_RATE_SCALE + 0.22,
+          DUAL_FALLBACK_WAVE_RATE_END_MIN,
+          DUAL_FALLBACK_WAVE_RATE_END_MAX
+        ),
+        speedMultiplierStart: DUAL_FALLBACK_SPEED_START_SECOND,
+        speedMultiplierEnd: DUAL_FALLBACK_SPEED_END_SECOND,
+        specialFlags: ["spawnsBehindPlayer"]
+      }
+    ];
   }
 
   function enterLessonSlide() {
@@ -1547,6 +1687,7 @@
           startFloor(game.currentFloorIndex + 1);
         } else {
           clearCheckpointFloor();
+          stopFloorMusic();
           game.state = GameState.VICTORY;
         }
       }
@@ -1913,11 +2054,15 @@
   }
 
   function updateSpawns(dt) {
-    if (enemies.length > 58) {
-      return;
-    }
-
     for (const waveCfg of activeWaves) {
+      const waveEnemyType = waveCfg && typeof waveCfg.enemyType === "string" ? waveCfg.enemyType : "";
+      const isDualWave = waveEnemyType === "dual";
+      const spawnCap = isDualWave ? DUAL_SPAWN_SOFT_CAP : ENEMY_SPAWN_SOFT_CAP;
+
+      if (enemies.length >= spawnCap) {
+        continue;
+      }
+
       if (game.floorElapsed < waveCfg.startTime || game.floorElapsed > waveCfg.endTime) {
         continue;
       }
@@ -1929,6 +2074,9 @@
       waveCfg._accum += spawnRate * dt;
 
       while (waveCfg._accum >= 1) {
+        if (enemies.length >= spawnCap) {
+          break;
+        }
         spawnEnemyFromWave(waveCfg, phase);
         waveCfg._accum -= 1;
       }
@@ -1936,7 +2084,8 @@
   }
 
   function spawnEnemyFromWave(waveCfg, phase) {
-    const def = ENEMY_DEFS[waveCfg.enemyType];
+    const fallbackEnemyDef = FALLBACK_ENEMY_DEFS[waveCfg.enemyType] || null;
+    const def = ENEMY_DEFS[waveCfg.enemyType] || fallbackEnemyDef;
     if (!def) {
       return;
     }
@@ -1988,6 +2137,10 @@
   }
 
   function findSpawnPoint(spawnsBehindPlayer, enemyType) {
+    if (enemyType === "dual") {
+      return buildDualSpawnPoint();
+    }
+
     if (enemyType === "reach_shadow") {
       const side = Math.random() < 0.5 ? -1 : 1;
       return {
@@ -2014,6 +2167,17 @@
     }
 
     return { x: WORLD.x + WORLD.w - 12, y: rand(WORLD.y + 18, WORLD.y + WORLD.h - 18), side: 1 };
+  }
+
+  function buildDualSpawnPoint() {
+    const spreadRoll = Math.random();
+    if (spreadRoll < 0.5) {
+      return { x: rand(WORLD.x + 24, WORLD.x + WORLD.w - 24), y: WORLD.y + 14, side: 0 };
+    }
+    if (spreadRoll < 0.77) {
+      return { x: WORLD.x + 14, y: rand(WORLD.y + 28, WORLD.y + WORLD.h - 28), side: -1 };
+    }
+    return { x: WORLD.x + WORLD.w - 14, y: rand(WORLD.y + 28, WORLD.y + WORLD.h - 28), side: 1 };
   }
 
   function updateBullets(dt) {

@@ -44,6 +44,7 @@ State/Edges:
   - `updatePlayerShooting` exits early unless `game.state === PLAYING`.
   - `updatePlayerMovement` and camera-independent gameplay updates continue as designed in noncombat states already using explicit state checks.
   - Space-bomb activation is gated by a resolved floor-id path (`current floor` → `game.currentFloorIndex` fallback), and no bomb activation can occur before unlock floor or when floor charge allocation is 0.
+  - Background audio is started when a floor begins (`beginCurrentFloor`) and stopped in terminal/transition states (`toTitle`, `enterGameOver`, `VICTORY`) through explicit `AIPU.audio` calls.
 - Reset invariants:
   - `toTitle()` clears canonical input state (`keys`, `lastShootKey`, `shootPressOrder`) before state reset to prevent latched movement/shoot keys across run boundaries.
   - `resetCollections()` clears `activeWaves` in addition to pooled entity arrays to prevent stale spawn schedules after title/restart transitions.
@@ -58,6 +59,8 @@ State/Edges:
   - `applyPlayerDamage()` now clamps malformed source coordinates to player position so knockback math never receives `NaN`.
   - Upgrade selection debug output is now guarded through the shared debug flag and includes a floor id fallback when floor context is missing.
   - Damage is treated as skipped only for explicit guard conditions and is traceable by reason in debug logs.
+- Spawn control:
+  - `updateSpawns()` enforces a regular-entity soft cap (`ENEMY_SPAWN_SOFT_CAP`) while allowing `dual` missiles to continue spawning during their wave windows up to a higher cap (`DUAL_SPAWN_SOFT_CAP`) so homing-missile visibility is preserved in dense combat frames.
 - Entity performance:
   - Uses reusable pools for bullets, enemy bullets, enemies, pickups, and particles.
   - Releases pooled objects on all collection exits (death, collisions, pickups, timeouts, and bomb clear).
@@ -65,6 +68,10 @@ State/Edges:
 - Death and lesson flow:
   - Death animation transitions to DEATH_LESSON and then GAME_OVER on confirmation.
   - Lesson slides interposed between upgrade acceptance and floor start.
+
+- Audio side effects:
+  - `beginCurrentFloor()` calls `AIPU.audio.playForFloor(floor.id)` if the audio module is available.
+  - Title, game over, and victory transitions stop playback explicitly to prevent stale looping.
 
 Dependencies:
 - `AIPU.upgrades` for stat aggregation and upgrade selection.
@@ -82,3 +89,7 @@ Acceptance Checks:
 - Calling `toTitle()` from PLAYING leaves `activeWaves` count at `0` in `render_game_to_text` snapshots.
 - Calling `triggerBomb()` while `game.bombChargesPerFloor` is `0` never mutates enemies or charge state, and floor-locked floors below `BOMB_UNLOCK_FLOOR` reject activation even if charges are stale.
 - Homing-missile collision path keeps `applyPlayerDamage` from being called on `dual` impacts, yet always emits contact feedback and forces `attackDisableTimer` to the configured lockout duration.
+- Dual-wave spawn pressure remains active when standard enemy count is saturated, so entering high-traffic states no longer suppresses `dual` wave spawns.
+- Floor transitions and terminal states are audio-safe:
+  - Floor transitions call play/stop deterministically.
+  - `enterGameOver()`, `toTitle()`, and victory path stop playback without throwing when audio is unavailable.
