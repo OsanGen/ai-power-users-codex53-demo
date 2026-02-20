@@ -476,12 +476,16 @@
         naturalHeight: 0,
         errorPaths: [],
         nextPathIndex: 0,
-        useTrimmedBounds
+        useTrimmedBounds,
+        objectUrl: ""
       };
       characterSpriteCache[cacheKey] = entry;
     }
 
     if (shouldReset) {
+      if (entry.objectUrl && typeof URL === "object" && URL && typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(entry.objectUrl);
+      }
       entry.paths = paths;
       entry.path = "";
       entry.pathWithVersion = "";
@@ -493,6 +497,7 @@
       entry.naturalHeight = 0;
       entry.errorPaths = [];
       entry.nextPathIndex = 0;
+      entry.objectUrl = "";
       if (paths.length === 0) {
         entry.status = "missing";
         entry.failed = true;
@@ -550,8 +555,19 @@
     playerSpriteCachePrimed = true;
   }
 
+  function revokeEntryObjectUrl(entry) {
+    if (!entry || !entry.objectUrl) {
+      return;
+    }
+    if (typeof URL === "object" && URL && typeof URL.revokeObjectURL === "function") {
+      URL.revokeObjectURL(entry.objectUrl);
+    }
+    entry.objectUrl = "";
+  }
+
   function loadNextSpriteCandidate(entry) {
     if (!entry || entry.paths.length === 0) {
+      revokeEntryObjectUrl(entry);
       entry.status = "missing";
       entry.failed = true;
       return;
@@ -568,6 +584,7 @@
     }
 
     function advanceToNextCandidateOrMissing() {
+      revokeEntryObjectUrl(entry);
       entry.nextPathIndex += 1;
       if (entry.nextPathIndex < entry.paths.length) {
         entry.status = "idle";
@@ -627,7 +644,46 @@
       advanceToNextCandidateOrMissing();
     };
 
-    image.src = encodeURI(pathWithVersion);
+    const encodedPathWithVersion = encodeURI(pathWithVersion);
+    const canFetchSafely =
+      typeof fetch === "function" &&
+      typeof URL === "object" &&
+      URL &&
+      typeof URL.createObjectURL === "function";
+
+    if (!canFetchSafely) {
+      image.src = encodedPathWithVersion;
+      return;
+    }
+
+    fetch(encodedPathWithVersion, { cache: "force-cache" })
+      .then((response) => {
+        if (entry.status !== "loading" || entry.path !== expectedPath || entry.nextPathIndex !== candidateIndex) {
+          return null;
+        }
+        if (!response || !response.ok) {
+          throw new Error(`http-${response ? response.status : "error"}`);
+        }
+        return response.blob();
+      })
+      .then((blob) => {
+        if (!blob) {
+          return;
+        }
+        if (entry.status !== "loading" || entry.path !== expectedPath || entry.nextPathIndex !== candidateIndex) {
+          return;
+        }
+        revokeEntryObjectUrl(entry);
+        entry.objectUrl = URL.createObjectURL(blob);
+        image.src = entry.objectUrl;
+      })
+      .catch(() => {
+        if (entry.status !== "loading" || entry.path !== expectedPath || entry.nextPathIndex !== candidateIndex) {
+          return;
+        }
+        entry.errorPaths.push(path);
+        advanceToNextCandidateOrMissing();
+      });
   }
 
   function computeTrimmedSpriteRect(image) {

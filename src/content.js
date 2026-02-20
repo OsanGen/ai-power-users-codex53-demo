@@ -644,9 +644,19 @@
     }
   }
 
-  const SONG_FILE_PREFIX_SPACE = "./SONGS/LEVEL_ ";
-  const SONG_FILE_PREFIX_COMPACT = "./SONGS/LEVEL_";
-  const SONG_FILE_SUFFIX = "_15.wav";
+  const SONG_PRIMARY_PATTERNS = Object.freeze([
+    "./SONGS/LEVEL_ {floor}_15.wav",
+    "./SONGS/LEVEL_{floor}_15.wav"
+  ]);
+  const SONG_FALLBACK_PATTERNS = Object.freeze([
+    "./songs/LEVEL_ {floor}_15.wav",
+    "./songs/LEVEL_{floor}_15.wav",
+    "./SONGS/level_ {floor}_15.wav",
+    "./SONGS/level_{floor}_15.wav",
+    "./songs/level_ {floor}_15.wav",
+    "./songs/level_{floor}_15.wav"
+  ]);
+  const songCandidateCache = new Map();
 
   function normalizeSongFloorId(floorIdOrLabel) {
     const asNumber = floorIdOrLabel && Number.isFinite(Number(floorIdOrLabel.id))
@@ -658,49 +668,64 @@
     return Math.floor(asNumber);
   }
 
-  function buildSongCandidateFloorIds(floorIdOrLabel) {
+  function resolveSongFloorId(floorIdOrLabel) {
     const floorId = normalizeSongFloorId(floorIdOrLabel);
-    const floorCount = Number.isFinite(FLOORS.length) ? FLOORS.length : 15;
-    const fallbackFloorId = Number.isFinite(floorCount) && floorCount > 0 ? floorCount : 15;
+    const floorCount = Number.isFinite(FLOORS.length) ? Math.max(0, Math.floor(FLOORS.length)) : 0;
 
-    if (!Number.isFinite(floorId) || floorId <= 0) {
-      return [1, fallbackFloorId];
+    if (!Number.isFinite(floorId) || floorId <= 0 || floorCount <= 0) {
+      return NaN;
     }
 
-    const clampedFloor = Math.max(1, Math.min(Math.floor(floorId), Math.max(1, floorCount)));
-    const safeIds = [clampedFloor];
-    if (fallbackFloorId !== clampedFloor) {
-      safeIds.push(fallbackFloorId);
-    }
-    return safeIds;
+    return Math.max(1, Math.min(Math.floor(floorId), floorCount));
   }
 
   function buildSongCandidatePaths(floorIdOrLabel) {
-    const candidateFloorIds = buildSongCandidateFloorIds(floorIdOrLabel);
+    const floorId = resolveSongFloorId(floorIdOrLabel);
+    if (!Number.isFinite(floorId)) {
+      return [];
+    }
+
+    const cached = songCandidateCache.get(floorId);
+    if (Array.isArray(cached) && cached.length > 0) {
+      return cached.slice();
+    }
+
     const unique = new Set();
     const candidates = [];
-
-    for (let i = 0; i < candidateFloorIds.length; i += 1) {
-      const floorId = candidateFloorIds[i];
-      if (!Number.isFinite(floorId)) {
-        continue;
+    const pushUniqueCandidate = (candidate) => {
+      if (typeof candidate !== "string" || candidate.length === 0 || unique.has(candidate)) {
+        return;
       }
+      unique.add(candidate);
+      candidates.push(candidate);
+    };
 
-      const floorPathParts = [
-        `${SONG_FILE_PREFIX_SPACE}${floorId}${SONG_FILE_SUFFIX}`,
-        `${SONG_FILE_PREFIX_COMPACT}${floorId}${SONG_FILE_SUFFIX}`
-      ];
+    const floorLabel = String(Math.max(1, Math.floor(floorId)));
+    const floorLabelPadded = floorLabel.padStart(2, "0");
+    const floorLabelVariants = floorLabel === floorLabelPadded ? [floorLabel] : [floorLabel, floorLabelPadded];
 
-      for (let p = 0; p < floorPathParts.length; p += 1) {
-        const candidate = floorPathParts[p];
-        if (typeof candidate !== "string" || candidate.length === 0 || unique.has(candidate)) {
-          continue;
+    const pushPatternVariants = (patterns) => {
+      for (let p = 0; p < patterns.length; p += 1) {
+        const pattern = patterns[p];
+        for (let i = 0; i < floorLabelVariants.length; i += 1) {
+          pushUniqueCandidate(pattern.replace("{floor}", floorLabelVariants[i]));
         }
-        unique.add(candidate);
-        candidates.push(candidate);
+      }
+    };
+
+    pushPatternVariants(SONG_PRIMARY_PATTERNS);
+    if (candidates.length === 0) {
+      pushPatternVariants(SONG_FALLBACK_PATTERNS);
+    } else {
+      for (let i = 0; i < SONG_FALLBACK_PATTERNS.length; i += 1) {
+        const pattern = SONG_FALLBACK_PATTERNS[i];
+        for (let j = 0; j < floorLabelVariants.length; j += 1) {
+          pushUniqueCandidate(pattern.replace("{floor}", floorLabelVariants[j]));
+        }
       }
     }
 
+    songCandidateCache.set(floorId, Object.freeze(candidates.slice()));
     return candidates;
   }
 

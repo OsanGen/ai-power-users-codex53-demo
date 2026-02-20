@@ -24,9 +24,15 @@ Purpose:
   - Enemy sprites resolve by `enemy.type` to:
     - `assets/characters/enemies/<enemyType>/idle.png`
     - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
-  - Sprite URLs are cache-busted with `?v=20260218-12`.
-  - Shoot/move mode is resolved from active `Arrow*` keys (and `AIPU.input.lastShootKey` fallback) first, then movement velocity, then aim fallback.
+- Sprite URLs are cache-busted with `?v=20260221-23`.
+- Shoot/move mode is resolved from active `Arrow*` keys (and `AIPU.input.lastShootKey` fallback); when no shoot key is active, movement keys are used; otherwise player facing holds its last valid direction.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
+  - Fallback draw sizing now uses the fallback frame’s own direction stance scale (not the originally requested direction), which prevents occasional stretch/pop artifacts when rendering `front` fallback frames for side/back requests.
+  - Mode-switch smoothing now behaves dynamically:
+    - if target mode/direction has renderable frames (or cached fallback), switch immediately with `holdFrames = 0`;
+    - otherwise retain the short hold-delay path while assets resolve.
+  - Player sprite mode/facing state now updates even during invulnerability blink frames, preventing stale mode carryover in debug/render state when shooting is released while blink-culled draw is active.
+  - Player sprite candidates are now pre-primed once per run reset (`move`, `shoot`, `dual` across four directions) to reduce first-use frame pops when switching movement/shoot modes.
 
 Inputs:
 - Render state (`AIPU.state.game`, `AIPU.state.player`, entity collections).
@@ -90,8 +96,8 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-  - `index.html` script tags use cache-bust tokens (`?v=20260218-12`) to force updated bundles on deployment.
-  - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260219-2"`) to avoid stale image caching across art updates.
+- `index.html` script tags use cache-bust tokens (`render.js?v=20260221-23`) to force updated render bundle refresh.
+- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260221-23"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
@@ -116,6 +122,7 @@ Acceptance Checks:
   - `buildPlayerSpriteCandidates()` now resolves labeled movement/shoot frames first, then canonical aliases, then legacy root fallback.
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
+  - Idle player facing no longer falls back to stale aim (`lastAimX/lastAimY`) when both movement and shooting inputs are inactive; facing persists for stable idle visuals and avoids intermittent direction jitter while standing still.
   - Homing missiles (`dual`) use a reinforced procedural visual fallback with darker, jittered trail geometry and pulse-coupled detail, so they remain visibly distinct and more threatening when sprites are missing.
   - Homing missile fallback was strengthened further with a staggered broken-fin silhouette, ember drift, and cracked line accents in `drawHomingMissileEnemyProcedural` to increase perceived threat without affecting movement/impact semantics.
   - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
@@ -124,4 +131,8 @@ Acceptance Checks:
   - Player sprite width clamp uses normalized safe radius (`playerRadius`) consistently for both min and max bounds.
 - Deterministic automation compatibility:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
-- Sprite cache busting for character art is now `v=20260219-2`; script tags should remain aligned in `index.html` to guarantee dual wave/visual updates are loaded by clients.
+  - `AIPU.render.renderGameToText()` now also exposes `debug.audio` (when `AIPU.audio` is present) so floor music state can be validated from automation snapshots.
+  - `AIPU.render.renderGameToText()` now also exposes `debug.playerSprite` mode/hold/facing internals for deterministic sprite routing and transition debugging.
+- Sprite cache busting for character art is now `v=20260221-23`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
+- Script cache-bust alignment and player-cache keys are now expected at `v=20260221-23` for this stability patch.
+- Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.

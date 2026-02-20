@@ -43,15 +43,22 @@ State/Edges:
   - BOMB_BRIEFING, LESSON_SLIDE, DEATH_LESSON, UPGRADE_SELECT, FLOOR_INTRO, and FLOOR_CLEAR are non-combat overlay/input-break states for shooting.
   - `updatePlayerShooting` exits early unless `game.state === PLAYING`.
   - `updatePlayerMovement` and camera-independent gameplay updates continue as designed in noncombat states already using explicit state checks.
-  - Space-bomb activation is gated by a resolved floor-id path (`current floor` → `game.currentFloorIndex` fallback), and no bomb activation can occur before unlock floor or when floor charge allocation is 0.
+  - Space-bomb activation is gated by `resolveFloorIdForBombGate()` and `canTriggerBombNow()`, so activation is denied unless PLAYING floor context is valid and unlock criteria are met.
+  - `resolveFloorIdForBombGate()` now treats explicit overrides only when `floorOverride != null`; this prevents default `null` calls from being coerced to numeric `0` and accidentally invalidating floor-gated bomb checks.
+  - `canTriggerBombNow()` and `triggerBomb()` now both apply the gate directly and zero stale charge counters when floor unlock conditions are not met.
+  - `setBombChargesForFloor()` and `resolveBombChargeFloorLimit()` now synchronize `bombChargesPerFloor` and clamp remaining charges every check, preventing stale charge carryover from previous floors (including floor 1).
+  - `toTitle()` now zeroes the space-bomb gate so title/reset transitions cannot keep stale charge context.
+  - `triggerBomb()` now executes only through the synchronized `canTriggerBombNow()` path and never uses stale per-floor charge caches.
   - Background audio is started when a floor begins (`beginCurrentFloor`) and stopped in terminal/transition states (`toTitle`, `enterGameOver`, `VICTORY`) through explicit `AIPU.audio` calls.
 - Reset invariants:
   - `toTitle()` clears canonical input state (`keys`, `lastShootKey`, `shootPressOrder`) before state reset to prevent latched movement/shoot keys across run boundaries.
   - `resetCollections()` clears `activeWaves` in addition to pooled entity arrays to prevent stale spawn schedules after title/restart transitions.
   - `player.attackDisableTimer` is reset in title transitions and floor/game state starts so lockout does not persist across run reset paths.
 - Burst system:
-  - Tracks hold time only while directional shoot key is held in PLAYING.
+  - Tracks hold time while any directional shoot key is continuously held in PLAYING.
+  - Hold time no longer resets when active shoot direction changes (`ArrowUp/Down/Left/Right` transitions), so dual/omni unlock depends on continuous shooting duration rather than fixed-direction hold.
   - Enforces floor unlock rules for dual/omni modes.
+  - A centralized `clearDirectionalBurstTracking()` reset now runs on non-PLAYING simulation ticks and on explicit terminal transitions (`enterGameOver`, `enterDeathLesson`) to avoid stale hold/key leakage into overlays/debug states.
 - Damage pipeline:
   - `handleCollisions()` now routes collisions through `applyPlayerDamage` and records skipped/blocked hit events when debug mode is enabled.
   - Homing missiles (`behavior: "homing_missile"`, including `type: "dual"`) no longer apply touch damage directly on contact; they instead explode visually, are removed, and trigger a fixed-duration player fire lockout.
@@ -77,6 +84,8 @@ State/Edges:
 
 - Audio side effects:
   - `beginCurrentFloor()` calls `AIPU.audio.playForFloor(floor.id)` if the audio module is available.
+  - FLOOR_INTRO -> PLAYING transition reissues `playFloorMusicForFloor(currentFloor())` to recover from interrupted/browser-blocked starts without touching gameplay flow.
+  - `playFloorMusicForFloor()` validates resolved floor id and stops audio when the floor context is missing or invalid.
   - Title, game over, and victory transitions stop playback explicitly to prevent stale looping.
 
 Dependencies:
@@ -96,8 +105,18 @@ Acceptance Checks:
 - Calling `update()` with non-finite/zero-or-negative `deltaTime` does not mutate simulation state and leaves `simAccumulator` bounded and recoverable.
 - `updateSpawns()` ignores malformed wave objects; malformed numeric fields in `activeWaves` entries do not throw or stall.
 - Calling `triggerBomb()` while `game.bombChargesPerFloor` is `0` never mutates enemies or charge state, and floor-locked floors below `BOMB_UNLOCK_FLOOR` reject activation even if charges are stale.
+- Calling `triggerBomb()` on a floor lower than `BOMB_UNLOCK_FLOOR` never clears enemies or applies bomb effects, even if cached charge counters are non-zero.
+- Floor 1 upgrade flow no longer enters `BOMB_BRIEFING`; first bomb briefing appears at `BOMB_UNLOCK_FLOOR` (floor 2) and keeps unlock messaging aligned with real bomb availability.
 - Homing-missile collision path keeps `applyPlayerDamage` from being called on `dual` impacts, yet always emits contact feedback and forces `attackDisableTimer` to the configured lockout duration.
 - Dual-wave spawn pressure remains active when standard enemy count is saturated, so entering high-traffic states no longer suppresses `dual` wave spawns.
+- While continuously shooting and switching arrow directions, burst hold accumulation remains monotonic and dual unlock can still trigger once threshold is crossed.
+- After leaving PLAYING (for example DEATH_LESSON or GAME_OVER), `rearShotHoldTime` and `rearShotDirectionKey` are zeroed/cleared deterministically and `getDirectionalBurstStatus()` resolves `normal`.
 - Floor transitions and terminal states are audio-safe:
   - Floor transitions call play/stop deterministically.
   - `enterGameOver()`, `toTitle()`, and victory path stop playback without throwing when audio is unavailable.
+- End-to-end state chain remains stable under deterministic runtime probe:
+  - floor checkpoint start -> PLAYING
+  - continuous shoot reaches `dual` then `omni`
+  - SPACE bomb decrements charge count without state corruption
+  - GAME_OVER transition clears directional burst tracking and stops audio
+  - restart path returns to TITLE and relaunches PLAYING with reset hold/bomb/audio floor state.

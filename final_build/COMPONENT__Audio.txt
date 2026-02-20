@@ -18,6 +18,7 @@ Outputs:
   - `stop()`
   - `setMuted(value)`
   - `getState()`
+- `MUSIC_CACHE_BUST` string in `src/audio.js` is expected at `v=20260221-20` for deterministic track cache refresh.
 
 State:
 - `currentFloorId`
@@ -28,10 +29,13 @@ State:
 - `lastError`
 
 Edge Cases:
-- Missing/invalid floor id falls through to null/first valid candidate or stop.
+- Missing/invalid floor id is rejected (`playForFloor` resolves floor id to a finite value and calls `stop()` when invalid).
 - Missing track candidate path falls back through configured candidate list before reporting no playable track.
+- Browser autoplay-policy `play()` denials are treated as recoverable and do not advance candidate fallback; playback retries on next user gesture event (`pointerdown`, `mousedown`, `keydown`, `touchstart`) against the same floor candidate.
+- Same-floor replay no longer stalls on a stale “track in-flight” state: if a floor track is set but not actually playing, `playForFloor` can re-attempt playback.
 - Multiple browser `play()`/decode errors are non-fatal and update `lastError`.
 - `stop()` clears playback source, resets state, and remains safe to call repeatedly.
+- Audio element is now mounted hidden in DOM and marked `playsinline` for better browser compatibility.
 
 Dependencies:
 - HTMLAudioElement and browser autoplay policy constraints.
@@ -42,3 +46,6 @@ Acceptance checks:
 - Entering title/game over/victory stops track.
 - Missing tracks do not throw and are handled by candidate fallback/stop behavior.
 - `AIPU.audio.getState()` returns active source and status without mutating gameplay.
+- `getState()` exposes `autoplayPending` during user-gesture blocked startup and clears after a successful play or explicit stop.
+- `getState()` exposes active source and status including floor index/ID transitions when floors change during gameplay.
+- `getState()` now includes candidate diagnostics (`activeCandidateIndex`, `candidateCount`) for live floor-music debugging.
