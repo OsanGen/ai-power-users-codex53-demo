@@ -15,6 +15,7 @@ Outputs:
 - Active RAF loop for live gameplay.
 - `window.advanceTime(ms)` deterministic stepping hook for automation/testing.
 - `window.render_game_to_text()` JSON state snapshot delegating to renderer serializer.
+- `window.__AIPU_UI_BOOTSTRAP` and `AIPU.uiBootstrapSmoke` runtime diagnostics payload on boot.
 
 State/Edges:
 - Keeps normal RAF behavior for interactive play.
@@ -22,6 +23,7 @@ State/Edges:
 - `advanceTime(ms)` uses fixed 60Hz simulation steps and renders once after stepping.
 - Positive `advanceTime(ms)` inputs use rounded 60Hz step counts (`Math.round`) with a minimum of 1 step to avoid deterministic undercount drift.
 - Invalid or zero `ms` inputs fail closed and do not throw.
+- A non-fatal smoke warning is emitted to console when required UI tokens/classes are missing, without affecting gameplay flow.
 
 Dependencies:
 - `AIPU.systems`
@@ -33,3 +35,4 @@ Acceptance Checks:
 - Game still boots via `AIPU.systems.toTitle()` and RAF loop.
 - `window.advanceTime(1000)` advances exactly 60 fixed simulation steps and returns `60`.
 - `window.render_game_to_text()` returns valid JSON string throughout all game states.
+- Browser/runtime can read `window.__AIPU_UI_BOOTSTRAP` and `AIPU.uiBootstrapSmoke` to verify token/class bootstrap success on initial load.

@@ -8,6 +8,42 @@
   let lastTimestamp = performance.now();
   let manualStepping = false;
 
+  function runUiBootstrapSmoke() {
+    const tokens = AIPU && AIPU.constants ? AIPU.constants.TOKENS : null;
+    const components = AIPU && AIPU.constants ? AIPU.constants.UI_COMPONENT_CLASS : null;
+    const tokenKeys = ["yellow", "blue", "mint", "pink", "ink", "white", "fog"];
+    const missingTokens = [];
+
+    for (let i = 0; i < tokenKeys.length; i += 1) {
+      const key = tokenKeys[i];
+      if (!tokens || typeof tokens[key] !== "string" || !tokens[key].trim()) {
+        missingTokens.push(`TOKENS.${key}`);
+      }
+    }
+
+    const componentKeys = ["appShell", "appHeader", "appFooter", "gameFrame", "modal", "modalPanel", "button"];
+    const missingClasses = [];
+    for (let i = 0; i < componentKeys.length; i += 1) {
+      const key = componentKeys[i];
+      if (!components || typeof components[key] !== "string" || !components[key].trim()) {
+        missingClasses.push(`UI_COMPONENT_CLASS.${key}`);
+      }
+    }
+
+    return {
+      ok: missingTokens.length === 0 && missingClasses.length === 0,
+      missingTokens,
+      missingClasses
+    };
+  }
+
+  const uiBootstrapSmoke = runUiBootstrapSmoke();
+  AIPU.uiBootstrapSmoke = uiBootstrapSmoke;
+  window.__AIPU_UI_BOOTSTRAP = uiBootstrapSmoke;
+  if (!uiBootstrapSmoke.ok) {
+    console.warn("AIPU UI bootstrap smoke check failed", uiBootstrapSmoke);
+  }
+
   function runTick(dt) {
     const safeDt = Math.max(0, Math.min(MAX_FRAME_DT_SECONDS, Number.isFinite(dt) ? dt : 0));
     AIPU.systems.update(safeDt);
