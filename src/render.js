@@ -2254,8 +2254,9 @@
   });
   const WATER_WRAPPER_FLOOR_MIN = 1;
   const WATER_WRAPPER_FLOOR_MAX = 8;
-  const WATER_WRAPPER_ALPHA_CAP = 0.28;
-  const EARLY_WATER_FLOOR_ALPHA_BOOST = 0.018;
+  const WATER_WRAPPER_ALPHA_CAP = 0.33;
+  const EARLY_WATER_FLOOR_ALPHA_BOOST = 0.028;
+  const WATER_WASH_LAYER_ALPHA = 0.54;
   const WATER_WRAPPER_PROFILE_BY_FLOOR = Object.freeze({
     1: Object.freeze({ rippleBands: 8, rippleAmp: 1.0, flowSpeed: 0.66, causticDensity: 9, alphaBase: 0.056 }),
     2: Object.freeze({ rippleBands: 9, rippleAmp: 1.18, flowSpeed: 0.74, causticDensity: 11, alphaBase: 0.06 }),
@@ -4072,6 +4073,58 @@
     }
   }
 
+  function drawWaterWashLayer(visualTheme, waterState, progress = 0) {
+    if (!waterState) {
+      return;
+    }
+
+    const floorRamp = clamp(Number(waterState.floorProgress) || 0, 0, 1);
+    const globalTime = Number.isFinite(game.globalTime) ? game.globalTime : 0;
+    const floorPulse = Math.sin(globalTime * 0.28 + Number(waterState.floorId) * 0.22 + Number(progress) * Math.PI * 2);
+    const washBase = clamp(waterState.alpha * WATER_WASH_LAYER_ALPHA, 0.02, 0.18);
+    const washAlpha = clamp(washBase * (0.58 + floorRamp * 0.26 + floorPulse * 0.12), 0.022, 0.11);
+    const blendAlpha = clamp(washAlpha * (waterState.floorIdIsEarly ? 1.3 : 1), 0.022, 0.13);
+
+    const swirlX = WORLD.x + WORLD.w * (0.45 + floorRamp * 0.1) + Math.sin(globalTime * 0.06 + 0.4) * WORLD.w * 0.04;
+    const swirlY = WORLD.y + WORLD.h * (0.46 - floorRamp * 0.06) + Math.cos(globalTime * 0.045 + 0.8) * WORLD.h * 0.035;
+    const gradient = ctx.createRadialGradient(
+      swirlX,
+      swirlY,
+      10,
+      WORLD.x + WORLD.w * 0.5,
+      WORLD.y + WORLD.h * 0.5,
+      Math.max(WORLD.w, WORLD.h) * 0.66
+    );
+
+    gradient.addColorStop(0, rgba(TOKENS.mint, clamp(blendAlpha * 0.92, 0, 0.18)));
+    gradient.addColorStop(0.5, rgba(TOKENS.blue, clamp(blendAlpha * 0.66, 0, 0.12)));
+    gradient.addColorStop(1, rgba(TOKENS.blue, clamp(blendAlpha * 0.26, 0, 0.04)));
+    ctx.fillStyle = gradient;
+    ctx.fillRect(WORLD.x, WORLD.y, WORLD.w, WORLD.h);
+
+    const bandCount = Math.max(6, Math.floor(12 + floorRamp * 10 + (Number(waterState.dynamicAmp) || 0) * 1.5));
+    const stripeAlpha = clamp(blendAlpha * 0.34, 0.013, 0.09);
+    if (stripeAlpha > 0.01) {
+      ctx.strokeStyle = rgba(TOKENS.mint, stripeAlpha);
+      for (let i = 0; i < bandCount; i += 1) {
+        const y = WORLD.y + 8 + i * ((WORLD.h - 16) / Math.max(1, bandCount));
+        const waveScale = clamp(0.7 + floorRamp * 0.25 + floorPulse * 0.1, 0.58, 1.2);
+        ctx.beginPath();
+        for (let x = WORLD.x + 4; x <= WORLD.x + WORLD.w - 4; x += 16) {
+          const phase = x * 0.02 + (globalTime * 0.7) + i * 0.44 + (waterState.floorId || 0) * 0.11;
+          const offset = Math.sin(phase) * Number(waterState.dynamicAmp) * 0.33 * waveScale;
+          const yPos = y + offset;
+          if (x === WORLD.x + 4) {
+            ctx.moveTo(x, yPos);
+          } else {
+            ctx.lineTo(x, yPos);
+          }
+        }
+        ctx.stroke();
+      }
+    }
+  }
+
   function drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme = null) {
     const pack = resolveFloorFxPack(floor);
     const lead = visualTheme ? visualTheme.lead : accent;
@@ -4084,6 +4137,9 @@
     ctx.clip();
 
     drawWorldGridLines();
+    if (waterState) {
+      drawWaterWashLayer(visualTheme, waterState, 0);
+    }
     if (waterState) {
       drawWaterStaticBase(lead, visualTheme, waterState);
     }
@@ -4116,6 +4172,7 @@
     if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorDynamicIdentityByPack(pack, lead, progress, visualTheme);
       if (waterState) {
+        drawWaterWashLayer(visualTheme, waterState, progress);
         drawWaterDynamicOverlay(lead, visualTheme, waterState, progress);
       }
       if (isPostNine) {

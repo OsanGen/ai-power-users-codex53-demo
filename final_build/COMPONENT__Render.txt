@@ -62,6 +62,7 @@ State/Edges:
 - Floors `1..8` now route through a dedicated water wrapper state (`resolveWaterWrapperState`) and two draw passes:
   - `drawWaterStaticBase(...)` for low-alpha basin bands and static caustic scaffold.
   - `drawWaterDynamicOverlay(...)` for progressive ripple/caustic motion with floor-depth compounding.
+  - Added `drawWaterWashLayer(...)` as a dedicated first-pass water wash using blue/mint radial tint + moving stripe accents so 1..8 always reads strongly “watery” even at low floor depth.
   - `buildRenderGameTextState()` now emits `debug.visualState` payload (floor pack/theme/water metrics) for deterministic verification.
   - Wrapper alpha is hard-capped to maintain OSAN readability and lead-accent dominance.
 - Reduced-motion support is centralized:
@@ -102,7 +103,7 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-6`) to force updated render bundle refresh.
+- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-8`) to force updated render bundle refresh.
 - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
