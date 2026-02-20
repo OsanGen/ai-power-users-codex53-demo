@@ -1,3 +1,5 @@
+- /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Added floor 1–8 compounded water-wrapper background layer with deeper OSAN-compliant support-color integration and progressive trippy motion scaling by floor depth/progress/danger.
+- /Users/abelsanchez/CODEX/WONDERLAND/index.html | completed | Bumped `render.js` runtime cache token to `v=20260222-4` so clients pull the new floor 1–8 background animation pass immediately.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/systems.js | completed | Centralized bomb gate state through `evaluateBombGateState()` and reuses one deterministic floor-check path for both `canTrigger` and `trigger` so floor-1 SPACE-bomb activation cannot pass around stale counters.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/audio.js | completed | Bumped `MUSIC_CACHE_BUST` to `v=20260221-19` to force music track cache refresh and prevent stale audio payloads after path/runtime updates.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Bumped `CHARACTER_ART_CACHE_BUST` to `v=20260221-19` to ensure current player sprite contract always reloads.

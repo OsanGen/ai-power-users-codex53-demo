@@ -146,7 +146,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260221-23";
+  const CHARACTER_ART_CACHE_BUST = "v=20260222-4";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -2047,14 +2047,14 @@
     pink: TOKENS.pink
   });
   const FLOOR_VISUAL_THEME = Object.freeze({
-    1: Object.freeze({ lead: "yellow", support: Object.freeze([]), trippyLevel: 0 }),
-    2: Object.freeze({ lead: "blue", support: Object.freeze([]), trippyLevel: 0 }),
-    3: Object.freeze({ lead: "mint", support: Object.freeze([]), trippyLevel: 0 }),
-    4: Object.freeze({ lead: "pink", support: Object.freeze([]), trippyLevel: 0 }),
-    5: Object.freeze({ lead: "yellow", support: Object.freeze(["blue"]), trippyLevel: 1 }),
-    6: Object.freeze({ lead: "blue", support: Object.freeze(["mint", "yellow"]), trippyLevel: 2 }),
-    7: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 3 }),
-    8: Object.freeze({ lead: "pink", support: Object.freeze(["yellow", "mint"]), trippyLevel: 4 }),
+    1: Object.freeze({ lead: "yellow", support: Object.freeze(["blue"]), trippyLevel: 1 }),
+    2: Object.freeze({ lead: "blue", support: Object.freeze(["mint", "yellow"]), trippyLevel: 2 }),
+    3: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 2 }),
+    4: Object.freeze({ lead: "pink", support: Object.freeze(["mint", "yellow"]), trippyLevel: 3 }),
+    5: Object.freeze({ lead: "yellow", support: Object.freeze(["blue", "mint"]), trippyLevel: 3 }),
+    6: Object.freeze({ lead: "blue", support: Object.freeze(["mint", "yellow"]), trippyLevel: 4 }),
+    7: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 4 }),
+    8: Object.freeze({ lead: "pink", support: Object.freeze(["yellow", "mint"]), trippyLevel: 5 }),
     9: Object.freeze({ lead: "yellow", support: Object.freeze(["pink", "blue", "mint"]), trippyLevel: 5 }),
     10: Object.freeze({ lead: "blue", support: Object.freeze(["yellow"]), trippyLevel: 4 }),
     11: Object.freeze({ lead: "mint", support: Object.freeze(["pink", "blue"]), trippyLevel: 4 }),
@@ -2069,8 +2069,8 @@
       motif: "glyphs",
       parallaxCount: 10,
       latticeCount: 12,
-      support: Object.freeze([]),
-      trippyLevel: 0
+      support: Object.freeze(["blue"]),
+      trippyLevel: 1
     }),
     2: Object.freeze({
       id: 2,
@@ -2079,8 +2079,8 @@
       motif: "mesh",
       parallaxCount: 12,
       latticeCount: 14,
-      support: Object.freeze(["yellow"]),
-      trippyLevel: 0
+      support: Object.freeze(["mint", "yellow"]),
+      trippyLevel: 2
     }),
     3: Object.freeze({
       id: 3,
@@ -2089,8 +2089,8 @@
       motif: "circuit",
       parallaxCount: 14,
       latticeCount: 10,
-      support: Object.freeze(["pink"]),
-      trippyLevel: 0
+      support: Object.freeze(["pink", "blue"]),
+      trippyLevel: 2
     }),
     4: Object.freeze({
       id: 4,
@@ -2099,8 +2099,8 @@
       motif: "wave",
       parallaxCount: 16,
       latticeCount: 16,
-      support: Object.freeze(["blue"]),
-      trippyLevel: 0
+      support: Object.freeze(["mint", "yellow"]),
+      trippyLevel: 3
     }),
     5: Object.freeze({
       id: 5,
@@ -2109,8 +2109,8 @@
       motif: "kitchen",
       parallaxCount: 18,
       latticeCount: 18,
-      support: Object.freeze(["blue"]),
-      trippyLevel: 1
+      support: Object.freeze(["blue", "mint"]),
+      trippyLevel: 3
     }),
     6: Object.freeze({
       id: 6,
@@ -2120,7 +2120,7 @@
       parallaxCount: 20,
       latticeCount: 12,
       support: Object.freeze(["mint", "yellow"]),
-      trippyLevel: 2
+      trippyLevel: 4
     }),
     7: Object.freeze({
       id: 7,
@@ -2130,7 +2130,7 @@
       parallaxCount: 22,
       latticeCount: 12,
       support: Object.freeze(["pink", "blue"]),
-      trippyLevel: 3
+      trippyLevel: 4
     }),
     8: Object.freeze({
       id: 8,
@@ -2140,7 +2140,7 @@
       parallaxCount: 24,
       latticeCount: 16,
       support: Object.freeze(["yellow", "mint"]),
-      trippyLevel: 4
+      trippyLevel: 5
     }),
     9: Object.freeze({
       id: 9,
@@ -2212,6 +2212,19 @@
       support: Object.freeze([]),
       trippyLevel: 0
     })
+  });
+  const WATER_WRAPPER_FLOOR_MIN = 1;
+  const WATER_WRAPPER_FLOOR_MAX = 8;
+  const WATER_WRAPPER_ALPHA_CAP = 0.16;
+  const WATER_WRAPPER_PROFILE_BY_FLOOR = Object.freeze({
+    1: Object.freeze({ rippleBands: 7, rippleAmp: 0.7, flowSpeed: 0.52, causticDensity: 8, alphaBase: 0.036 }),
+    2: Object.freeze({ rippleBands: 8, rippleAmp: 0.88, flowSpeed: 0.6, causticDensity: 9, alphaBase: 0.04 }),
+    3: Object.freeze({ rippleBands: 9, rippleAmp: 1.06, flowSpeed: 0.68, causticDensity: 11, alphaBase: 0.045 }),
+    4: Object.freeze({ rippleBands: 10, rippleAmp: 1.24, flowSpeed: 0.74, causticDensity: 12, alphaBase: 0.05 }),
+    5: Object.freeze({ rippleBands: 12, rippleAmp: 1.44, flowSpeed: 0.82, causticDensity: 14, alphaBase: 0.056 }),
+    6: Object.freeze({ rippleBands: 13, rippleAmp: 1.64, flowSpeed: 0.9, causticDensity: 16, alphaBase: 0.062 }),
+    7: Object.freeze({ rippleBands: 14, rippleAmp: 1.84, flowSpeed: 0.98, causticDensity: 18, alphaBase: 0.068 }),
+    8: Object.freeze({ rippleBands: 16, rippleAmp: 2.05, flowSpeed: 1.08, causticDensity: 21, alphaBase: 0.074 })
   });
 
   if (renderCacheState && !renderCacheState.stats) {
@@ -2319,6 +2332,11 @@
     const supportSource = Array.isArray(pack.support) ? pack.support : base.support;
     const supportNames = Array.isArray(supportSource) ? supportSource.filter((name) => !!COG_COLORS[name]) : [];
     const trippyLevel = clamp(Number(pack.trippyLevel != null ? pack.trippyLevel : base.trippyLevel) || 0, 0, 5);
+    const floorDepth = id >= WATER_WRAPPER_FLOOR_MIN && id <= WATER_WRAPPER_FLOOR_MAX
+      ? clamp((id - WATER_WRAPPER_FLOOR_MIN) / (WATER_WRAPPER_FLOOR_MAX - WATER_WRAPPER_FLOOR_MIN), 0, 1)
+      : 0;
+    const leadAlphaCap = clamp(LEAD_TINT_ALPHA_MAX + floorDepth * 0.02, 0, 0.24);
+    const supportAlphaCap = clamp(SUPPORT_TINT_ALPHA_MAX + floorDepth * 0.015, 0, 0.16);
     return {
       leadName,
       lead: colorByName(leadName, accent || TOKENS.blue),
@@ -2327,8 +2345,47 @@
       trippyLevel,
       motionScale: 1 + trippyLevel * 0.16,
       densityScale: 1 + trippyLevel * 0.14,
-      leadAlphaMax: LEAD_TINT_ALPHA_MAX,
-      supportAlphaMax: SUPPORT_TINT_ALPHA_MAX
+      leadAlphaMax: leadAlphaCap,
+      supportAlphaMax: supportAlphaCap
+    };
+  }
+
+  function resolveWaterWrapperState(floor, visualTheme = null, progress = 0) {
+    const floorId = resolveFloorId(floor);
+    if (floorId < WATER_WRAPPER_FLOOR_MIN || floorId > WATER_WRAPPER_FLOOR_MAX) {
+      return null;
+    }
+
+    const profile = WATER_WRAPPER_PROFILE_BY_FLOOR[floorId] || WATER_WRAPPER_PROFILE_BY_FLOOR[WATER_WRAPPER_FLOOR_MIN];
+    if (!profile) {
+      return null;
+    }
+
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const floorRamp = clamp(
+      (floorId - WATER_WRAPPER_FLOOR_MIN) / (WATER_WRAPPER_FLOOR_MAX - WATER_WRAPPER_FLOOR_MIN),
+      0,
+      1
+    );
+    const trippy = visualTheme && Number.isFinite(visualTheme.trippyLevel)
+      ? clamp(visualTheme.trippyLevel / 5, 0, 1)
+      : 0;
+    const danger = clamp(Number(fxState.danger) || 0, 0, 1);
+    const compound = clamp(floorRamp * 0.76 + danger * 0.14 + trippy * 0.1, 0, 1);
+    const speedScale = (0.86 + escalation.speedScale * 0.48) * reducedMotionScale;
+    const dynamicAmp = profile.rippleAmp * (0.7 + compound * 0.95) * reducedMotionScale;
+
+    return {
+      floorId,
+      profile,
+      compound,
+      speedScale,
+      dynamicAmp,
+      staticBands: Math.max(5, Math.floor(profile.rippleBands * (0.62 + compound * 0.26))),
+      dynamicBands: Math.max(6, Math.floor(profile.rippleBands * (0.86 + compound * 0.56))),
+      causticCount: Math.max(6, Math.floor(profile.causticDensity * (0.85 + compound * 0.65))),
+      alpha: clamp(profile.alphaBase + compound * 0.046, 0.03, WATER_WRAPPER_ALPHA_CAP)
     };
   }
 
@@ -3828,10 +3885,135 @@
     drawFloorSkinDynamic(floor, accent, visualTheme);
   }
 
+  function drawWaterStaticBase(accent, visualTheme, waterState) {
+    if (!waterState) {
+      return;
+    }
+
+    const bandCount = waterState.staticBands;
+    const top = WORLD.y + 16;
+    const usableHeight = WORLD.h - 32;
+    const waveAmp = waterState.dynamicAmp * 0.24;
+    const leadAlpha = clamp(waterState.alpha * 0.58, 0.02, WATER_WRAPPER_ALPHA_CAP * 0.72);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = visualTheme ? leadTint(visualTheme, leadAlpha, accent) : rgba(accent, leadAlpha);
+
+    for (let i = 0; i < bandCount; i += 1) {
+      const t = bandCount > 1 ? i / (bandCount - 1) : 0;
+      const y = top + usableHeight * t;
+      const edgeAmp = edgeBlend(2.8, "y", y);
+      const wobble = 0.55 + t * 0.45;
+      ctx.beginPath();
+      for (let x = WORLD.x + 8; x <= WORLD.x + WORLD.w - 8; x += 22) {
+        const offset = Math.sin(x * 0.012 + i * 0.74) * waveAmp * wobble * edgeAmp;
+        if (x === WORLD.x + 8) {
+          ctx.moveTo(x, y + offset);
+        } else {
+          ctx.lineTo(x, y + offset);
+        }
+      }
+      ctx.stroke();
+    }
+
+    const rowCount = Math.max(2, Math.floor(waterState.causticCount * 0.24));
+    const colCount = Math.max(3, Math.floor(waterState.causticCount * 0.35));
+    for (let row = 0; row < rowCount; row += 1) {
+      for (let col = 0; col < colCount; col += 1) {
+        const x = WORLD.x + 18 + col * ((WORLD.w - 36) / Math.max(1, colCount - 1));
+        const y = WORLD.y + 20 + row * ((WORLD.h - 40) / Math.max(1, rowCount - 1));
+        const edge = edgeBlend(2.3, "x", x) * edgeBlend(2.3, "y", y);
+        if (edge < 0.12) {
+          continue;
+        }
+        const width = 5 + ((row + col) % 3) * 1.5;
+        const alpha = clamp(waterState.alpha * 0.34 * edge, 0.015, 0.06);
+        ctx.fillStyle = visualTheme
+          ? supportTint(visualTheme, row + col, alpha, accent)
+          : rgba(accent, alpha);
+        fillRoundRect(x - width * 0.5, y - 1, width, 1.8, 999);
+      }
+    }
+  }
+
+  function drawWaterDynamicOverlay(accent, visualTheme, waterState, progress = 0) {
+    if (!waterState) {
+      return;
+    }
+
+    const escalation = getDynamicEscalation(progress);
+    const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const time = (Number.isFinite(game.globalTime) ? game.globalTime : 0) * waterState.speedScale;
+    const bandCount = waterState.dynamicBands;
+    const rowStep = Math.max(16, Math.floor((WORLD.h - 26) / Math.max(1, bandCount)));
+    const ampBase = waterState.dynamicAmp * (0.85 + escalation.intensity * 0.55) * reducedMotionScale;
+
+    for (let i = 0; i < bandCount; i += 1) {
+      const y = WORLD.y + 14 + i * rowStep;
+      if (y > WORLD.y + WORLD.h - 12) {
+        break;
+      }
+      const t = bandCount > 1 ? i / (bandCount - 1) : 0;
+      const edgeY = edgeBlend(3.2, "y", y);
+      const alpha = clamp(
+        waterState.alpha * (0.58 + t * 0.35) + escalation.intensity * 0.026,
+        0.03,
+        WATER_WRAPPER_ALPHA_CAP
+      );
+      ctx.lineWidth = 1 + escalation.intensity * 0.4;
+      ctx.strokeStyle = visualTheme ? leadTint(visualTheme, alpha, accent) : rgba(accent, alpha);
+      ctx.beginPath();
+      for (let x = WORLD.x + 6; x <= WORLD.x + WORLD.w - 6; x += 14) {
+        const edgeX = edgeBlend(3.8, "x", x);
+        const phase = time * (0.8 + t * 0.62) + i * 0.47 + x * 0.016;
+        const offset = Math.sin(phase) * ampBase * edgeX * edgeY;
+        if (x === WORLD.x + 6) {
+          ctx.moveTo(x, y + offset);
+        } else {
+          ctx.lineTo(x, y + offset);
+        }
+      }
+      ctx.stroke();
+
+      if (visualTheme && visualTheme.support.length > 0 && i % 2 === 0) {
+        const supportAlpha = clamp(alpha * 0.56, 0.02, 0.09);
+        ctx.strokeStyle = supportTint(visualTheme, i, supportAlpha, accent);
+        ctx.beginPath();
+        for (let x = WORLD.x + 10; x <= WORLD.x + WORLD.w - 10; x += 18) {
+          const edgeX = edgeBlend(3.2, "x", x);
+          const phase = time * 0.54 + i * 0.39 + x * 0.012 + 1.4;
+          const offset = Math.cos(phase) * ampBase * 0.58 * edgeX * edgeY;
+          if (x === WORLD.x + 10) {
+            ctx.moveTo(x, y + offset);
+          } else {
+            ctx.lineTo(x, y + offset);
+          }
+        }
+        ctx.stroke();
+      }
+    }
+
+    const causticCount = waterState.causticCount;
+    for (let i = 0; i < causticCount; i += 1) {
+      const t = (i / Math.max(1, causticCount)) * Math.PI * 2;
+      const orbit = 0.12 + (i % 5) * 0.07;
+      const x = WORLD.x + WORLD.w * 0.5 + Math.cos(t + time * 0.45) * WORLD.w * orbit;
+      const y = WORLD.y + WORLD.h * 0.5 + Math.sin(t * 1.25 + time * 0.58) * WORLD.h * (orbit * 0.72);
+      const edge = edgeBlend(3.2, "x", x) * edgeBlend(3.2, "y", y);
+      if (edge < 0.18) {
+        continue;
+      }
+      const size = 1.8 + (i % 3) * 0.7;
+      const alpha = clamp(waterState.alpha * 0.45 * edge, 0.02, 0.08);
+      ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, alpha, accent) : rgba(accent, alpha);
+      fillRoundRect(x - size * 0.6, y - size * 0.35, size, size * 0.68, 999);
+    }
+  }
+
   function drawFloorSkinStatic(floor, accent, wallLeft, wallRight, visualTheme = null) {
     const pack = resolveFloorFxPack(floor);
     const lead = visualTheme ? visualTheme.lead : accent;
     const isPostNine = pack && Number.isFinite(pack.id) && pack.id >= 10 && pack.id <= 13;
+    const waterState = resolveWaterWrapperState(pack, visualTheme, 0);
 
     ctx.save();
     ctx.beginPath();
@@ -3839,6 +4021,9 @@
     ctx.clip();
 
     drawWorldGridLines();
+    if (waterState) {
+      drawWaterStaticBase(lead, visualTheme, waterState);
+    }
     if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorStaticIdentityByPack(pack, lead, visualTheme);
       if (isPostNine) {
@@ -3858,6 +4043,7 @@
     const progress = game.floorDuration > 0 ? clamp(game.floorElapsed / game.floorDuration, 0, 1) : 0;
     const pack = resolveFloorFxPack(floor);
     const isPostNine = pack && Number.isFinite(pack.id) && pack.id >= 10 && pack.id <= 13;
+    const waterState = resolveWaterWrapperState(pack, visualTheme, progress);
 
     ctx.save();
     ctx.beginPath();
@@ -3866,6 +4052,9 @@
 
     if (pack && pack.id >= 1 && pack.id <= 13) {
       drawFloorDynamicIdentityByPack(pack, lead, progress, visualTheme);
+      if (waterState) {
+        drawWaterDynamicOverlay(lead, visualTheme, waterState, progress);
+      }
       if (isPostNine) {
         drawPostNineDynamicOverlays(lead, progress, visualTheme, pack);
       }

@@ -4,33 +4,78 @@
   const AIPU = window.AIPU = window.AIPU || {};
   const MUSIC_CACHE_BUST = "v=20260221-20";
   const MUSIC_MUTED_STORAGE_KEY = "MUSIC_MUTED_V1";
-  const SFX_CACHE_BUST = "v=20260222-1";
+  const SFX_CACHE_BUST = "v=20260222-2";
+  const RETRO_SFX_FAMILY_BASE = Object.freeze({
+    wave: "square",
+    startHz: 700,
+    endHz: 420,
+    attackSeconds: 0.002,
+    decaySeconds: 0.1,
+    level: 0.19
+  });
+
+  function toFiniteOr(value, fallback) {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  function createRetroSynthPreset(overrides = null) {
+    const source = overrides && typeof overrides === "object" ? overrides : {};
+    return Object.freeze({
+      wave: typeof source.wave === "string" && source.wave ? source.wave : RETRO_SFX_FAMILY_BASE.wave,
+      startHz: Math.max(50, toFiniteOr(source.startHz, RETRO_SFX_FAMILY_BASE.startHz)),
+      endHz: Math.max(35, toFiniteOr(source.endHz, RETRO_SFX_FAMILY_BASE.endHz)),
+      attackSeconds: Math.max(0.001, toFiniteOr(source.attackSeconds, RETRO_SFX_FAMILY_BASE.attackSeconds)),
+      decaySeconds: Math.max(0.04, toFiniteOr(source.decaySeconds, RETRO_SFX_FAMILY_BASE.decaySeconds)),
+      level: Math.max(0.01, toFiniteOr(source.level, RETRO_SFX_FAMILY_BASE.level))
+    });
+  }
+
+  function createRetroSfxDef(config) {
+    const source = config && typeof config === "object" ? config : {};
+    return Object.freeze({
+      path: typeof source.path === "string" ? source.path : "",
+      gain: Math.max(0.01, toFiniteOr(source.gain, 0.12)),
+      cooldownMs: Math.max(0, toFiniteOr(source.cooldownMs, 80)),
+      synth: createRetroSynthPreset(source.synth)
+    });
+  }
+
   const SFX_DEFS = Object.freeze({
-    shoot: Object.freeze({
+    shoot: createRetroSfxDef({
       path: "./assets/audio/sfx/shoot_soft.wav",
       gain: 0.12,
       cooldownMs: 55,
-      synth: Object.freeze({
-        wave: "square",
+      synth: {
         startHz: 820,
         endHz: 560,
         attackSeconds: 0.002,
         decaySeconds: 0.08,
         level: 0.2
-      })
+      }
     }),
-    damage: Object.freeze({
+    damage: createRetroSfxDef({
       path: "./assets/audio/sfx/damage_soft.wav",
-      gain: 0.18,
+      gain: 0.16,
       cooldownMs: 180,
-      synth: Object.freeze({
-        wave: "triangle",
-        startHz: 220,
-        endHz: 120,
-        attackSeconds: 0.003,
-        decaySeconds: 0.14,
-        level: 0.23
-      })
+      synth: {
+        startHz: 520,
+        endHz: 240,
+        attackSeconds: 0.002,
+        decaySeconds: 0.12,
+        level: 0.18
+      }
+    }),
+    impact_disable: createRetroSfxDef({
+      path: "./assets/audio/sfx/impact_disable.wav",
+      gain: 0.15,
+      cooldownMs: 220,
+      synth: {
+        startHz: 420,
+        endHz: 180,
+        attackSeconds: 0.002,
+        decaySeconds: 0.15,
+        level: 0.17
+      }
     })
   });
   const floorAudio =

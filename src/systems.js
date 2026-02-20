@@ -2611,6 +2611,7 @@
   function handleHomingMissileImpact(enemy) {
     emitBurst(enemy.x, enemy.y, TOKENS.pink, 18, 220);
     applyPlayerAttackDisable(HOMING_MISSILE_ATTACK_DISABLE_SECONDS);
+    playGameSfx("impact_disable");
   }
 
   function spawnEnemyBullet(x, y, dirX, dirY, speed, damage) {

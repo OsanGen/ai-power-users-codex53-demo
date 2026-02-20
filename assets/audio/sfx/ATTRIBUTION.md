@@ -4,6 +4,7 @@ This folder is the drop-in location for runtime SFX files:
 
 - `shoot_soft.wav`
 - `damage_soft.wav`
+- `impact_disable.wav` (optional, for homing-missile attack-disable impact)
 
 Current code path:
 
@@ -20,3 +21,4 @@ Keep effects short and subtle for mix safety:
 
 - shoot: ~60-120ms
 - damage: ~120-220ms
+- impact_disable: ~140-260ms
