@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
+    <a class="skip-link" href="#gameFrame">Skip to game area</a>
     <main id="appShell" class="app-shell" aria-label="Neural net learning game container">
       <header class="app-header">
         <h1 id="appTitle">Neural Nets: Learn the Loop</h1>
@@ -69,8 +70,10 @@
       </section>
 
       <footer class="app-footer">
-        <span id="appFooterGoal">Survive each timer and learn the loop.</span>
-        <span id="appFooterRestart">Restart run: R</span>
+        <div class="status-grid">
+          <span id="appFooterGoal" class="status-chip">Survive each timer and learn the loop.</span>
+          <span id="appFooterRestart" class="status-chip">Restart run: R</span>
+        </div>
       </footer>
     </main>
 
