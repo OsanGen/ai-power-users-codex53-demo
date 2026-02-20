@@ -12,6 +12,32 @@
     return typeof document !== "undefined" ? document.getElementById(id) : null;
   }
 
+  function resolveUiToken(source, key, fallback) {
+    if (!source || typeof source !== "object") {
+      return fallback;
+    }
+    const value = source[key];
+    return typeof value === "string" && value ? value : fallback;
+  }
+
+  const uiTokenSource = AIPU.uiTokens && AIPU.uiTokens.palette ? AIPU.uiTokens.palette : null;
+  const uiClassSource = AIPU.uiComponents && AIPU.uiComponents.componentClasses ? AIPU.uiComponents.componentClasses : null;
+
+  const UI_COMPONENT_CLASS = Object.freeze({
+    appShell: resolveUiToken(uiClassSource, "shell", "app-shell"),
+    appHeader: resolveUiToken(uiClassSource, "header", "app-header"),
+    appFooter: resolveUiToken(uiClassSource, "footer", "app-footer"),
+    gameFrame: resolveUiToken(uiClassSource, "gameFrame", "game-frame"),
+    modal: resolveUiToken(uiClassSource, "modal", "modal"),
+    modalPanel: resolveUiToken(uiClassSource, "modalPanel", "modal-panel"),
+    modalActions: resolveUiToken(uiClassSource, "modalActions", "modal-actions"),
+    button: resolveUiToken(uiClassSource, "button", "btn"),
+    buttonPrimary: resolveUiToken(uiClassSource, "buttonPrimary", "btn-primary"),
+    statusChip: resolveUiToken(uiClassSource, "statusChip", "status-chip"),
+    statusGrid: resolveUiToken(uiClassSource, "statusGrid", "status-grid"),
+    overlayRestart: resolveUiToken(uiClassSource, "overlayRestart", "overlay-restart")
+  });
+
   const dom = {
     canvas: getElementById("game"),
     gameFrame: getElementById("gameFrame"),
@@ -41,14 +67,15 @@
     HEIGHT: canvasHeight,
     SHARE_DONT_ASK_KEY: "dontAskShare",
     TOKENS: {
-      yellow: "#f4d66d",
-      blue: "#89b6ff",
-      mint: "#90dec9",
-      pink: "#f4accd",
-      ink: "#1f2430",
-      white: "#ffffff",
-      fog: "#f2f5f8"
+      yellow: resolveUiToken(uiTokenSource, "yellow", "#f4d66d"),
+      blue: resolveUiToken(uiTokenSource, "blue", "#89b6ff"),
+      mint: resolveUiToken(uiTokenSource, "mint", "#90dec9"),
+      pink: resolveUiToken(uiTokenSource, "pink", "#f4accd"),
+      ink: resolveUiToken(uiTokenSource, "ink", "#1f2430"),
+      white: resolveUiToken(uiTokenSource, "white", "#ffffff"),
+      fog: resolveUiToken(uiTokenSource, "fog", "#f2f5f8")
     },
+    UI_COMPONENT_CLASS,
     GameState: {
       TITLE: "TITLE",
       UPGRADE_SELECT: "UPGRADE_SELECT",

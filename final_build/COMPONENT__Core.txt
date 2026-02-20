@@ -3,15 +3,18 @@ Core Utilities Component
 Purpose:
 - Own shared constants, mutable runtime state defaults, and cross-module utility helpers in `AIPU`.
 - Provide low-level math, input mapping, and rendering primitives used by gameplay/render layers.
+- Own UI token/class bootstrap resolution for phase-stable visual consistency by consuming `AIPU.uiTokens` and `AIPU.uiComponents` when available, with deterministic fallback to inlined defaults.
 
 Inputs:
 - DOM elements from the game shell (`#game`, overlays, share modal controls).
 - Initial player/enemy state defaults and global constants (`AIPU.constants`, `AIPU.state`, `AIPU.input`).
 - Utility inputs from callers in `systems.js`, `render.js`, `share.js`, `main.js`.
+- Optional UI token inputs via `AIPU.uiTokens` and `AIPU.uiComponents` when loaded by `index.html` script order.
 
 Outputs:
 - Mutable singletons attached to `AIPU`:
   - `AIPU.dom`, `AIPU.ctx`, `AIPU.constants`, `AIPU.state`, `AIPU.input`, `AIPU.utils`.
+- `AIPU.constants.UI_COMPONENT_CLASS` containing canonical shell/component class names for shared UI surfaces (`app-shell`, `app-header`, `app-footer`, modal/buttons, status chips, etc.).
 - Read-only QA namespace attached to `AIPU`:
   - `AIPU.qa.getModuleGraph()`
   - `AIPU.qa.getCollections(limit)`
@@ -29,6 +32,8 @@ State/Edges:
 - `AIPU.input` stores key states and reduced-motion media query state.
 - `AIPU.input.lastShootKey` starts as empty string and is managed by input events in `systems.js` to keep shooting direction inert until WASD is active.
 - `AIPU.dom` and `AIPU.ctx` initialize safely when `document`/canvas are unavailable; fallback dimensions default to `1024x768`.
+- `TOKENS` is now resolved through `resolveUiToken(...)` from `AIPU.uiTokens.palette` if provided; legacy fallback values are retained so behavior is unchanged if token module does not load.
+- `UI_COMPONENT_CLASS` is computed once from `AIPU.uiComponents.componentClasses` with static fallback names so callers can adopt shared classes without hardcoded duplication.
 - `randomFrom` and `shuffleArray` return empty/null-safe outputs for malformed collections.
 - `rand` normalizes `min/max` with finite-number coercion and supports reversed bounds.
 - `unitVector` now gracefully handles malformed/zero vectors to avoid NaN in downstream movement and knockback math.
@@ -39,9 +44,12 @@ State/Edges:
 
 Dependencies:
 - None external; pure bootstrap utilities consumed by other modules.
+- Optional dependency: `AIPU.uiTokens` and `AIPU.uiComponents` loaded from `src/ui-tokens.js` before `src/core.js`.
 
 Acceptance Checks:
 - Bootstrapping with missing DOM does not throw and preserves runtime object creation for non-browser consumers.
+- `AIPU.constants.TOKENS` retains prior values when `ui-tokens.js` is absent (default palette fallback is valid and complete).
+- Shared class registry exists at `AIPU.constants.UI_COMPONENT_CLASS` and matches expected baseline shell/component class strings.
 - No caller receives NaN from `unitVector` for malformed inputs.
 - Unknown shoot keys resolve to no-direction vector, avoiding unintended directional shooting.
 - Color utility calls with malformed input fail closed to black rather than throwing.
