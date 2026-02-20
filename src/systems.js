@@ -23,6 +23,7 @@
     OMNI_SHOT_UNLOCK_FLOOR,
     REAR_SHOT_NOTICE_DURATION,
     BOMB_UNLOCK_FLOOR,
+    HOMING_MISSILE_ATTACK_DISABLE_SECONDS,
     BOMB_BRIEFING_ACCEPT_COUNT,
     BOMB_CHARGES_BASE,
     BOMB_CHARGES_UPGRADED,
@@ -59,7 +60,6 @@
   const MAX_ACCUMULATED_TIME = 0.25;
   const BOMB_FLASH_DURATION = 0.22;
   const OVERLAY_ADVANCE_LOCK_MS = 120;
-  const HOMING_MISSILE_ATTACK_DISABLE_SECONDS = 3;
   const DUAL_WAVE_START_FLOOR = 2;
   const DUAL_WAVE_MIN_DURATION_SECONDS = 12;
   const DUAL_FALLBACK_WAVE_RATE_START_MIN = 0.34;
@@ -894,6 +894,12 @@
     const code = typeof event.code === "string" ? event.code : "";
     const lower = key.toLowerCase();
 
+    if ((lower === "m" || code === "KeyM") && !event.repeat) {
+      toggleMusicMutedState();
+      event.preventDefault();
+      return;
+    }
+
     setInputKeyState(event, true);
 
     const shootKey = getShootDirectionCode(event);
@@ -981,7 +987,9 @@
         game.upgradeNoticeTimer = 1.2;
       }
     } else if (game.state === GameState.PLAYING && isSpaceKey(event) && isSinglePress(event)) {
-      triggerBomb();
+      if (canTriggerBombNow()) {
+        triggerBomb();
+      }
     } else if (game.state === GameState.FLOOR_INTRO && (isSpaceKey(event) || isEnterKey(event)) && isSinglePress(event)) {
       game.introTimer = 0;
     } else if ((game.state === GameState.GAME_OVER || game.state === GameState.VICTORY) && lower === "r") {
@@ -1083,7 +1091,14 @@
     if (!audio || typeof audio.playForFloor !== "function") {
       return;
     }
-    audio.playForFloor(floor && floor.id != null ? floor.id : null);
+
+    const floorId = floor && Number.isFinite(Number(floor.id)) ? Math.floor(Number(floor.id)) : NaN;
+    if (!Number.isFinite(floorId) || floorId < 1) {
+      audio.stop();
+      return;
+    }
+
+    audio.playForFloor(floorId);
   }
 
   function stopFloorMusic() {
@@ -1092,6 +1107,41 @@
       return;
     }
     audio.stop();
+  }
+
+  function toggleMusicMutedState() {
+    const audio = AIPU.audio;
+    if (!audio) {
+      return false;
+    }
+
+    if (typeof audio.toggleMuted === "function") {
+      return !!audio.toggleMuted();
+    }
+
+    if (typeof audio.setMuted !== "function") {
+      return false;
+    }
+
+    let currentMuted = false;
+    if (typeof audio.getState === "function") {
+      try {
+        const state = audio.getState();
+        currentMuted = !!(state && state.muted);
+      } catch (error) {
+        void error;
+      }
+    }
+
+    const nextMuted = !currentMuted;
+    audio.setMuted(nextMuted);
+    return nextMuted;
+  }
+
+  function resetPlayerVisuals() {
+    if (AIPU.render && typeof AIPU.render.resetPlayerSpriteState === "function") {
+      AIPU.render.resetPlayerSpriteState();
+    }
   }
 
   function startDeathAnim() {
@@ -1209,6 +1259,7 @@
 
   function enterGameOver(floorOverride = null) {
     stopFloorMusic();
+    clearDirectionalBurstTracking();
     game.state = GameState.GAME_OVER;
     if (game.gameOverEntryHandled) {
       return;
@@ -1236,6 +1287,7 @@
       FLOORS[Math.max(0, Math.min(game.currentFloorIndex, FLOORS.length - 1))] ||
       { id: Math.max(1, game.currentFloorIndex + 1), accent: "blue" };
     game.state = GameState.DEATH_LESSON;
+    clearDirectionalBurstTracking();
     game.deathLessonBucket = resolveDeathLessonBucket(floor.id);
     game.deathLessonIndex = Math.abs(Math.floor(game.globalTime * 1000) + game.kills + floor.id * 31);
     game.gameOverEntryHandled = false;
@@ -1261,6 +1313,7 @@
     clearInputState();
     stopFloorMusic();
     game.state = GameState.TITLE;
+    resetPlayerVisuals();
     simAccumulator = 0;
     if (AIPU.renderCache && typeof AIPU.renderCache.invalidate === "function") {
       AIPU.renderCache.invalidate("toTitle");
@@ -1280,8 +1333,8 @@
     game.upgradeCardRects = [];
     game.floorLessonUpgradeId = "";
     game.floorFallbackInvulnBonus = 0;
-    game.bombChargesPerFloor = BOMB_CHARGES_BASE;
-    game.bombChargesRemaining = BOMB_CHARGES_BASE;
+    game.bombChargesPerFloor = 0;
+    game.bombChargesRemaining = 0;
     game.bombFlashTimer = 0;
     game.bombBriefingSeenIntroThisRun = false;
     game.bombBriefingSeenUpgradeThisRun = false;
@@ -1306,6 +1359,7 @@
     shareUI.close({ persistChoice: false, restoreFocus: false });
     resetDeathAnim();
     upgrades.resetUpgradeRun();
+    player.attackDisableTimer = 0;
     resetCollections();
     player.maxHearts = BASE_MAX_HP;
     player.hearts = BASE_MAX_HP;
@@ -1338,8 +1392,34 @@
     lessonSlideAdvanceLockUntil = 0;
     deathLessonAdvanceLockUntil = 0;
     upgrades.resetUpgradeRun();
+    resetPlayerVisuals();
     const checkpointFloor = forcedStartFloor == null ? getCheckpointFloor() : normalizeCheckpointFloor(forcedStartFloor);
     startFloor(checkpointFloor - 1);
+  }
+
+  function resolveBombChargeFloorLimit(floorOverride = null) {
+    const floorId = resolveFloorIdForBombGate(floorOverride);
+    if (!Number.isFinite(floorId) || floorId < BOMB_UNLOCK_FLOOR) {
+      return 0;
+    }
+    if (floorId >= BOMB_CHARGES_FINAL_FLOOR) {
+      return BOMB_CHARGES_FINAL;
+    }
+    if (floorId >= BOMB_CHARGES_UPGRADE_FLOOR) {
+      return BOMB_CHARGES_UPGRADED;
+    }
+    return BOMB_CHARGES_BASE;
+  }
+
+  function setBombChargesForFloor(floorOverride = null, forceFullReset = false) {
+    const resolvedLimit = resolveBombChargeFloorLimit(floorOverride);
+    const chargeLimit = Number.isFinite(resolvedLimit) ? Math.floor(resolvedLimit) : 0;
+    game.bombChargesPerFloor = chargeLimit;
+    const existingRemaining = Number.isFinite(game.bombChargesRemaining) ? Math.floor(game.bombChargesRemaining) : 0;
+    game.bombChargesRemaining = forceFullReset
+      ? chargeLimit
+      : clamp(existingRemaining, 0, chargeLimit);
+    return chargeLimit;
   }
 
   function startFloor(index) {
@@ -1349,6 +1429,7 @@
     if (AIPU.renderCache && typeof AIPU.renderCache.markFloor === "function" && nextFloor) {
       AIPU.renderCache.markFloor(nextFloor.id, nextFloor.accent);
     }
+    playFloorMusicForFloor(nextFloor);
     game.floorDuration = 0;
     game.floorTimer = 0;
     game.floorElapsed = 0;
@@ -1365,8 +1446,7 @@
     game.upgradeCardRects = [];
     game.floorLessonUpgradeId = "";
     game.floorFallbackInvulnBonus = 0;
-    game.bombChargesPerFloor = BOMB_CHARGES_BASE;
-    game.bombChargesRemaining = BOMB_CHARGES_BASE;
+    setBombChargesForFloor(nextFloor, true);
     game.bombFlashTimer = 0;
     game.bombBriefingEnterCount = 0;
     game.lessonSlideSeenThisFloor = false;
@@ -1388,6 +1468,7 @@
     player.invuln = 0;
     player.fireCooldown = 0;
     player.attackDisableTimer = 0;
+    resetPlayerVisuals();
     player.shieldBreakFlash = 0;
     resetPlayerPosition();
     game.state = GameState.UPGRADE_SELECT;
@@ -1410,6 +1491,7 @@
     game.clearTimer = 0;
     game.beatCount = 0;
     game.state = GameState.FLOOR_INTRO;
+    resetPlayerVisuals();
 
     resetCollections();
 
@@ -1423,17 +1505,7 @@
     player.invuln = 0;
     player.fireCooldown = 0;
     player.attackDisableTimer = 0;
-    if (!isBombUnlocked(floor)) {
-      game.bombChargesPerFloor = 0;
-    } else {
-      game.bombChargesPerFloor =
-        floor.id >= BOMB_CHARGES_FINAL_FLOOR
-          ? BOMB_CHARGES_FINAL
-          : floor.id >= BOMB_CHARGES_UPGRADE_FLOOR
-            ? BOMB_CHARGES_UPGRADED
-            : BOMB_CHARGES_BASE;
-    }
-    game.bombChargesRemaining = game.bombChargesPerFloor;
+    setBombChargesForFloor(floor, true);
     game.bombFlashTimer = 0;
     game.upgradeConfirmCooldown = 0;
     game.rearShotDirectionKey = "";
@@ -1628,6 +1700,10 @@
       player.shieldBreakFlash = Math.max(0, player.shieldBreakFlash - dt);
     }
 
+    if (game.state !== GameState.PLAYING) {
+      clearDirectionalBurstTracking();
+    }
+
     if (game.state !== GameState.DEATH_ANIM) {
       updateParticles(dt);
     }
@@ -1667,6 +1743,7 @@
       game.introTimer -= dt;
       if (game.introTimer <= 0) {
         game.state = GameState.PLAYING;
+        playFloorMusicForFloor(currentFloor());
       }
       return;
     }
@@ -1729,25 +1806,97 @@
     handleCollisions();
   }
 
+  function canTriggerBombNow() {
+    const floorState = evaluateBombGateState();
+    if (!Number.isFinite(floorState.floorId) || floorState.floorId < BOMB_UNLOCK_FLOOR) {
+      game.bombChargesPerFloor = 0;
+      game.bombChargesRemaining = 0;
+      return false;
+    }
+
+    return shouldTriggerBombNow();
+  }
+
+  function shouldTriggerBombNow() {
+    const bombState = evaluateBombGateState();
+    if (game.state !== GameState.PLAYING) {
+      return false;
+    }
+    if (!Number.isFinite(bombState.floorId) || bombState.floorId < BOMB_UNLOCK_FLOOR) {
+      return false;
+    }
+    return !!bombState.canTrigger;
+  }
+
+  function evaluateBombGateState(floorOverride = null) {
+    const floorId = resolveFloorIdForBombGate(floorOverride);
+    if (game.state !== GameState.PLAYING) {
+      game.bombChargesPerFloor = 0;
+      game.bombChargesRemaining = 0;
+      return {
+        canTrigger: false,
+        floorId: floorId,
+        floorChargeLimit: 0,
+        bombChargesRemaining: 0
+      };
+    }
+
+    if (!Number.isFinite(floorId) || floorId < BOMB_UNLOCK_FLOOR) {
+      game.bombChargesPerFloor = 0;
+      game.bombChargesRemaining = 0;
+      return {
+        canTrigger: false,
+        floorId,
+        floorChargeLimit: 0,
+        bombChargesRemaining: 0
+      };
+    }
+
+    const floorChargeLimit = Math.max(0, Math.floor(resolveBombChargeFloorLimit(floorId)));
+    if (floorChargeLimit <= 0) {
+      game.bombChargesPerFloor = 0;
+      game.bombChargesRemaining = 0;
+      return {
+        canTrigger: false,
+        floorId,
+        floorChargeLimit: 0,
+        bombChargesRemaining: 0
+      };
+    }
+
+    const remainingCharges = Number.isFinite(game.bombChargesRemaining) ? Math.floor(game.bombChargesRemaining) : 0;
+    game.bombChargesPerFloor = floorChargeLimit;
+    game.bombChargesRemaining = clamp(remainingCharges, 0, floorChargeLimit);
+    return {
+      canTrigger: game.bombChargesRemaining > 0,
+      floorId,
+      floorChargeLimit,
+      bombChargesRemaining: game.bombChargesRemaining
+    };
+  }
+
+  function resolveBombActivationState() {
+    return evaluateBombGateState();
+  }
+
   function triggerBomb() {
-    if (!isBombUnlocked()) {
+    const bombState = evaluateBombGateState();
+    if (!bombState.canTrigger || bombState.floorId < BOMB_UNLOCK_FLOOR || bombState.floorChargeLimit <= 0) {
+      game.bombChargesPerFloor = 0;
+      game.bombChargesRemaining = 0;
       return;
     }
 
-    if (game.bombChargesPerFloor <= 0) {
-      return;
-    }
-
-    if (game.state !== GameState.PLAYING || game.bombChargesRemaining <= 0) {
-      return;
-    }
+    game.bombChargesPerFloor = Math.max(0, Math.floor(bombState.floorChargeLimit));
+    game.bombChargesRemaining = Math.max(0, Math.floor(game.bombChargesRemaining));
 
     const removedEnemies = enemies.length;
     if (removedEnemies > 0) {
       game.kills += removedEnemies;
     }
 
-    game.bombChargesRemaining = Math.max(0, game.bombChargesRemaining - 1);
+    const updatedRemaining = Math.max(0, Math.floor(game.bombChargesRemaining) - 1);
+    game.bombChargesRemaining = updatedRemaining;
     game.bombFlashTimer = BOMB_FLASH_DURATION;
 
     const flashAccent = currentAccent();
@@ -1760,22 +1909,54 @@
 
   function isBombUnlocked(floorOverride = null) {
     const floorId = resolveFloorIdForBombGate(floorOverride);
-    return floorId >= BOMB_UNLOCK_FLOOR;
+    const chargeLimit = resolveBombChargeFloorLimit(floorId);
+    return Number.isFinite(floorId) && floorId >= BOMB_UNLOCK_FLOOR && chargeLimit > 0;
   }
 
   function resolveFloorIdForBombGate(floorOverride) {
-    if (Number.isFinite(Number(floorOverride))) {
-      return Math.max(1, Math.floor(Number(floorOverride)));
+    if (game.state !== GameState.PLAYING && floorOverride == null) {
+      return NaN;
+    }
+
+    const floorCount = Number.isFinite(FLOORS.length) ? Math.max(0, Math.floor(FLOORS.length)) : 0;
+    const normalizeFloorId = (value) => {
+      const candidate = Number(value);
+      if (!Number.isFinite(candidate)) {
+        return NaN;
+      }
+      const floored = Math.floor(candidate);
+      if (floored < 1 || (floorCount > 0 && floored > floorCount)) {
+        return NaN;
+      }
+      return floored;
+    };
+
+    if (floorOverride != null && Number.isFinite(Number(floorOverride))) {
+      return normalizeFloorId(Number(floorOverride));
     }
 
     if (floorOverride && Number.isFinite(Number(floorOverride.id))) {
-      return Math.max(1, Math.floor(Number(floorOverride.id)));
+      return normalizeFloorId(floorOverride.id);
+    }
+
+    const floorIndex = Number.isFinite(game.currentFloorIndex) ? Math.floor(game.currentFloorIndex) : NaN;
+    const floorIdFromIndex = normalizeFloorId(floorIndex + 1);
+    if (Number.isFinite(floorIdFromIndex)) {
+      return floorIdFromIndex;
     }
 
     const floor = currentFloor();
-    const floorIdFromCurrent = floor && Number.isFinite(Number(floor.id)) ? Math.floor(Number(floor.id)) : NaN;
-    const fallbackFloorId = Math.max(1, Math.floor(Number.isFinite(game.currentFloorIndex) ? game.currentFloorIndex + 1 : 1));
-    return Number.isFinite(floorIdFromCurrent) ? floorIdFromCurrent : fallbackFloorId;
+    const floorIdFromCurrent = normalizeFloorId(floor && floor.id);
+    if (Number.isFinite(floorIdFromCurrent)) {
+      return floorIdFromCurrent;
+    }
+
+    const fallbackFloorId = normalizeFloorId(game.currentFloorIndex + 1);
+    if (Number.isFinite(fallbackFloorId)) {
+      return fallbackFloorId;
+    }
+
+    return NaN;
   }
 
   function updatePlayerMovement(dt) {
@@ -1843,21 +2024,21 @@
     player.fireCooldown = upgrades.getFireCooldown();
   }
 
+  function clearDirectionalBurstTracking() {
+    game.rearShotDirectionKey = "";
+    game.rearShotHoldTime = 0;
+  }
+
   function updateRearShotTracking(dir, dt) {
     if (game.state !== GameState.PLAYING || !dir) {
-      game.rearShotDirectionKey = "";
-      game.rearShotHoldTime = 0;
+      clearDirectionalBurstTracking();
       return;
     }
 
     const directionKey = `${dir.x},${dir.y}`;
-    if (game.rearShotDirectionKey === directionKey) {
-      game.rearShotHoldTime += dt;
-      return;
-    }
-
     game.rearShotDirectionKey = directionKey;
-    game.rearShotHoldTime = dt;
+    const previousHold = Math.max(0, Number(game.rearShotHoldTime) || 0);
+    game.rearShotHoldTime = previousHold + dt;
   }
 
   function resolveDirectionalBurstMode(holdSeconds = game.rearShotHoldTime, floorId = null) {
@@ -2400,6 +2581,20 @@
     player.attackDisableTimer = Math.max(player.attackDisableTimer, safeSeconds);
   }
 
+  function getAttackDisableState() {
+    const durationSeconds = Math.max(
+      0.001,
+      Number.isFinite(HOMING_MISSILE_ATTACK_DISABLE_SECONDS) ? HOMING_MISSILE_ATTACK_DISABLE_SECONDS : 3
+    );
+    const secondsRemaining = Math.max(0, Number(player.attackDisableTimer) || 0);
+    return {
+      active: secondsRemaining > 0,
+      secondsRemaining,
+      durationSeconds,
+      progress: clamp(secondsRemaining / durationSeconds, 0, 1)
+    };
+  }
+
   function isHomingMissileEnemy(enemy) {
     return !!enemy && (enemy.behavior === "homing_missile" || enemy.type === "dual");
   }
@@ -2807,7 +3002,7 @@
     if (!floor) {
       return "";
     }
-    if (floor.id === 1 && !game.bombBriefingSeenIntroThisRun) {
+    if (floor.id === BOMB_UNLOCK_FLOOR && !game.bombBriefingSeenIntroThisRun) {
       return "intro";
     }
     if (floor.id === BOMB_CHARGES_UPGRADE_FLOOR && !game.bombBriefingSeenUpgradeThisRun) {
@@ -2869,6 +3064,7 @@
     getCollections,
     resolveDirectionalBurstMode,
     getDirectionalBurstStatus,
+    getAttackDisableState,
     resetCollections,
     getUpgradeCardIndexAt,
     startDeathAnim,

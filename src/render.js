@@ -14,7 +14,8 @@
     WORLD,
     RENDER_CACHE_ENABLED,
     DYNAMIC_FX_FPS,
-    BOMB_BRIEFING_ACCEPT_COUNT
+    BOMB_BRIEFING_ACCEPT_COUNT,
+    HOMING_MISSILE_ATTACK_DISABLE_SECONDS
   } =
     AIPU.constants;
   const { game, player } = AIPU.state;
@@ -145,7 +146,7 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260219-2";
+  const CHARACTER_ART_CACHE_BUST = "v=20260221-23";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -211,6 +212,7 @@
   const playerSpriteMeasureCtx = playerSpriteMeasureCanvas && playerSpriteMeasureCanvas.getContext("2d");
   const characterSpriteCache = Object.create(null);
   const PLAYER_SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
+  const PLAYER_SPRITE_DIRECTIONS = Object.freeze(["front", "back", "left", "right"]);
   const PLAYER_SHOOT_KEY_DIRECTIONS = Object.freeze({
     ArrowUp: "back",
     ArrowDown: "front",
@@ -218,20 +220,25 @@
     ArrowRight: "right"
   });
   const PLAYER_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["front.png"]),
+    front: Object.freeze(["front.png", "Front.png"]),
     back: Object.freeze(["back.png"]),
-    left: Object.freeze(["left.png"]),
-    right: Object.freeze(["right.png"])
+    left: Object.freeze(["left.png", "Left.png"]),
+    right: Object.freeze(["right.png", "Right.png"])
   });
-  const PLAYER_ANIMATION_MODE_SWITCH_FRAMES = 1;
+  const PLAYER_ANIMATION_MODE_SWITCH_FRAMES = 2;
   const PLAYER_SHOOT_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["shoot_front.png", "shoot_down.png", "down_shoot.png"]),
-    back: Object.freeze(["shoot_back.png", "shoot_up.png", "up_shoot.png"]),
-    left: Object.freeze(["shoot_left.png", "shoot_a.png", "left_shoot.png"]),
-    right: Object.freeze(["shoot_right.png", "shoot_d.png", "right_shoot.png"])
+    front: Object.freeze(["shoot_front.png", "Shoot_front.png", "shoot_down.png", "Down_shoot.png", "Down_Shoot.png"]),
+    back: Object.freeze(["shoot_back.png", "Shoot_back.png", "shoot_up.png", "UP_shoot.png", "UP_Shoot.png"]),
+    left: Object.freeze(["shoot_left.png", "Shoot_left.png", "shoot_a.png", "shoot_A.png", "left_shoot.png", "Left_shoot.png"]),
+    right: Object.freeze(["shoot_right.png", "Shoot_right.png", "shoot_d.png", "shoot_D.png", "right_shoot.png", "Right_shoot.png"])
   });
   let playerFacingDirection = "front";
-  let playerIsShootingFacing = false;
+  const playerSpriteLastReadyByMode = {
+    move: Object.create(null),
+    shoot: Object.create(null),
+    dual: Object.create(null),
+    omni: Object.create(null)
+  };
   const playerSpriteModeState = {
     requestedMode: "move",
     requestedDirection: "front",
@@ -239,6 +246,57 @@
     activeDirection: "front",
     holdFrames: PLAYER_ANIMATION_MODE_SWITCH_FRAMES
   };
+  let playerSpriteCachePrimed = false;
+
+  function resetPlayerSpriteState() {
+    playerFacingDirection = "front";
+    playerSpriteModeState.requestedMode = "move";
+    playerSpriteModeState.requestedDirection = "front";
+    playerSpriteModeState.activeMode = "move";
+    playerSpriteModeState.activeDirection = "front";
+    playerSpriteModeState.holdFrames = 0;
+    playerSpriteCachePrimed = false;
+    const resetModeKeys = Object.keys(playerSpriteLastReadyByMode);
+    for (let i = 0; i < resetModeKeys.length; i += 1) {
+      const mode = resetModeKeys[i];
+      playerSpriteLastReadyByMode[mode] = Object.create(null);
+    }
+  }
+
+  function getPlayerSpriteModeLabel(spriteMode) {
+    if (spriteMode === "dual" || spriteMode === "omni") {
+      return "dual";
+    }
+    if (spriteMode === "shoot") {
+      return "shoot";
+    }
+    return "move";
+  }
+
+  function cachePlayerSpriteFrame(modeLabel, direction, state) {
+    if (!playerSpriteLastReadyByMode[modeLabel]) {
+      return;
+    }
+    playerSpriteLastReadyByMode[modeLabel][direction] = state || null;
+  }
+
+  function getCachedPlayerSpriteFrame(modeLabel, direction) {
+    const cacheBucket = playerSpriteLastReadyByMode[modeLabel];
+    if (!cacheBucket) {
+      return null;
+    }
+    return cacheBucket[direction] || null;
+  }
+
+  function isDrawablePlayerSpriteState(state) {
+    if (!state || state.status !== "ready" || !state.image || !state.trimRect) {
+      return false;
+    }
+    if (!state.image.naturalWidth || !state.image.naturalHeight) {
+      return false;
+    }
+    return true;
+  }
 
   function getActivePlayerShootDirection() {
     const input = AIPU.input || {};
@@ -274,6 +332,24 @@
       }
     }
     return "";
+  }
+
+  function getActivePlayerMoveDirection() {
+    const inputKeys = (AIPU.input && AIPU.input.keys) || null;
+    if (!inputKeys || typeof inputKeys !== "object") {
+      return "";
+    }
+
+    const moveX = (inputKeys.KeyD ? 1 : 0) - (inputKeys.KeyA ? 1 : 0);
+    const moveY = (inputKeys.KeyS ? 1 : 0) - (inputKeys.KeyW ? 1 : 0);
+    if (!moveX && !moveY) {
+      return "";
+    }
+
+    if (Math.abs(moveX) >= Math.abs(moveY)) {
+      return moveX < 0 ? "left" : "right";
+    }
+    return moveY < 0 ? "back" : "front";
   }
 
   function isPlayerShootInputActive() {
@@ -328,6 +404,7 @@
     const aliasFrames = useShootFrameSet
       ? PLAYER_SHOOT_FRAME_FALLBACKS[resolvedDirection]
       : PLAYER_FRAME_FALLBACKS[resolvedDirection];
+    const moveFallbackFrames = useShootFrameSet ? PLAYER_FRAME_FALLBACKS[resolvedDirection] : null;
     const candidates = [];
 
     if (Array.isArray(preferredDualFrame)) {
@@ -351,10 +428,12 @@
       }
     }
 
-    if (!useShootFrameSet) {
-      const fallbackFrame = CHARACTER_ART.player.frames[resolvedDirection];
-      if (fallbackFrame) {
-        candidates.push(`${CHARACTER_ART.player.bucketDir}/${fallbackFrame}`);
+    if (Array.isArray(moveFallbackFrames)) {
+      for (let i = 0; i < moveFallbackFrames.length; i += 1) {
+        const moveFrame = moveFallbackFrames[i];
+        if (moveFrame) {
+          candidates.push(`${CHARACTER_ART.player.bucketDir}/${moveFrame}`);
+        }
       }
     }
 
@@ -454,6 +533,21 @@
   function getEnemySpriteState(enemyType) {
     const normalizedType = normalizeEnemyType(enemyType);
     return getCharacterSpriteState(`enemy:${normalizedType}`, buildEnemySpriteCandidates(normalizedType), false);
+  }
+
+  function primePlayerSpriteCacheIfNeeded() {
+    if (playerSpriteCachePrimed) {
+      return;
+    }
+
+    for (let i = 0; i < PLAYER_SPRITE_DIRECTIONS.length; i += 1) {
+      const direction = PLAYER_SPRITE_DIRECTIONS[i];
+      getPlayerSpriteState(direction, false, false);
+      getPlayerSpriteState(direction, true, false);
+      getPlayerSpriteState(direction, false, true);
+    }
+
+    playerSpriteCachePrimed = true;
   }
 
   function loadNextSpriteCandidate(entry) {
@@ -591,43 +685,61 @@
   }
 
   function getPlayerDirectionFromMotion() {
-    const vx = Number.isFinite(player.vx) ? player.vx : 0;
-    const vy = Number.isFinite(player.vy) ? player.vy : 0;
-    const aimX = Number.isFinite(player.lastAimX) ? player.lastAimX : 0;
-    const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
-    const aimMag = Math.abs(aimX) + Math.abs(aimY);
-    const moveMag = Math.abs(vx) + Math.abs(vy);
-    const shootDirection = getActivePlayerShootDirection();
-    const isShooting = !!shootDirection;
-
-    if (isShooting) {
-      playerIsShootingFacing = true;
-      playerFacingDirection = shootDirection;
-      return playerFacingDirection;
-    }
-
-    if (moveMag > 0.08) {
-      playerIsShootingFacing = false;
-      if (Math.abs(vx) >= Math.abs(vy)) {
-        playerFacingDirection = vx < 0 ? "left" : "right";
-      } else {
-        playerFacingDirection = vy < 0 ? "back" : "front";
+    if (isPlayerShootInputActive()) {
+      const shootDirection = getActivePlayerShootDirection();
+      if (shootDirection) {
+        playerFacingDirection = shootDirection;
+        return playerFacingDirection;
       }
+    }
+
+    const activeMoveDirection = getActivePlayerMoveDirection();
+    if (activeMoveDirection) {
+      playerFacingDirection = activeMoveDirection;
       return playerFacingDirection;
     }
 
-    if (aimMag > 0.12) {
-      playerIsShootingFacing = false;
-      if (Math.abs(aimX) >= Math.abs(aimY)) {
-        playerFacingDirection = aimX < 0 ? "left" : "right";
-      } else {
-        playerFacingDirection = aimY < 0 ? "back" : "front";
+    const resolvedFacing = normalizeDirection(playerFacingDirection);
+    playerFacingDirection = resolvedFacing;
+    return resolvedFacing;
+  }
+
+  function getPlayerSpriteModeFallbackLabels(spriteMode) {
+    const modeLabel = getPlayerSpriteModeLabel(spriteMode);
+    const fallbackModeLabels = [modeLabel];
+    if (modeLabel === "dual") {
+      fallbackModeLabels.push("shoot", "move");
+    } else if (modeLabel === "shoot") {
+      fallbackModeLabels.push("move");
+    }
+    return fallbackModeLabels;
+  }
+
+  function hasRenderablePlayerSpriteForMode(direction, spriteMode) {
+    const resolvedDirection = normalizeDirection(direction);
+    const useShootFrameSet = spriteMode === "shoot";
+    const useDualFrame = spriteMode === "dual" || spriteMode === "omni";
+    const order = resolvedDirection === "front" ? ["front"] : [resolvedDirection, "front"];
+
+    for (let i = 0; i < order.length; i += 1) {
+      const state = getPlayerSpriteState(order[i], useShootFrameSet, useDualFrame);
+      if (isDrawablePlayerSpriteState(state)) {
+        return true;
       }
-      return playerFacingDirection;
     }
 
-    playerIsShootingFacing = false;
-    return playerFacingDirection;
+    const modeLabels = getPlayerSpriteModeFallbackLabels(spriteMode);
+    for (let i = 0; i < modeLabels.length; i += 1) {
+      const modeLabel = modeLabels[i];
+      for (let j = 0; j < order.length; j += 1) {
+        const cached = getCachedPlayerSpriteFrame(modeLabel, order[j]);
+        if (isDrawablePlayerSpriteState(cached)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 
   function getDirectionalBurstMode() {
@@ -660,13 +772,16 @@
   function resolvePlayerSpriteFrameState() {
     const direction = getPlayerDirectionFromMotion();
     const targetMode = resolvePlayerSpriteMode();
-    const sameMode = playerSpriteModeState.requestedMode === targetMode;
-    const sameDirection = playerSpriteModeState.requestedDirection === direction;
-    const changed = !sameMode || !sameDirection;
+    const targetDirection = direction;
+    const safeHoldFrames = Math.max(1, Math.floor(PLAYER_ANIMATION_MODE_SWITCH_FRAMES));
+    const hasModeChange = playerSpriteModeState.activeMode !== targetMode;
+    const hasDirectionChange = playerSpriteModeState.activeDirection !== targetDirection;
+    const hasChange = hasModeChange || hasDirectionChange;
 
-    if (changed) {
-      playerSpriteModeState.requestedMode = targetMode;
-      playerSpriteModeState.requestedDirection = direction;
+    playerSpriteModeState.requestedMode = targetMode;
+    playerSpriteModeState.requestedDirection = targetDirection;
+
+    if (!hasChange) {
       playerSpriteModeState.holdFrames = 0;
       return {
         mode: playerSpriteModeState.activeMode,
@@ -674,21 +789,35 @@
       };
     }
 
-    if (playerSpriteModeState.holdFrames < PLAYER_ANIMATION_MODE_SWITCH_FRAMES) {
-      playerSpriteModeState.holdFrames += 1;
+    const canSwitchImmediately = hasRenderablePlayerSpriteForMode(targetDirection, targetMode);
+    if (canSwitchImmediately) {
+      playerSpriteModeState.holdFrames = 0;
+      playerSpriteModeState.activeMode = targetMode;
+      playerSpriteModeState.activeDirection = targetDirection;
+      return {
+        mode: playerSpriteModeState.activeMode,
+        direction: playerSpriteModeState.activeDirection
+      };
     }
 
-    if (
-      (playerSpriteModeState.activeMode !== targetMode)
-      || (playerSpriteModeState.activeDirection !== direction)
-    ) {
-      if (playerSpriteModeState.holdFrames >= PLAYER_ANIMATION_MODE_SWITCH_FRAMES) {
-        playerSpriteModeState.activeMode = targetMode;
-        playerSpriteModeState.activeDirection = direction;
-      }
-    } else {
-      playerSpriteModeState.holdFrames = PLAYER_ANIMATION_MODE_SWITCH_FRAMES;
+    if (playerSpriteModeState.holdFrames <= 0) {
+      playerSpriteModeState.holdFrames = safeHoldFrames;
+      return {
+        mode: playerSpriteModeState.activeMode,
+        direction: playerSpriteModeState.activeDirection
+      };
     }
+
+    playerSpriteModeState.holdFrames -= 1;
+    if (playerSpriteModeState.holdFrames > 0) {
+      return {
+        mode: playerSpriteModeState.activeMode,
+        direction: playerSpriteModeState.activeDirection
+      };
+    }
+
+    playerSpriteModeState.activeMode = targetMode;
+    playerSpriteModeState.activeDirection = targetDirection;
 
     return {
       mode: playerSpriteModeState.activeMode,
@@ -701,17 +830,17 @@
     const resolvedDirection = normalizeDirection(direction);
     const useShootFrameSet = spriteMode === "shoot";
     const useDualFrame = spriteMode === "dual" || spriteMode === "omni";
-    const stanceScale = PLAYER_SPRITE_STANCE_SCALE[resolvedDirection] || 1.02;
-    for (let i = 0; i < order.length; i += 1) {
-      const state = getPlayerSpriteState(order[i], useShootFrameSet, useDualFrame);
-      if (!state || state.status !== "ready" || !state.image || !state.trimRect) {
-        continue;
-      }
-      const image = state.image;
-      if (!image.naturalWidth || !image.naturalHeight) {
-        continue;
-      }
+    const modeLabel = getPlayerSpriteModeLabel(spriteMode);
 
+    for (let i = 0; i < order.length; i += 1) {
+      const candidateDirection = normalizeDirection(order[i]);
+      const state = getPlayerSpriteState(candidateDirection, useShootFrameSet, useDualFrame);
+      if (!isDrawablePlayerSpriteState(state)) {
+        continue;
+      }
+      cachePlayerSpriteFrame(modeLabel, candidateDirection, state);
+      const image = state.image;
+      const stanceScale = PLAYER_SPRITE_STANCE_SCALE[candidateDirection] || 1.02;
       const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
       const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale;
       const spriteWidth = clamp(
@@ -732,6 +861,40 @@
       ctx.drawImage(image, sx, sy, sw, sh, x, y, spriteWidth, spriteHeight);
       ctx.imageSmoothingEnabled = prevSmoothing;
       return true;
+    }
+
+    const fallbackCandidates = order;
+    const fallbackModeLabels = getPlayerSpriteModeFallbackLabels(spriteMode);
+
+    for (let i = 0; i < fallbackModeLabels.length; i += 1) {
+      const fallbackModeLabel = fallbackModeLabels[i];
+      for (let j = 0; j < fallbackCandidates.length; j += 1) {
+        const fallbackDirectionForMode = normalizeDirection(fallbackCandidates[j]);
+        const fallbackState = getCachedPlayerSpriteFrame(fallbackModeLabel, fallbackDirectionForMode);
+        if (isDrawablePlayerSpriteState(fallbackState)) {
+          const fallbackImage = fallbackState.image;
+          const fallbackTrimRect = fallbackState.trimRect;
+          const fallbackStanceScale = PLAYER_SPRITE_STANCE_SCALE[fallbackDirectionForMode] || 1.02;
+          const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
+          const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * fallbackStanceScale;
+          const spriteWidth = clamp(
+            playerRadius * (fallbackState.trimAspect || 1) * PLAYER_SPRITE_HEIGHT_SCALE * fallbackStanceScale,
+            playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min,
+            playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max
+          );
+          const x = player.x - spriteWidth * 0.5;
+          const y = player.y - spriteHeight * PLAYER_SPRITE_WIDTH_SCALE.topOffset;
+          const prevSmoothing = ctx.imageSmoothingEnabled;
+          const sx = fallbackTrimRect.x;
+          const sy = fallbackTrimRect.y;
+          const sw = fallbackTrimRect.w;
+          const sh = fallbackTrimRect.h;
+          ctx.imageSmoothingEnabled = true;
+          ctx.drawImage(fallbackImage, sx, sy, sw, sh, x, y, spriteWidth, spriteHeight);
+          ctx.imageSmoothingEnabled = prevSmoothing;
+          return true;
+        }
+      }
     }
 
     return false;
@@ -1244,6 +1407,49 @@
     return !!(FX_CONFIG.respectReducedMotion && AIPU.input && AIPU.input.prefersReducedMotion);
   }
 
+  function getAttackDisableSnapshot() {
+    if (systems && typeof systems.getAttackDisableState === "function") {
+      try {
+        const state = systems.getAttackDisableState();
+        if (state && typeof state === "object") {
+          const durationSeconds = Math.max(
+            0.001,
+            Number.isFinite(state.durationSeconds) ? state.durationSeconds : HOMING_MISSILE_ATTACK_DISABLE_SECONDS
+          );
+          const secondsRemaining = Math.max(0, Number(state.secondsRemaining) || 0);
+          return {
+            active: !!state.active && secondsRemaining > 0,
+            secondsRemaining,
+            durationSeconds,
+            progress: clamp(secondsRemaining / durationSeconds, 0, 1)
+          };
+        }
+      } catch (error) {
+        void error;
+      }
+    }
+
+    const durationSeconds = Math.max(
+      0.001,
+      Number.isFinite(HOMING_MISSILE_ATTACK_DISABLE_SECONDS) ? HOMING_MISSILE_ATTACK_DISABLE_SECONDS : 3
+    );
+    const secondsRemaining = Math.max(0, Number(player.attackDisableTimer) || 0);
+    return {
+      active: secondsRemaining > 0,
+      secondsRemaining,
+      durationSeconds,
+      progress: clamp(secondsRemaining / durationSeconds, 0, 1)
+    };
+  }
+
+  function getHomingLockoutRatioForFx() {
+    if (isReducedMotion()) {
+      return 0;
+    }
+    const lockout = getAttackDisableSnapshot();
+    return lockout.active ? lockout.progress : 0;
+  }
+
   function getGlfxLibrary() {
     if (typeof fx === "object" && fx && typeof fx.canvas === "function") {
       return fx;
@@ -1578,7 +1784,8 @@
     const minDistortion = isReducedMotion() ? 0.03 : 0.2;
     const intensity = clamp(fxState.intensity || 0, 0, 1);
     const trippy = visualTheme && Number.isFinite(visualTheme.trippyLevel) ? visualTheme.trippyLevel : 0;
-    const ampRaw = (0.3 + intensity * 2.8 + trippy * 0.22) * distScale * reducedMotionScale;
+    const lockoutRatio = getHomingLockoutRatioForFx();
+    const ampRaw = (0.3 + intensity * 2.8 + trippy * 0.22 + lockoutRatio * 0.95) * distScale * reducedMotionScale;
     const amp = clamp(ampRaw, minDistortion, maxDistortion);
     if (amp <= 0.01) {
       return;
@@ -1588,7 +1795,7 @@
     const horizontal = distortionMode === "horizontal";
     const useEdgeMode = distortionMode === "edge";
     const time = typeof game.globalTime === "number" ? game.globalTime : performance.now() / 1000;
-    const freq = (1.1 + intensity * 2.4 + trippy * 0.24) * backgroundMotionScale;
+    const freq = (1.1 + intensity * 2.4 + trippy * 0.24 + lockoutRatio * 0.7) * backgroundMotionScale;
     const phase = 0.55 + trippy * 0.18;
     const centerBias = useEdgeMode ? 0.55 : 0.25;
     const freqBias = (floorId % 2 === 0 ? 1 : 0.92);
@@ -5305,12 +5512,13 @@
   }
 
   function drawPlayer(accent, visualTheme = null) {
+    primePlayerSpriteCacheIfNeeded();
+    const frameState = resolvePlayerSpriteFrameState();
     const blink = player.invuln > 0 && Math.floor(game.globalTime * 24) % 2 === 0;
     if (blink) {
       return;
     }
 
-    const frameState = resolvePlayerSpriteFrameState();
     const direction = frameState.direction;
     const drewSprite = drawPlayerSprite(direction, accent, frameState.mode, visualTheme);
     if (!drewSprite) {
@@ -5716,6 +5924,8 @@
     ctx.fillText(fitCanvasText(bombText, bombBoxW - (meterW + 28)), bombBoxX + 16 + meterW, bombBoxY + 18);
 
     drawBurstStatusHud(accent);
+    drawAttackDisableHud(accent);
+    drawMusicToggleHud(accent);
     drawRearShotHint(accent);
     drawUpgradeHudPanel(accent);
     drawDebugStatsLine(accent);
@@ -5773,6 +5983,93 @@
     ctx.strokeStyle = rgba(TOKENS.ink, 0.5);
     ctx.lineWidth = 1;
     strokeRoundRect(meterX, meterY, meterW, meterH, 999);
+  }
+
+  function drawAttackDisableHud(accent) {
+    if (game.state !== GameState.PLAYING) {
+      return;
+    }
+
+    const lockout = getAttackDisableSnapshot();
+    if (!lockout.active) {
+      return;
+    }
+
+    const panelX = 70;
+    const panelY = 198;
+    const panelW = 292;
+    const panelH = 54;
+    const recoveryProgress = clamp(1 - lockout.progress, 0, 1);
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 5, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.font = '700 14px "Sora", "Inter", sans-serif';
+    ctx.fillText("Shooting disabled", panelX + 12, panelY + 15);
+    ctx.font = '600 12px "Inter", sans-serif';
+    ctx.fillText(`Recovering in ${lockout.secondsRemaining.toFixed(1)}s`, panelX + 12, panelY + 31);
+
+    const meterX = panelX + 172;
+    const meterY = panelY + 34;
+    const meterW = panelW - 184;
+    const meterH = 10;
+    ctx.fillStyle = rgba(TOKENS.ink, 0.11);
+    fillRoundRect(meterX, meterY, meterW, meterH, 999);
+    ctx.fillStyle = rgba(accent, 0.78);
+    fillRoundRect(meterX + 1, meterY + 1, Math.max(0, (meterW - 2) * recoveryProgress), meterH - 2, 999);
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.45);
+    ctx.lineWidth = 1;
+    strokeRoundRect(meterX, meterY, meterW, meterH, 999);
+  }
+
+  function drawMusicToggleHud(accent) {
+    if (
+      game.state !== GameState.PLAYING &&
+      game.state !== GameState.FLOOR_INTRO &&
+      game.state !== GameState.FLOOR_CLEAR
+    ) {
+      return;
+    }
+
+    let isMuted = false;
+    let hasAudio = true;
+    if (AIPU.audio && typeof AIPU.audio.getState === "function") {
+      try {
+        const audioState = AIPU.audio.getState();
+        isMuted = !!(audioState && audioState.muted);
+        hasAudio = !(audioState && audioState.hasAudio === false);
+      } catch (error) {
+        void error;
+      }
+    }
+
+    const statusText = !hasAudio ? "M: Music unavailable" : isMuted ? "M: Music Off" : "M: Music On";
+    const panelX = 70;
+    const panelY = 258;
+    const panelW = 292;
+    const panelH = 38;
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
+    ctx.fillStyle = rgba(accent, 0.16);
+    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 4, 999);
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.fillText(statusText, panelX + 12, panelY + panelH * 0.5 + 1);
   }
 
   function drawRearShotHint(accent) {
@@ -6545,6 +6842,16 @@
       });
     }
 
+    let audioState = null;
+    if (AIPU.audio && typeof AIPU.audio.getState === "function") {
+      try {
+        audioState = AIPU.audio.getState();
+      } catch (error) {
+        void error;
+        audioState = { error: "audio_state_unavailable" };
+      }
+    }
+
     return {
       schemaVersion: 1,
       coordinateSystem: "origin-top-left,+x-right,+y-down",
@@ -6580,7 +6887,16 @@
       },
       debug: {
         renderCache: getRenderCacheStats(),
-        sprites: getSpriteLoadState()
+        sprites: getSpriteLoadState(),
+        playerSprite: {
+          facingDirection: playerFacingDirection,
+          requestedMode: playerSpriteModeState.requestedMode,
+          requestedDirection: playerSpriteModeState.requestedDirection,
+          activeMode: playerSpriteModeState.activeMode,
+          activeDirection: playerSpriteModeState.activeDirection,
+          holdFrames: playerSpriteModeState.holdFrames
+        },
+        audio: audioState
       }
     };
   }
@@ -6617,6 +6933,7 @@
     roundRectPath,
     isTitleSequenceComplete,
     getSpriteLoadState,
-    renderGameToText
+    renderGameToText,
+    resetPlayerSpriteState
   };
 })();
