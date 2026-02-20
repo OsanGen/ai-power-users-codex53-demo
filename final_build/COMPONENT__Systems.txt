@@ -57,6 +57,8 @@ State/Edges:
 - Burst system:
   - Tracks hold time while any directional shoot key is continuously held in PLAYING.
   - Hold time no longer resets when active shoot direction changes (`ArrowUp/Down/Left/Right` transitions), so dual/omni unlock depends on continuous shooting duration rather than fixed-direction hold.
+  - Hold time now pauses/resets under forced shoot lockout (`player.attackDisableTimer > 0`) so disabled windows cannot silently charge dual/omni burst progress.
+  - Homing-missile disable impacts now clear directional burst tracking immediately to prevent pre-impact charge carryover.
   - Enforces floor unlock rules for dual/omni modes.
   - A centralized `clearDirectionalBurstTracking()` reset now runs on non-PLAYING simulation ticks and on explicit terminal transitions (`enterGameOver`, `enterDeathLesson`) to avoid stale hold/key leakage into overlays/debug states.
 - Damage pipeline:
@@ -110,6 +112,7 @@ Acceptance Checks:
 - Homing-missile collision path keeps `applyPlayerDamage` from being called on `dual` impacts, yet always emits contact feedback and forces `attackDisableTimer` to the configured lockout duration.
 - Dual-wave spawn pressure remains active when standard enemy count is saturated, so entering high-traffic states no longer suppresses `dual` wave spawns.
 - While continuously shooting and switching arrow directions, burst hold accumulation remains monotonic and dual unlock can still trigger once threshold is crossed.
+- During `attackDisableTimer` lockout, directional burst hold does not accumulate; homing-missile impact clears existing hold so lockout windows cannot preserve/advance dual progress.
 - After leaving PLAYING (for example DEATH_LESSON or GAME_OVER), `rearShotHoldTime` and `rearShotDirectionKey` are zeroed/cleared deterministically and `getDirectionalBurstStatus()` resolves `normal`.
 - Floor transitions and terminal states are audio-safe:
   - Floor transitions call play/stop deterministically.

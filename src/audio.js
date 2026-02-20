@@ -2,9 +2,10 @@
   "use strict";
 
   const AIPU = window.AIPU = window.AIPU || {};
-  const MUSIC_CACHE_BUST = "v=20260221-20";
+  const MUSIC_CACHE_BUST = "v=20260222-4";
   const MUSIC_MUTED_STORAGE_KEY = "MUSIC_MUTED_V1";
   const SFX_CACHE_BUST = "v=20260222-2";
+  const SFX_ERROR_RETRY_COOLDOWN_MS = 4000;
   const RETRO_SFX_FAMILY_BASE = Object.freeze({
     wave: "square",
     startHz: 700,
@@ -108,6 +109,7 @@
   const audioState = {
     currentFloorId: null,
     currentSrc: "",
+    currentTrackKey: "",
     isMuted: readStoredMutedPreference(),
     isPlaying: false,
     errorCount: 0,
@@ -121,7 +123,8 @@
     sfxLastError: null,
     sfxLoaded: Object.create(null),
     sfxLoadStatus: Object.create(null),
-    sfxLastPlayAt: Object.create(null)
+    sfxLastPlayAt: Object.create(null),
+    sfxLastErrorAt: Object.create(null)
   };
 
   let isAudioAvailable = Boolean(floorAudio && typeof floorAudio.play === "function");
@@ -137,6 +140,7 @@
     audioState.sfxLoaded[id] = false;
     audioState.sfxLoadStatus[id] = "idle";
     audioState.sfxLastPlayAt[id] = 0;
+    audioState.sfxLastErrorAt[id] = 0;
   }
 
   if (isAudioAvailable) {
@@ -288,6 +292,25 @@
     return Date.now();
   }
 
+  function normalizeAudioPath(rawPath) {
+    const candidate = typeof rawPath === "string" ? rawPath.trim() : "";
+    if (!candidate) {
+      return "";
+    }
+
+    const stripped = candidate.split("?")[0].split("#")[0];
+    if (!stripped) {
+      return "";
+    }
+
+    try {
+      return decodeURIComponent(stripped);
+    } catch (error) {
+      void error;
+      return stripped;
+    }
+  }
+
   function createSfxContext() {
     if (typeof window !== "object" || window === null) {
       return null;
@@ -418,7 +441,11 @@
       return Promise.resolve(sfxBuffers[effectId]);
     }
     if (audioState.sfxLoadStatus[effectId] === "error") {
-      return Promise.resolve(null);
+      const elapsedSinceLastErrorMs = nowMs() - (Number(audioState.sfxLastErrorAt[effectId]) || 0);
+      if (elapsedSinceLastErrorMs < SFX_ERROR_RETRY_COOLDOWN_MS) {
+        return Promise.resolve(null);
+      }
+      audioState.sfxLoadStatus[effectId] = "idle";
     }
     if (sfxLoadPromises[effectId]) {
       return sfxLoadPromises[effectId];
@@ -452,6 +479,7 @@
         sfxBuffers[effectId] = decodedBuffer;
         audioState.sfxLoaded[effectId] = true;
         audioState.sfxLoadStatus[effectId] = "ready";
+        audioState.sfxLastErrorAt[effectId] = 0;
         audioState.sfxLastError = null;
         return decodedBuffer;
       })
@@ -460,6 +488,7 @@
         audioState.sfxLastError = getErrorMessage(error);
         audioState.sfxLoaded[effectId] = false;
         audioState.sfxLoadStatus[effectId] = "error";
+        audioState.sfxLastErrorAt[effectId] = nowMs();
         return null;
       })
       .finally(() => {
@@ -511,9 +540,7 @@
       return playBufferedSfx(effectId, cachedBuffer);
     }
 
-    if (audioState.sfxLoadStatus[effectId] !== "error") {
-      loadSfxBuffer(effectId);
-    }
+    loadSfxBuffer(effectId);
     return playSynthSfx(effectId);
   }
 
@@ -546,6 +573,7 @@
     audioState.isPlaying = false;
     clearPendingAutoplayRetry();
     audioState.currentSrc = "";
+    audioState.currentTrackKey = "";
     audioState.activeCandidateIndex = -1;
   }
 
@@ -589,6 +617,7 @@
 
     audioState.activeCandidateIndex = candidateIndex;
     audioState.currentSrc = path;
+    audioState.currentTrackKey = normalizeAudioPath(path);
     audioState.lastError = null;
     audioState.isPlaying = false;
     floorAudio.muted = !!audioState.isMuted;
@@ -647,7 +676,7 @@
     }
 
     const firstPath = candidates[0];
-    const isCandidateMatch = candidates.indexOf(audioState.currentSrc) >= 0;
+    const isCandidateMatch = candidates.some((candidate) => normalizeAudioPath(candidate) === audioState.currentTrackKey);
     const isCurrentTrack = isCandidateMatch;
     const isCurrentFloor = audioState.currentFloorId === floorId && floorId !== null;
     if (isCurrentTrack && isCurrentFloor && (audioState.isPlaying || audioState.autoplayPending)) {
@@ -667,6 +696,7 @@
     audioState.requestId += 1;
     audioState.currentFloorId = null;
     audioState.currentSrc = "";
+    audioState.currentTrackKey = "";
     audioState.activeCandidateIndex = -1;
     audioState.candidatePaths = [];
     stopAudioCore();
@@ -695,6 +725,7 @@
       currentFloorId: audioState.currentFloorId,
       activeSrc: audioState.currentSrc,
       currentSrc: audioState.currentSrc,
+      currentTrackKey: audioState.currentTrackKey,
       isPlaying: audioState.isPlaying,
       muted: audioState.isMuted,
       autoplayPending: audioState.autoplayPending,

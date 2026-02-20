@@ -18,7 +18,7 @@ Outputs:
   - `stop()`
   - `setMuted(value)`
   - `getState()`
-- `MUSIC_CACHE_BUST` string in `src/audio.js` is expected at `v=20260221-20` for deterministic track cache refresh.
+- `MUSIC_CACHE_BUST` string in `src/audio.js` is expected at `v=20260222-4` for deterministic track cache refresh.
 
 State:
 - `currentFloorId`
@@ -27,13 +27,20 @@ State:
 - `isMuted`
 - `errorCount`
 - `lastError`
+- `sfxLoadStatus`, `sfxLoaded`, `sfxLastPlayAt`
+- `sfxLastErrorAt` (per-effect timestamp used for bounded retry after transient SFX load/decode failures)
 
 Edge Cases:
 - Missing/invalid floor id is rejected (`playForFloor` resolves floor id to a finite value and calls `stop()` when invalid).
 - Missing track candidate path falls back through configured candidate list before reporting no playable track.
 - Browser autoplay-policy `play()` denials are treated as recoverable and do not advance candidate fallback; playback retries on next user gesture event (`pointerdown`, `mousedown`, `keydown`, `touchstart`) against the same floor candidate.
 - Same-floor replay no longer stalls on a stale “track in-flight” state: if a floor track is set but not actually playing, `playForFloor` can re-attempt playback.
+- Same-floor replay compares normalized base paths, so query-parameter/cache-bust variants and encoded URLs are treated as equivalent when avoiding redundant replays.
 - Multiple browser `play()`/decode errors are non-fatal and update `lastError`.
+- SFX file load/decode failures are no longer permanently latched:
+  - failed effect IDs enter `error` status with timestamp;
+  - retry is allowed again after cooldown (`SFX_ERROR_RETRY_COOLDOWN_MS`) to recover from transient network/cache issues;
+  - synth fallback remains immediate while file retry occurs asynchronously.
 - `stop()` clears playback source, resets state, and remains safe to call repeatedly.
 - Audio element is now mounted hidden in DOM and marked `playsinline` for better browser compatibility.
 
@@ -49,3 +56,4 @@ Acceptance checks:
 - `getState()` exposes `autoplayPending` during user-gesture blocked startup and clears after a successful play or explicit stop.
 - `getState()` exposes active source and status including floor index/ID transitions when floors change during gameplay.
 - `getState()` now includes candidate diagnostics (`activeCandidateIndex`, `candidateCount`) for live floor-music debugging.
+- After a forced SFX fetch/decode failure, effect playback still produces synth fallback immediately and file-backed playback can recover on later attempts after retry cooldown.

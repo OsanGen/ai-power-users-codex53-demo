@@ -161,22 +161,26 @@
   };
   const fxPreviousEnemyIds = new Set();
   const fxEnemyPositions = new Map();
+  const PLAYER_PRIMARY_MOVEMENT_FRAMES = Object.freeze({
+    front: "Front.png",
+    back: "back.png",
+    left: "left.png",
+    right: "right.png"
+  });
+
+  const PLAYER_PRIMARY_SHOOT_FRAMES = Object.freeze({
+    front: "Down_Shoot.png",
+    back: "UP_shoot.png",
+    left: "Left_shoot.png",
+    right: "Right_shoot.png"
+  });
+
   const CHARACTER_ART = Object.freeze({
     player: Object.freeze({
       bucketDir: "./assets/characters/player/main",
-      frames: Object.freeze({
-        front: "Front.png",
-        back: "back.png",
-        left: "left.png",
-        right: "right.png"
-      }),
+      frames: PLAYER_PRIMARY_MOVEMENT_FRAMES,
       dualFrames: Object.freeze(["DUAL.png", "dual.png"]),
-      shootFrames: Object.freeze({
-        front: "Down_Shoot.png",
-        back: "UP_shoot.png",
-        left: "Left_shoot.png",
-        right: "Right_shoot.png"
-      }),
+      shootFrames: PLAYER_PRIMARY_SHOOT_FRAMES,
       legacy: Object.freeze({
         front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
         left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
@@ -220,17 +224,52 @@
     ArrowRight: "right"
   });
   const PLAYER_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["front.png", "Front.png"]),
-    back: Object.freeze(["back.png"]),
-    left: Object.freeze(["left.png", "Left.png"]),
-    right: Object.freeze(["right.png", "Right.png"])
+    front: Object.freeze(["front.png", "Front.png", "FRONT.png"]),
+    back: Object.freeze(["back.png", "Back.png", "BACK.png"]),
+    left: Object.freeze(["left.png", "Left.png", "LEFT.png"]),
+    right: Object.freeze(["right.png", "Right.png", "RIGHT.png"])
   });
   const PLAYER_ANIMATION_MODE_SWITCH_FRAMES = 2;
   const PLAYER_SHOOT_FRAME_FALLBACKS = Object.freeze({
-    front: Object.freeze(["shoot_front.png", "Shoot_front.png", "shoot_down.png", "Down_shoot.png", "Down_Shoot.png"]),
-    back: Object.freeze(["shoot_back.png", "Shoot_back.png", "shoot_up.png", "UP_shoot.png", "UP_Shoot.png"]),
-    left: Object.freeze(["shoot_left.png", "Shoot_left.png", "shoot_a.png", "shoot_A.png", "left_shoot.png", "Left_shoot.png"]),
-    right: Object.freeze(["shoot_right.png", "Shoot_right.png", "shoot_d.png", "shoot_D.png", "right_shoot.png", "Right_shoot.png"])
+    front: Object.freeze([
+      "shoot_front.png",
+      "Shoot_front.png",
+      "shoot_down.png",
+      "Shoot_down.png",
+      "down_shoot.png",
+      "Down_shoot.png",
+      "Down_Shoot.png"
+    ]),
+    back: Object.freeze([
+      "shoot_back.png",
+      "Shoot_back.png",
+      "shoot_up.png",
+      "Shoot_up.png",
+      "up_shoot.png",
+      "Up_shoot.png",
+      "UP_shoot.png",
+      "UP_Shoot.png"
+    ]),
+    left: Object.freeze([
+      "shoot_left.png",
+      "Shoot_left.png",
+      "shoot_a.png",
+      "shoot_A.png",
+      "left_shoot.png",
+      "Left_shoot.png",
+      "LEFT_shoot.png",
+      "Left_Shoot.png"
+    ]),
+    right: Object.freeze([
+      "shoot_right.png",
+      "Shoot_right.png",
+      "shoot_d.png",
+      "shoot_D.png",
+      "right_shoot.png",
+      "Right_shoot.png",
+      "RIGHT_shoot.png",
+      "Right_Shoot.png"
+    ])
   });
   let playerFacingDirection = "front";
   const playerSpriteLastReadyByMode = {
