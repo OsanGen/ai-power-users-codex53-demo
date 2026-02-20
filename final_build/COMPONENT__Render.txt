@@ -102,7 +102,7 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-5`) to force updated render bundle refresh.
+- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-6`) to force updated render bundle refresh.
 - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
@@ -141,5 +141,5 @@ Acceptance Checks:
   - `AIPU.render.renderGameToText()` now also exposes `debug.playerSprite` mode/hold/facing internals for deterministic sprite routing and transition debugging.
   - `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
 - Sprite cache busting for character art is now `v=20260222-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
-- Script cache-bust alignment and player-cache keys are now expected at `v=20260222-5` for this stability patch.
+- Script cache-bust alignment and player-cache keys are now expected at `v=20260222-6` for this stability patch.
 - Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.

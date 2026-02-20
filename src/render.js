@@ -2254,7 +2254,8 @@
   });
   const WATER_WRAPPER_FLOOR_MIN = 1;
   const WATER_WRAPPER_FLOOR_MAX = 8;
-  const WATER_WRAPPER_ALPHA_CAP = 0.22;
+  const WATER_WRAPPER_ALPHA_CAP = 0.28;
+  const EARLY_WATER_FLOOR_ALPHA_BOOST = 0.018;
   const WATER_WRAPPER_PROFILE_BY_FLOOR = Object.freeze({
     1: Object.freeze({ rippleBands: 8, rippleAmp: 1.0, flowSpeed: 0.66, causticDensity: 9, alphaBase: 0.056 }),
     2: Object.freeze({ rippleBands: 9, rippleAmp: 1.18, flowSpeed: 0.74, causticDensity: 11, alphaBase: 0.06 }),
@@ -2402,31 +2403,42 @@
 
     const escalation = getDynamicEscalation(progress);
     const reducedMotionScale = isReducedMotion() ? escalation.backgroundMotionScale : 1;
+    const isFirstWaterFloor = floorId === WATER_WRAPPER_FLOOR_MIN;
     const floorRamp = clamp(
       (floorId - WATER_WRAPPER_FLOOR_MIN) / (WATER_WRAPPER_FLOOR_MAX - WATER_WRAPPER_FLOOR_MIN),
       0,
       1
     );
-    const floorFloorContribution = clamp(0.2 + floorRamp * 0.8, 0, 1);
+    const floorFloorContribution = clamp(0.45 + floorRamp * 0.55, 0, 1);
     const trippy = visualTheme && Number.isFinite(visualTheme.trippyLevel)
       ? clamp(visualTheme.trippyLevel / 5, 0, 1)
       : 0;
     const danger = clamp(Number(fxState.danger) || 0, 0, 1);
-    const compound = clamp(floorFloorContribution * 0.7 + danger * 0.2 + trippy * 0.1, 0, 1);
-    const speedScale = (0.86 + escalation.speedScale * 0.48) * reducedMotionScale;
-    const motionIntensity = clamp(0.86 + trippy * 0.14 + floorRamp * 0.2, 0.82, 1.38);
+    const floorBias = isFirstWaterFloor ? 0.08 : 0;
+    const compound = clamp(
+      floorFloorContribution * 0.72 + danger * 0.2 + trippy * 0.08 + floorBias,
+      0,
+      1
+    );
+    const speedScale = (0.86 + escalation.speedScale * 0.55) * reducedMotionScale;
+    const motionIntensity = clamp(
+      1 + trippy * 0.22 + floorRamp * 0.24 + (isFirstWaterFloor ? 0.12 : 0),
+      0.88,
+      1.58
+    );
     return {
       floorId,
       profile,
       compound,
       speedScale,
-      dynamicAmp: profile.rippleAmp * (0.86 + compound * 0.92) * motionIntensity * reducedMotionScale,
-      staticBands: Math.max(5, Math.floor(profile.rippleBands * (0.64 + compound * 0.3))),
-      dynamicBands: Math.max(6, Math.floor(profile.rippleBands * (0.86 + compound * 0.56))),
-      causticCount: Math.max(6, Math.floor(profile.causticDensity * (0.84 + compound * 0.72))),
-      alpha: clamp(profile.alphaBase + compound * 0.08, 0.03, WATER_WRAPPER_ALPHA_CAP),
+      dynamicAmp: profile.rippleAmp * (0.9 + compound * 1.05) * motionIntensity * reducedMotionScale,
+      staticBands: Math.max(6, Math.floor(profile.rippleBands * (0.9 + compound * 0.36))),
+      dynamicBands: Math.max(7, Math.floor(profile.rippleBands * (1 + compound * 0.66))),
+      causticCount: Math.max(7, Math.floor(profile.causticDensity * (0.9 + compound * 0.82))),
+      alpha: clamp(profile.alphaBase + compound * 0.14 + floorBias * EARLY_WATER_FLOOR_ALPHA_BOOST, 0.03, WATER_WRAPPER_ALPHA_CAP),
       floorProgress: floorRamp,
-      motionIntensity
+      motionIntensity,
+      floorIdIsEarly: isFirstWaterFloor
     };
   }
 
@@ -3934,9 +3946,10 @@
     const bandCount = waterState.staticBands;
     const top = WORLD.y + 16;
     const usableHeight = WORLD.h - 32;
-    const intensity = clamp(Number(waterState.motionIntensity) || 1, 0.84, 1.42);
+    const intensity = clamp(Number(waterState.motionIntensity) || 1, 0.9, 1.58);
     const floorRamp = clamp(Number(waterState.floorProgress) || 0, 0, 1);
-    const waveAmp = waterState.dynamicAmp * (0.25 + floorRamp * 0.06) * intensity;
+    const floorAmpBias = waterState.floorIdIsEarly ? 1.22 : 1;
+    const waveAmp = waterState.dynamicAmp * (0.31 + floorRamp * 0.09) * intensity * floorAmpBias;
     const leadAlpha = clamp(waterState.alpha * (0.58 + floorRamp * 0.12), 0.02, WATER_WRAPPER_ALPHA_CAP * 0.84);
     ctx.lineWidth = 1;
     ctx.strokeStyle = visualTheme ? leadTint(visualTheme, leadAlpha, accent) : rgba(accent, leadAlpha);
@@ -3969,7 +3982,7 @@
           continue;
         }
         const width = 5 + ((row + col) % 3) * 1.5;
-        const alpha = clamp(waterState.alpha * 0.34 * edge * (0.92 + floorRamp * 0.14), 0.015, 0.09);
+        const alpha = clamp(waterState.alpha * 0.42 * edge * (0.92 + floorRamp * 0.2), 0.02, 0.12);
         ctx.fillStyle = visualTheme
           ? supportTint(visualTheme, row + col, alpha, accent)
           : rgba(accent, alpha);
@@ -3990,7 +4003,7 @@
     const rowStep = Math.max(16, Math.floor((WORLD.h - 26) / Math.max(1, bandCount)));
     const intensity = clamp(Number(waterState.motionIntensity) || 1, 0.84, 1.42);
     const floorRamp = clamp(Number(waterState.floorProgress) || 0, 0, 1);
-    const ampBase = waterState.dynamicAmp * (0.85 + escalation.intensity * 0.55) * reducedMotionScale * intensity;
+    const ampBase = waterState.dynamicAmp * (0.94 + escalation.intensity * 0.72) * reducedMotionScale * intensity;
 
     for (let i = 0; i < bandCount; i += 1) {
       const y = WORLD.y + 14 + i * rowStep;
@@ -4000,8 +4013,8 @@
       const t = bandCount > 1 ? i / (bandCount - 1) : 0;
       const edgeY = edgeBlend(3.2, "y", y);
       const alpha = clamp(
-        waterState.alpha * (0.58 + t * 0.35) * (0.92 + floorRamp * 0.14)
-          + escalation.intensity * 0.026,
+        waterState.alpha * (0.68 + t * 0.42) * (0.94 + floorRamp * 0.16)
+          + escalation.intensity * 0.034,
         0.03,
         WATER_WRAPPER_ALPHA_CAP
       );
@@ -4021,7 +4034,7 @@
       ctx.stroke();
 
       if (visualTheme && visualTheme.support.length > 0 && i % 2 === 0) {
-        const supportAlpha = clamp(alpha * 0.56, 0.02, 0.09);
+        const supportAlpha = clamp(alpha * 0.63, 0.02, 0.11);
         ctx.strokeStyle = supportTint(visualTheme, i, supportAlpha, accent);
         ctx.beginPath();
         for (let x = WORLD.x + 10; x <= WORLD.x + WORLD.w - 10; x += 18) {
@@ -4049,7 +4062,11 @@
         continue;
       }
       const size = 1.8 + (i % 3) * 0.7;
-      const alpha = clamp(waterState.alpha * 0.45 * edge * (0.88 + floorRamp * 0.16), 0.02, 0.09);
+      const alpha = clamp(
+        waterState.alpha * 0.52 * edge * (0.92 + floorRamp * 0.2) * (waterState.floorIdIsEarly ? 1.2 : 1),
+        0.022,
+        0.11
+      );
       ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, alpha, accent) : rgba(accent, alpha);
       fillRoundRect(x - size * 0.6, y - size * 0.35, size, size * 0.68, 999);
     }
@@ -7108,6 +7125,7 @@
     );
     const debugWaterStateInfo = debugWaterState ? {
       floorId: debugWaterState.floorId,
+      isFirstWaterFloor: debugWaterState.floorIdIsEarly || false,
       compound: roundTo(debugWaterState.compound, 3),
       alpha: roundTo(debugWaterState.alpha, 3),
       dynamicAmp: roundTo(debugWaterState.dynamicAmp, 3),
