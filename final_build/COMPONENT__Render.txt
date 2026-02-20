@@ -3,7 +3,7 @@ Render Component
 Purpose:
 - Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
-- Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress.
+- Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.
 - Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
 - Support directional player model swap and automatic enemy art routing:
   - Player sprites resolve by bucket from:
@@ -62,6 +62,7 @@ State/Edges:
 - Floors `1..8` now route through a dedicated water wrapper state (`resolveWaterWrapperState`) and two draw passes:
   - `drawWaterStaticBase(...)` for low-alpha basin bands and static caustic scaffold.
   - `drawWaterDynamicOverlay(...)` for progressive ripple/caustic motion with floor-depth compounding.
+  - `buildRenderGameTextState()` now emits `debug.visualState` payload (floor pack/theme/water metrics) for deterministic verification.
   - Wrapper alpha is hard-capped to maintain OSAN readability and lead-accent dominance.
 - Reduced-motion support is centralized:
   - `isFxToggleEnabled` disables `trails`, `chroma`, and `grain` when `AIPU.input.prefersReducedMotion` is true.
@@ -101,8 +102,8 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-4`) to force updated render bundle refresh.
-- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260221-23"`) to avoid stale image caching across art updates.
+- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-5`) to force updated render bundle refresh.
+- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
@@ -138,6 +139,7 @@ Acceptance Checks:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
   - `AIPU.render.renderGameToText()` now also exposes `debug.audio` (when `AIPU.audio` is present) so floor music state can be validated from automation snapshots.
   - `AIPU.render.renderGameToText()` now also exposes `debug.playerSprite` mode/hold/facing internals for deterministic sprite routing and transition debugging.
+  - `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
 - Sprite cache busting for character art is now `v=20260222-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
-- Script cache-bust alignment and player-cache keys are now expected at `v=20260222-4` for this stability patch.
+- Script cache-bust alignment and player-cache keys are now expected at `v=20260222-5` for this stability patch.
 - Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.

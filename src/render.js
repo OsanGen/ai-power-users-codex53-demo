@@ -2254,16 +2254,16 @@
   });
   const WATER_WRAPPER_FLOOR_MIN = 1;
   const WATER_WRAPPER_FLOOR_MAX = 8;
-  const WATER_WRAPPER_ALPHA_CAP = 0.16;
+  const WATER_WRAPPER_ALPHA_CAP = 0.22;
   const WATER_WRAPPER_PROFILE_BY_FLOOR = Object.freeze({
-    1: Object.freeze({ rippleBands: 7, rippleAmp: 0.7, flowSpeed: 0.52, causticDensity: 8, alphaBase: 0.036 }),
-    2: Object.freeze({ rippleBands: 8, rippleAmp: 0.88, flowSpeed: 0.6, causticDensity: 9, alphaBase: 0.04 }),
-    3: Object.freeze({ rippleBands: 9, rippleAmp: 1.06, flowSpeed: 0.68, causticDensity: 11, alphaBase: 0.045 }),
-    4: Object.freeze({ rippleBands: 10, rippleAmp: 1.24, flowSpeed: 0.74, causticDensity: 12, alphaBase: 0.05 }),
-    5: Object.freeze({ rippleBands: 12, rippleAmp: 1.44, flowSpeed: 0.82, causticDensity: 14, alphaBase: 0.056 }),
-    6: Object.freeze({ rippleBands: 13, rippleAmp: 1.64, flowSpeed: 0.9, causticDensity: 16, alphaBase: 0.062 }),
-    7: Object.freeze({ rippleBands: 14, rippleAmp: 1.84, flowSpeed: 0.98, causticDensity: 18, alphaBase: 0.068 }),
-    8: Object.freeze({ rippleBands: 16, rippleAmp: 2.05, flowSpeed: 1.08, causticDensity: 21, alphaBase: 0.074 })
+    1: Object.freeze({ rippleBands: 8, rippleAmp: 1.0, flowSpeed: 0.66, causticDensity: 9, alphaBase: 0.056 }),
+    2: Object.freeze({ rippleBands: 9, rippleAmp: 1.18, flowSpeed: 0.74, causticDensity: 11, alphaBase: 0.06 }),
+    3: Object.freeze({ rippleBands: 10, rippleAmp: 1.34, flowSpeed: 0.82, causticDensity: 13, alphaBase: 0.066 }),
+    4: Object.freeze({ rippleBands: 11, rippleAmp: 1.52, flowSpeed: 0.9, causticDensity: 15, alphaBase: 0.074 }),
+    5: Object.freeze({ rippleBands: 12, rippleAmp: 1.74, flowSpeed: 0.98, causticDensity: 17, alphaBase: 0.082 }),
+    6: Object.freeze({ rippleBands: 13, rippleAmp: 1.98, flowSpeed: 1.06, causticDensity: 19, alphaBase: 0.09 }),
+    7: Object.freeze({ rippleBands: 14, rippleAmp: 2.2, flowSpeed: 1.14, causticDensity: 22, alphaBase: 0.098 }),
+    8: Object.freeze({ rippleBands: 15, rippleAmp: 2.44, flowSpeed: 1.24, causticDensity: 25, alphaBase: 0.11 })
   });
 
   if (renderCacheState && !renderCacheState.stats) {
@@ -2407,24 +2407,26 @@
       0,
       1
     );
+    const floorFloorContribution = clamp(0.2 + floorRamp * 0.8, 0, 1);
     const trippy = visualTheme && Number.isFinite(visualTheme.trippyLevel)
       ? clamp(visualTheme.trippyLevel / 5, 0, 1)
       : 0;
     const danger = clamp(Number(fxState.danger) || 0, 0, 1);
-    const compound = clamp(floorRamp * 0.76 + danger * 0.14 + trippy * 0.1, 0, 1);
+    const compound = clamp(floorFloorContribution * 0.7 + danger * 0.2 + trippy * 0.1, 0, 1);
     const speedScale = (0.86 + escalation.speedScale * 0.48) * reducedMotionScale;
-    const dynamicAmp = profile.rippleAmp * (0.7 + compound * 0.95) * reducedMotionScale;
-
+    const motionIntensity = clamp(0.86 + trippy * 0.14 + floorRamp * 0.2, 0.82, 1.38);
     return {
       floorId,
       profile,
       compound,
       speedScale,
-      dynamicAmp,
-      staticBands: Math.max(5, Math.floor(profile.rippleBands * (0.62 + compound * 0.26))),
+      dynamicAmp: profile.rippleAmp * (0.86 + compound * 0.92) * motionIntensity * reducedMotionScale,
+      staticBands: Math.max(5, Math.floor(profile.rippleBands * (0.64 + compound * 0.3))),
       dynamicBands: Math.max(6, Math.floor(profile.rippleBands * (0.86 + compound * 0.56))),
-      causticCount: Math.max(6, Math.floor(profile.causticDensity * (0.85 + compound * 0.65))),
-      alpha: clamp(profile.alphaBase + compound * 0.046, 0.03, WATER_WRAPPER_ALPHA_CAP)
+      causticCount: Math.max(6, Math.floor(profile.causticDensity * (0.84 + compound * 0.72))),
+      alpha: clamp(profile.alphaBase + compound * 0.08, 0.03, WATER_WRAPPER_ALPHA_CAP),
+      floorProgress: floorRamp,
+      motionIntensity
     };
   }
 
@@ -3932,8 +3934,10 @@
     const bandCount = waterState.staticBands;
     const top = WORLD.y + 16;
     const usableHeight = WORLD.h - 32;
-    const waveAmp = waterState.dynamicAmp * 0.24;
-    const leadAlpha = clamp(waterState.alpha * 0.58, 0.02, WATER_WRAPPER_ALPHA_CAP * 0.72);
+    const intensity = clamp(Number(waterState.motionIntensity) || 1, 0.84, 1.42);
+    const floorRamp = clamp(Number(waterState.floorProgress) || 0, 0, 1);
+    const waveAmp = waterState.dynamicAmp * (0.25 + floorRamp * 0.06) * intensity;
+    const leadAlpha = clamp(waterState.alpha * (0.58 + floorRamp * 0.12), 0.02, WATER_WRAPPER_ALPHA_CAP * 0.84);
     ctx.lineWidth = 1;
     ctx.strokeStyle = visualTheme ? leadTint(visualTheme, leadAlpha, accent) : rgba(accent, leadAlpha);
 
@@ -3965,7 +3969,7 @@
           continue;
         }
         const width = 5 + ((row + col) % 3) * 1.5;
-        const alpha = clamp(waterState.alpha * 0.34 * edge, 0.015, 0.06);
+        const alpha = clamp(waterState.alpha * 0.34 * edge * (0.92 + floorRamp * 0.14), 0.015, 0.09);
         ctx.fillStyle = visualTheme
           ? supportTint(visualTheme, row + col, alpha, accent)
           : rgba(accent, alpha);
@@ -3984,7 +3988,9 @@
     const time = (Number.isFinite(game.globalTime) ? game.globalTime : 0) * waterState.speedScale;
     const bandCount = waterState.dynamicBands;
     const rowStep = Math.max(16, Math.floor((WORLD.h - 26) / Math.max(1, bandCount)));
-    const ampBase = waterState.dynamicAmp * (0.85 + escalation.intensity * 0.55) * reducedMotionScale;
+    const intensity = clamp(Number(waterState.motionIntensity) || 1, 0.84, 1.42);
+    const floorRamp = clamp(Number(waterState.floorProgress) || 0, 0, 1);
+    const ampBase = waterState.dynamicAmp * (0.85 + escalation.intensity * 0.55) * reducedMotionScale * intensity;
 
     for (let i = 0; i < bandCount; i += 1) {
       const y = WORLD.y + 14 + i * rowStep;
@@ -3994,7 +4000,8 @@
       const t = bandCount > 1 ? i / (bandCount - 1) : 0;
       const edgeY = edgeBlend(3.2, "y", y);
       const alpha = clamp(
-        waterState.alpha * (0.58 + t * 0.35) + escalation.intensity * 0.026,
+        waterState.alpha * (0.58 + t * 0.35) * (0.92 + floorRamp * 0.14)
+          + escalation.intensity * 0.026,
         0.03,
         WATER_WRAPPER_ALPHA_CAP
       );
@@ -4042,7 +4049,7 @@
         continue;
       }
       const size = 1.8 + (i % 3) * 0.7;
-      const alpha = clamp(waterState.alpha * 0.45 * edge, 0.02, 0.08);
+      const alpha = clamp(waterState.alpha * 0.45 * edge * (0.88 + floorRamp * 0.16), 0.02, 0.09);
       ctx.fillStyle = visualTheme ? supportTint(visualTheme, i, alpha, accent) : rgba(accent, alpha);
       fillRoundRect(x - size * 0.6, y - size * 0.35, size, size * 0.68, 999);
     }
@@ -7081,6 +7088,42 @@
     const safeBullets = Array.isArray(collections.bullets) ? collections.bullets : [];
     const safeEnemyBullets = Array.isArray(collections.enemyBullets) ? collections.enemyBullets : [];
     const safePickups = Array.isArray(collections.pickups) ? collections.pickups : [];
+    const isPlayingState = safeState.state === gameStates.PLAYING;
+    const floorId = floor && Number.isFinite(floor.id) ? floor.id : null;
+    const floorVisualTheme = floor
+      ? resolveFloorVisualTheme(floor, TOKENS.blue)
+      : resolveFloorVisualTheme(1, TOKENS.blue);
+    const floorPack = floor
+      ? resolveFloorFxPack(floor)
+      : resolveFloorFxPack({ id: 1 });
+    const floorElapsed = Number(safeState.floorElapsed);
+    const floorDuration = Number(safeState.floorDuration);
+    const floorProgress = (Number.isFinite(floorElapsed) && Number.isFinite(floorDuration) && floorDuration > 0)
+      ? clamp(floorElapsed / floorDuration, 0, 1)
+      : 0;
+    const debugWaterState = resolveWaterWrapperState(
+      floorPack && Number.isFinite(floorPack.id) ? floorPack : floorId,
+      floorVisualTheme,
+      floorProgress
+    );
+    const debugWaterStateInfo = debugWaterState ? {
+      floorId: debugWaterState.floorId,
+      compound: roundTo(debugWaterState.compound, 3),
+      alpha: roundTo(debugWaterState.alpha, 3),
+      dynamicAmp: roundTo(debugWaterState.dynamicAmp, 3),
+      floorProgress: roundTo(floorProgress, 3),
+      speedScale: roundTo(debugWaterState.speedScale, 3),
+      staticBands: debugWaterState.staticBands,
+      dynamicBands: debugWaterState.dynamicBands,
+      causticCount: debugWaterState.causticCount,
+      floorRamp: roundTo(debugWaterState.floorProgress, 3),
+      motionIntensity: roundTo(debugWaterState.motionIntensity, 3)
+    } : null;
+    const waterStateMissing = isPlayingState
+      && Number.isFinite(floorId)
+      && floorId >= WATER_WRAPPER_FLOOR_MIN
+      && floorId <= WATER_WRAPPER_FLOOR_MAX
+      && !debugWaterState;
 
     const enemySample = [];
     for (let i = 0; i < safeEnemies.length && i < maxItems; i += 1) {
@@ -7172,6 +7215,26 @@
       debug: {
         renderCache: getRenderCacheStats(),
         sprites: getSpriteLoadState(),
+        visualState: {
+          floorId,
+          floorPack: floorPack && floorPack.id != null ? {
+            id: floorPack.id,
+            lead: floorPack.lead,
+            motif: floorPack.motif,
+            trippyLevel: Number.isFinite(floorPack.trippyLevel) ? floorPack.trippyLevel : 0,
+            distortionMode: floorPack.distortionMode
+          } : null,
+          theme: floorVisualTheme ? {
+            leadName: floorVisualTheme.leadName,
+            trippyLevel: floorVisualTheme.trippyLevel,
+            supportNames: floorVisualTheme.supportNames,
+            motionScale: floorVisualTheme.motionScale,
+            densityScale: floorVisualTheme.densityScale
+          } : null,
+          waterState: debugWaterStateInfo,
+          waterStateMissingInPlayingFloorRange: waterStateMissing,
+          reducedMotion: isReducedMotion()
+        },
         playerSprite: {
           facingDirection: playerFacingDirection,
           requestedMode: playerSpriteModeState.requestedMode,
