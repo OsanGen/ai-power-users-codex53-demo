@@ -6636,20 +6636,131 @@
       .slice(0, 2);
     const learnedTitle = uiText("runSummaryWhatLearned", "What you learned");
 
-    const panelW = Math.max(640, Math.min(920, WIDTH - 36));
-    const panelH = Math.max(420, Math.min(520, HEIGHT - 36));
+    const panelW = Math.max(280, Math.min(920, WIDTH - 24));
+    const panelH = Math.max(420, Math.min(520, HEIGHT - 30));
+    const isCompact = panelW < 650;
     const panelX = (WIDTH - panelW) * 0.5;
     const panelY = (HEIGHT - panelH) * 0.5;
-    const padX = 32;
+    const padX = isCompact ? 24 : 32;
+    const padY = isCompact ? 30 : 38;
     const contentW = panelW - padX * 2;
-    const cardH = 38;
+    const cardH = isCompact ? 36 : 38;
+
+    function drawResultBadge(x, y, text, isVictory) {
+      const label = String(typeof text === "string" ? text : "Run summary");
+      const badgeFont = isCompact ? '600 11px "Inter", sans-serif' : '600 12px "Inter", sans-serif';
+      const minW = isCompact ? 104 : 118;
+      const h = isCompact ? 20 : 22;
+
+      ctx.save();
+      ctx.font = badgeFont;
+      const measured = ctx.measureText(label);
+      const w = clamp(Math.ceil(measured.width) + (isCompact ? 16 : 18), minW, panelW - 24);
+      const x0 = Math.round(x - w * 0.5);
+      const y0 = y;
+
+      ctx.shadowColor = rgba(TOKENS.ink, 0.1);
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 1;
+      ctx.fillStyle = TOKENS.fog;
+      fillRoundRect(x0, y0, w, h, 999);
+      ctx.restore();
+
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 1.5;
+      strokeRoundRect(x0, y0, w, h, 999);
+
+      if (isVictory) {
+        ctx.fillStyle = rgba(accent, 0.24);
+        fillRoundRect(x0 + 10, y0 + Math.floor((h - 6) / 2), 6, 6, 999);
+      }
+
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = badgeFont;
+      ctx.fillText(label, x0 + (isVictory ? 24 : 16), y0 + h * 0.5);
+    }
+
+    function drawSummaryDivider(y, x, width) {
+      const dividerX = clamp(Math.floor(x), panelX + 12, panelX + panelW - 12);
+      const dividerW = clamp(Math.floor(width), 0, panelX + panelW - dividerX - 12);
+      if (dividerW <= 10) {
+        return;
+      }
+
+      const startX = dividerX;
+      const endX = dividerX + dividerW;
+      const markerY = Math.round(y);
+      const markerW = 4;
+      const markerH = 4;
+      const capY = markerY - 2;
+      const inset = isCompact ? 16 : 20;
+      const sideCapW = 12;
+
+      ctx.save();
+      ctx.strokeStyle = rgba(TOKENS.ink, 0.18);
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(startX, markerY);
+      ctx.lineTo(endX, markerY);
+      ctx.stroke();
+
+      ctx.fillStyle = TOKENS.fog;
+      fillRoundRect(startX, capY, markerW, markerH, 999);
+      fillRoundRect(endX - markerW, capY, markerW, markerH, 999);
+
+      if (dividerW >= 84) {
+        ctx.fillStyle = rgba(TOKENS.ink, 0.2);
+        fillRoundRect(startX + inset, markerY - 1.5, sideCapW, 3, 999);
+        fillRoundRect(endX - inset - sideCapW, markerY - 1.5, sideCapW, 3, 999);
+      }
+      ctx.restore();
+    }
+
+    function drawSummaryChrome() {
+      const frameInset = isCompact ? 10 : 12;
+      const frameRadius = isCompact ? 16 : 18;
+      const markLength = isCompact ? 12 : 14;
+      const markThickness = isCompact ? 2 : 2.2;
+
+      ctx.save();
+      ctx.strokeStyle = rgba(TOKENS.ink, 0.11);
+      ctx.lineWidth = 1.1;
+      strokeRoundRect(
+        panelX + frameInset,
+        panelY + frameInset,
+        panelW - frameInset * 2,
+        panelH - frameInset * 2,
+        frameRadius
+      );
+
+      ctx.fillStyle = rgba(TOKENS.ink, 0.16);
+      fillRoundRect(panelX + 12, panelY + 12, markLength, markThickness, markThickness);
+      fillRoundRect(panelX + 12, panelY + 12, markThickness, markLength, markThickness);
+
+      fillRoundRect(panelX + panelW - 12 - markLength, panelY + 12, markLength, markThickness, markThickness);
+      fillRoundRect(panelX + panelW - 12 - markThickness, panelY + 12, markThickness, markLength, markThickness);
+
+      fillRoundRect(panelX + 12, panelY + panelH - 12 - markThickness, markLength, markThickness, markThickness);
+      fillRoundRect(panelX + 12, panelY + panelH - 12 - markLength, markThickness, markLength, markThickness);
+      fillRoundRect(panelX + panelW - 12 - markLength, panelY + panelH - 12 - markThickness, markLength, markThickness, markThickness);
+      fillRoundRect(
+        panelX + panelW - 12 - markThickness,
+        panelY + panelH - 12 - markLength,
+        markThickness,
+        markLength,
+        markThickness
+      );
+      ctx.restore();
+    }
 
     function runSummaryBuildRows() {
       if (buildEntries.length === 0) {
         return [uiText("runSummaryNoUpgrades", "No upgrades collected.")];
       }
 
-      const visibleBuildRows = buildEntries.slice(0, 4);
+      const visibleBuildRows = buildEntries.slice(0);
       const rows = [];
       for (let i = 0; i < visibleBuildRows.length; i += 1) {
         const entry = visibleBuildRows[i];
@@ -6658,112 +6769,212 @@
         const stack = Number.isFinite(entry && entry.stack) ? entry.stack : 1;
         rows.push(`${i + 1}. ${name} x${stack}`);
       }
-
-      if (buildEntries.length > visibleBuildRows.length) {
-        rows.push(formatUiText("runSummaryMore", "+{count} more", { count: buildEntries.length - visibleBuildRows.length }));
-      }
       return rows;
     }
 
     function drawSummaryCard(x, y, w, h, heading, rows) {
+      ctx.save();
+      ctx.shadowColor = rgba(TOKENS.ink, 0.08);
+      ctx.shadowBlur = 7;
+      ctx.shadowOffsetY = 2;
       ctx.fillStyle = TOKENS.fog;
       fillRoundRect(x, y, w, h, 16);
       ctx.strokeStyle = TOKENS.ink;
       ctx.lineWidth = 2;
       strokeRoundRect(x, y, w, h, 16);
+      ctx.restore();
 
       const innerX = x + 14;
       const innerY = y + 12;
       const innerW = w - 28;
       const innerH = h - 24;
       const headingY = innerY + 2;
-      const firstRowY = innerY + 28;
-      const rowH = 21;
+      const firstRowY = innerY + 26;
+      const rowH = isCompact ? 18 : 19;
       const rowWidth = Math.max(140, innerW);
+      const headingCapW = Math.min(44, innerW);
+      const maxRows = Math.max(1, Math.floor((innerH - 40) / rowH));
+      const visibleCapacity = Math.max(0, maxRows - 1);
+      const hasOverflow = rows.length > maxRows;
+      const rowsToRender = rows.slice(0, hasOverflow ? visibleCapacity : maxRows);
+      if (hasOverflow) {
+        rowsToRender.push(
+          formatUiText("runSummaryMore", "+{count} more", { count: Math.max(1, rows.length - rowsToRender.length) })
+        );
+      }
 
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
-      ctx.font = '700 16px "Sora", "Inter", sans-serif';
+      ctx.font = '700 15px "Sora", "Inter", sans-serif';
       ctx.fillText(fitCanvasText(heading, rowWidth), innerX, headingY);
+      ctx.fillStyle = rgba(TOKENS.ink, 0.22);
+      fillRoundRect(innerX, headingY + 21, headingCapW, 2, 999);
+      ctx.fillStyle = TOKENS.ink;
 
-      withClipRect(innerX, firstRowY, innerW, Math.max(0, innerH - 34), () => {
-        let rowY = firstRowY;
-        for (let i = 0; i < rows.length; i += 1) {
-          rowY = drawWrappedText(rows[i], innerX, rowY, innerW, rowH, { maxLines: 2 });
+      ctx.font = '500 12px "Inter", sans-serif';
+      const bodyX = innerX + 1;
+      const markerX = bodyX + 1;
+      const markerW = 3;
+      const markerInset = 8;
+      for (let i = 0; i < rowsToRender.length; i += 1) {
+        const isSummaryMore = hasOverflow && i === rowsToRender.length - 1;
+        const rowValue = rowsToRender[i];
+        const hasExplicitMarker = rowValue.startsWith("•");
+        const isLeadRow = i === 0;
+        const isRunListRow = !isSummaryMore && !hasExplicitMarker;
+        const isOverflowRow = isSummaryMore;
+        const rowText = fitCanvasText(rowValue, innerW - 4 - (isRunListRow ? markerInset : 0));
+        const rowY = firstRowY + rowH * i;
+        if (rowY > innerY + innerH - rowH - 2) {
+          break;
         }
-      });
+        if (isOverflowRow) {
+          ctx.fillStyle = rgba(TOKENS.ink, 0.55);
+          ctx.font = '600 11px "Inter", sans-serif';
+        } else if (isLeadRow) {
+          ctx.fillStyle = TOKENS.ink;
+          ctx.font = '600 12px "Inter", sans-serif';
+        } else {
+          ctx.fillStyle = TOKENS.ink;
+          ctx.font = '500 12px "Inter", sans-serif';
+        }
+        if (isRunListRow) {
+          const markerSize = isLeadRow ? 4 : markerW;
+          const markerColor = isLeadRow ? rgba(TOKENS.ink, 0.35) : rgba(TOKENS.ink, 0.26);
+          ctx.fillStyle = markerColor;
+          fillRoundRect(markerX, rowY + Math.max(2, Math.floor(rowH * 0.47)), markerSize, markerSize, markerSize);
+          ctx.fillStyle = isSummaryMore ? rgba(TOKENS.ink, 0.55) : TOKENS.ink;
+        }
+        ctx.fillText(rowText, isRunListRow ? bodyX + markerInset : bodyX, rowY);
+      }
     }
 
-    ctx.fillStyle = TOKENS.white;
+    function drawStatChip(x, y, w, h, count, label) {
+      const chipText = String(Number.isFinite(count) ? count : 0);
+      const labelText = fitCanvasText(label, Math.max(40, w - 24));
+      const labelY = y + 6;
+      const valueY = y + (isCompact ? 22 : 24);
+      const valueFont = clamp(Math.floor(Math.min(28, w * 0.16)), isCompact ? 16 : 18, 30);
+
+      ctx.save();
+      ctx.shadowColor = rgba(TOKENS.ink, 0.08);
+      ctx.shadowBlur = 5;
+      ctx.shadowOffsetY = 1;
+      ctx.fillStyle = TOKENS.fog;
+      fillRoundRect(x, y, w, h, 999);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(x, y, w, h, 999);
+      ctx.restore();
+
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.font = `700 ${valueFont}px "Sora", "Inter", sans-serif`;
+      ctx.fillText(fitCanvasText(chipText, w - 28), x + 16, valueY);
+      ctx.font = isCompact ? '600 11px "Inter", sans-serif' : '600 12px "Inter", sans-serif';
+      ctx.fillText(labelText, x + 16, labelY);
+    }
+
+    ctx.save();
+    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
+    panelGradient.addColorStop(0, TOKENS.white);
+    panelGradient.addColorStop(0.48, rgba(TOKENS.white, 0.98));
+    panelGradient.addColorStop(1, rgba(TOKENS.fog, 0.95));
+    ctx.shadowColor = rgba(TOKENS.ink, 0.16);
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 3;
+    ctx.fillStyle = panelGradient;
     fillRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.restore();
+    ctx.save();
+    const panelSheen = ctx.createLinearGradient(panelX + 8, panelY + 8, panelX + 8, panelY + panelH - 12);
+    panelSheen.addColorStop(0, rgba(TOKENS.white, 0.26));
+    panelSheen.addColorStop(0.55, rgba(TOKENS.white, 0.07));
+    panelSheen.addColorStop(0.9, rgba(TOKENS.ink, 0.03));
+    ctx.fillStyle = panelSheen;
+    fillRoundRect(panelX + 6, panelY + 6, panelW - 12, panelH - 12, 18);
+    ctx.restore();
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     strokeRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.save();
+    ctx.fillStyle = rgba(TOKENS.ink, 0.03);
+    fillRoundRect(panelX + 3, panelY + 3, panelW - 6, panelH * 0.42, 20);
+    const panelRim = ctx.createLinearGradient(panelX + panelW * 0.5, panelY, panelX + panelW * 0.5, panelY + panelH);
+    panelRim.addColorStop(0, rgba(TOKENS.white, 0.16));
+    panelRim.addColorStop(0.5, rgba(TOKENS.ink, 0.0));
+    panelRim.addColorStop(1, rgba(TOKENS.ink, 0.11));
+    ctx.strokeStyle = panelRim;
+    ctx.lineWidth = 1;
+    strokeRoundRect(panelX + 0.5, panelY + 0.5, panelW - 1, panelH - 1, 21.5);
+    ctx.restore();
+    ctx.strokeStyle = rgba(accent, 0.2);
+    ctx.lineWidth = 1;
+    strokeRoundRect(panelX + 1, panelY + 1, panelW - 2, panelH - 2, 21);
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.6);
+    fillRoundRect(panelX + 14, panelY + panelH - 16, panelW - 28, 2, 999);
+
+    ctx.fillStyle = rgba(TOKENS.fog, 0.9);
+    fillRoundRect(panelX + 10, panelY + panelH - 10, panelW - 20, 4, 999);
+
+    const railHeight = isCompact ? 4 : 5;
+    const railY = panelY + 28;
     ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(panelX + 20, panelY + 20, Math.min(110, panelW - 44), 10, 999);
+    fillRoundRect(panelX + 20, railY, panelW - 40, railHeight, 999);
+    ctx.fillStyle = rgba(accent, 0.28);
+    fillRoundRect(panelX + 20, railY + (isCompact ? 1 : 0.5), Math.max(72, Math.floor(panelW * 0.12)), railHeight / (isCompact ? 2.1 : 1.6), 999);
+    drawSummaryChrome();
+
+    drawResultBadge(panelX + panelW * 0.5, panelY + 10, isVictory ? uiText("runSummaryResultBadge", "VICTORY") : uiText("runSummaryResultBadge", "RUN COMPLETE"), isVictory);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
     const titleFont = fitHeadingFontSize(title, contentW, 40, 30, 2);
     ctx.font = `700 ${titleFont}px "Sora", "Inter", sans-serif`;
-    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + 36, contentW, Math.round(titleFont * 1.13), {
+    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + padY + 8, contentW, Math.round(titleFont * 1.13), {
       maxLines: 2
     });
 
     ctx.font = '500 20px "Inter", sans-serif';
     const bodyBottom = drawWrappedText(body, WIDTH * 0.5, titleBottom + 8, contentW, 28, { maxLines: 2 });
 
-    const chipY = Math.max(panelY + 142, bodyBottom + 10);
-    const chipGap = 12;
+    const dividerY = Math.min(panelY + panelH - 120, bodyBottom + 16);
+    drawSummaryDivider(dividerY, panelX + padX, contentW);
+
+    const chipY = Math.max(panelY + 142, dividerY + 10);
+    const chipGap = isCompact ? 10 : 12;
     const chipW = Math.floor((contentW - chipGap) / 2);
     const chipX = panelX + padX;
     const summaryCardsTop = chipY + cardH + 20;
 
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(chipX, chipY, chipW, cardH, 999);
-    fillRoundRect(chipX + chipW + chipGap, chipY, chipW, cardH, 999);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(chipX, chipY, chipW, cardH, 999);
-    strokeRoundRect(chipX + chipW + chipGap, chipY, chipW, cardH, 999);
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.textAlign = "left";
-    ctx.font = '700 16px "Inter", sans-serif';
-    ctx.fillText(
-      fitCanvasText(
-        formatUiText("runSummaryFloorsCleared", "Floors cleared: {count}", {
-          count: floorsCleared
-        }),
-        chipW - 24
-      ),
-      chipX + 16,
-      chipY + 10
-    );
-    ctx.fillText(
-      fitCanvasText(
-        formatUiText("runSummaryUpgradesTaken", "Upgrades taken: {count}", {
-          count: totalTaken
-        }),
-        chipW - 24
-      ),
-      chipX + chipW + chipGap + 16,
-      chipY + 10
+    drawStatChip(chipX, chipY, chipW, cardH, floorsCleared, uiText("runSummaryFloorsCleared", "Floors cleared"));
+    drawStatChip(
+      chipX + chipW + chipGap,
+      chipY,
+      chipW,
+      cardH,
+      totalTaken,
+      uiText("runSummaryUpgradesTaken", "Upgrades taken")
     );
 
     const cardsY = summaryCardsTop;
     const cardsH = panelY + panelH - cardsY - 46;
     const useTwoCol = contentW >= 640;
-    const cardGap = 12;
+    const cardGap = isCompact ? 10 : 12;
     const buildRows = runSummaryBuildRows();
-    const learnRows = [
-      ...learnedBullets.map((item) => `• ${item}`),
-      threatRows.length > 0
-        ? `${uiText("runSummaryThreatGlossary", "Threat glossary")}: ${threatRows.join(", ")}`
-        : uiText("runSummaryThreatGlossaryUnavailable", "Threat glossary unavailable.")
-    ];
+    const learnRows = [...learnedBullets.map((item) => `• ${item}`)];
+    if (threatRows.length > 0) {
+      learnRows.push(uiText("runSummaryThreatGlossary", "Threat glossary"));
+      for (let i = 0; i < threatRows.length; i += 1) {
+        learnRows.push(`• ${threatRows[i]}`);
+      }
+    } else {
+      learnRows.push(uiText("runSummaryThreatGlossaryUnavailable", "Threat glossary unavailable."));
+    }
 
     if (useTwoCol) {
       const sectionW = Math.floor((contentW - cardGap) / 2);
@@ -6781,10 +6992,108 @@
       drawSummaryCard(learnX, learnY, sectionW, cardsH - summaryH - cardGap, learnedTitle, learnRows);
     }
 
+    drawSummaryDivider(panelY + panelH - 66, panelX + (isCompact ? 26 : 32), panelW - (isCompact ? 52 : 64));
+
     ctx.textAlign = "center";
-    ctx.font = '700 16px "Inter", sans-serif';
+    const footerButtonW = Math.min(248, panelW - 120);
+    const footerButtonH = 34;
+    const footerButtonX = panelX + Math.max(16, (panelW - footerButtonW) / 2);
+    const footerButtonY = panelY + panelH - 42;
+    const footerFill = TOKENS.fog;
+    const footerInnerPad = isCompact ? 14 : 16;
+    const keyPillW = isCompact ? 18 : 20;
+    const footerFont = isCompact ? '700 13px "Inter", sans-serif' : '700 14px "Inter", sans-serif';
+    const keyPillFont = isCompact ? '600 11px "Inter", sans-serif' : '600 12px "Inter", sans-serif';
+    ctx.font = footerFont;
+    const footerText = fitCanvasText(footer, footerButtonW - 24 - (keyPillW + footerInnerPad + 4));
+    const footerTextW = ctx.measureText(footerText).width;
+    const footerContentW = keyPillW + footerInnerPad + footerTextW;
+    const contentStartX = clamp(Math.round(footerButtonX + (footerButtonW - footerContentW) * 0.5), footerButtonX + 10, footerButtonX + Math.max(10, footerButtonW - footerContentW - 10));
+    const keyPillX = contentStartX;
+    const keyPillY = Math.round(footerButtonY + footerButtonH * 0.5 - 7.5);
+    const footerTextX = keyPillX + keyPillW + footerInnerPad;
+    const footerTextDividerX = keyPillX + keyPillW + Math.round(Math.max(4, footerInnerPad * 0.6));
+    const footerBase = rgba(TOKENS.white, 0.98);
+    const footerDepth = rgba(TOKENS.fog, 0.94);
+    const footerGradient = ctx.createLinearGradient(footerButtonX, footerButtonY, footerButtonX, footerButtonY + footerButtonH);
+    footerGradient.addColorStop(0, footerBase);
+    footerGradient.addColorStop(0.4, footerBase);
+    footerGradient.addColorStop(1, footerDepth);
+
+    ctx.save();
+    ctx.fillStyle = rgba(TOKENS.ink, 0.02);
+    fillRoundRect(footerButtonX + 0.7, footerButtonY + 0.7, footerButtonW - 1.4, footerButtonH * 0.65, 999);
+    ctx.shadowColor = rgba(TOKENS.ink, 0.12);
+    ctx.shadowBlur = 8;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = footerFill;
+    fillRoundRect(footerButtonX - 1, footerButtonY - 1, footerButtonW + 2, footerButtonH + 2, 999);
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = footerGradient;
+    fillRoundRect(footerButtonX, footerButtonY, footerButtonW, footerButtonH, 999);
+    ctx.restore();
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(footerButtonX + 2, footerButtonY + 2, footerButtonW - 4, footerButtonH * 0.18, 999);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.03);
+    fillRoundRect(footerButtonX + 2, footerButtonY + footerButtonH - 5, footerButtonW - 4, 2.4, 999);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.07);
+    fillRoundRect(footerButtonX + 2, footerButtonY + 2, footerButtonW - 4, 1.8, 999);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.05);
+    fillRoundRect(footerButtonX + 2, footerButtonY + footerButtonH - 1.3, footerButtonW - 4, 1.2, 999);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.06);
+    ctx.fillRect(footerButtonX + 2, footerButtonY + 2, footerButtonW - 4, footerButtonH * 0.22);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(footerButtonX, footerButtonY, footerButtonW, footerButtonH, 999);
+    ctx.strokeStyle = rgba(accent, 0.18);
+    ctx.lineWidth = 1;
+    strokeRoundRect(footerButtonX + 1.2, footerButtonY + 1.2, footerButtonW - 2.4, footerButtonH - 2.4, 998);
+    ctx.beginPath();
+    ctx.strokeStyle = rgba(TOKENS.white, 0.4);
+    ctx.lineWidth = 1;
+    ctx.setLineDash([2.5, 3]);
+    ctx.lineDashOffset = 1.2;
+    ctx.beginPath();
+    ctx.arc(footerButtonX + footerButtonW - 12, footerButtonY + footerButtonH * 0.5, 2.8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.08);
+    fillRoundRect(footerTextDividerX, keyPillY + 1.8, 1, 11.4, 999);
+
+    ctx.save();
+    const keyPillGradient = ctx.createLinearGradient(keyPillX, keyPillY, keyPillX, keyPillY + 15);
+    keyPillGradient.addColorStop(0, TOKENS.white);
+    keyPillGradient.addColorStop(0.5, rgba(TOKENS.white, 0.93));
+    keyPillGradient.addColorStop(1, rgba(TOKENS.fog, 0.78));
+    ctx.shadowColor = rgba(TOKENS.ink, 0.18);
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = keyPillGradient;
+    fillRoundRect(keyPillX, keyPillY, keyPillW, 15, 4);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 1.1;
+    strokeRoundRect(keyPillX, keyPillY, keyPillW, 15, 4);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.12);
+    fillRoundRect(keyPillX + 1, keyPillY + 1, keyPillW - 2, 2, 4);
+    ctx.fillStyle = rgba(accent, 0.34);
+    fillRoundRect(keyPillX + 1, keyPillY + 12, keyPillW - 2, 1.8, 4);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.1);
+    fillRoundRect(keyPillX + 2, keyPillY + 3, keyPillW - 4, 1.2, 4);
+    ctx.font = keyPillFont;
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(footer, WIDTH * 0.5, panelY + panelH - 28);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("R", keyPillX + keyPillW * 0.5, Math.round(keyPillY + 7.5));
+    ctx.restore();
+
+    ctx.font = footerFont;
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(footerText, footerTextX, footerButtonY + footerButtonH * 0.5);
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
   }

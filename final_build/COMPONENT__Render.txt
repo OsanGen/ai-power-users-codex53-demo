@@ -148,3 +148,73 @@ Acceptance Checks:
 - Run summary screen (GAME_OVER/VICTORY) is now concise and proof-first:
   - Uses compact stat chips, split-card summary blocks, and reduced line count.
   - Keeps `runSummary` actions and restart path unchanged (`Press R to restart`) and does not modify `DEATH_LESSON` composition.
+  - Added second-pass polish:
+    - Gradient summary lead strip for visual emphasis.
+    - Shared stat-chip renderer with number-first hierarchy.
+    - Threat glossary entries broken into short bullet lines for improved readability.
+    - Restart action now rendered as a pill-styled CTA for clearer action affordance.
+  - Added third-pass polish:
+    - `runSummaryOverlay` now uses responsive panel width/spacing so narrow viewports stay inside the canvas.
+    - Compact mode reduces type and spacing for smaller screens while preserving hierarchy.
+    - Card and chip rendering now includes subtle shadow treatment to improve visual depth without changing data or actions.
+  - Added fourth-pass polish:
+    - Added a centered result badge ("VICTORY" or "RUN COMPLETE") above the summary title to instantly communicate outcome.
+    - Added soft panel chrome (drop shadow, bottom rail, and accent top accent strip consistency tweaks) for elevated visual hierarchy.
+    - Title/body anchors now use compact-aware vertical rhythm to reduce crowding and maintain balance across viewport sizes.
+  - Added fifth-pass polish:
+    - Added subtle horizontal section dividers in the summary panel to separate title/body, core stats, and action CTA.
+    - Improved vertical rhythm by anchoring chips below a readable divider point and preserving compact-mode spacing.
+    - Divider strokes are intentionally low-opacity ink and fog-dot accents for OSAN-style restrained visual cadence.
+  - Added sixth-pass polish:
+    - Added restrained chrome framing (inner contour and corner accents) around the run-summary overlay for stronger panel hierarchy.
+    - Kept frame treatment subtle (low-opacity ink/fog) and consistent with existing palette constraints.
+    - No text/actions were changed; only rendering hierarchy and spatial framing were adjusted.
+  - Added seventh-pass polish:
+    - Replaced the run-summary accent strip with restrained flat OSAN-style rails (low-coverage lead accent, fog support rail) to reduce gradient-heavy appearance.
+    - Tightened heading cap rhythm and added micro heading cap lines in cards for improved proof-first reading order.
+    - Refined stat chip typography and spacing to keep values legible and reduce perceived clutter while preserving all copy and behavior.
+  - Added eighth-pass polish:
+    - Reduced run-summary card paragraph density by rendering each row as a compact single-line clipped row (with row budget control) to avoid wall-of-text behavior.
+    - Kept content/actions unchanged (`Press R to restart`, same copy keys) and preserved all summary semantics.
+  - Added ninth-pass polish:
+    - Added explicit overflow handling in summary cards so row-dense sections always show a capped `+N more` indicator instead of silently clipping long text.
+    - Preserved exact copy keys and gameplay flow while improving density feedback in compact card blocks.
+  - Added tenth-pass polish:
+    - Improved summary-card overflow readability by reserving a dedicated overflow row, applying muted visual treatment to the `+N more` indicator, and keeping row budgeting stable across compact and large layouts.
+    - Run-summary content/actions remain unchanged; no interaction/state semantics were touched.
+  - Added eleventh-pass polish:
+    - Reworked run-build row sourcing so summary cards use the full upgrade list and apply a single centralized overflow path in-card, avoiding stale/capped intermediary `+N more` counts.
+    - `+N more` now always reflects true hidden-row count for compact cards, while leaving all copy keys, actions, and transitions unchanged.
+  - Added twelfth-pass polish:
+    - Added subtle list-scannability markers and per-row type styling in summary cards (regular row marker, muted overflow row treatment, and consistent line spacing) for denser content readability.
+    - No game logic, restart flow, or overlay copy changed; only visual hierarchy in compact and normal layouts was adjusted.
+  - Added thirteenth-pass polish:
+    - Improved scan hierarchy by emphasizing the first visible summary card row (slightly stronger weight) while maintaining compact budgets.
+    - Restored marker coverage for both numeric and plain rows, keeping bullets untouched and preserving `+N more` overflow behavior.
+    - No overlay copy/actions or gameplay transitions were modified.
+  - Added fourteenth-pass polish:
+    - Added first-row anchor markers in summary cards with a slightly larger, stronger row marker for the top row to guide the eye in dense blocks.
+    - Overflow and row-capping behavior were preserved, including existing muted `+N more` treatment.
+    - No gameplay/state behavior or run-summary actions were changed.
+  - Added fifteenth-pass polish:
+    - Upgraded the run-summary restart CTA with a compact key-pill indicator (`R`) and subtle top-highlight rail to strengthen action affordance without changing button copy or restart semantics.
+    - Kept behavior intact (`Press R to restart`) and preserved OSAN restraint by keeping the enhancement low-contrast and frame-coherent.
+  - Added sixteenth-pass polish:
+    - Finalized CTA readability pass by adding a low-profile footer focus rail and increasing key-pill contrast/readability with a soft inset highlight while preserving copy/interaction.
+    - No text/actions/state changes; only visual affordance of the restart pill was adjusted.
+  - Added seventeenth-pass polish:
+    - Centered the restart CTA composite (key-chip + label) within the button for cleaner visual balance, while keeping exact `Press R to restart` behavior intact.
+    - Kept spacing deterministic and compact-friendly by stabilizing chip/text geometry based on computed content width.
+  - Added eighteenth-pass polish:
+    - Added restrained glass-panel depth to the run-summary surface via a soft vertical gradient and accent hairline frame.
+    - Upgraded the restart CTA skin with an extra subtle border depth pass and button gradient/highlight layers for OSAN-grade affordance polish.
+    - Kept `Press R to restart` text, layout, and restart flow unchanged.
+  - Added nineteenth-pass polish:
+    - Refined the restart CTA micro-chrome by converting the key-pill to a gradient-lit token, adding an inner accent stroke, and adding a subtle divider spine before the action label.
+    - Kept the same button copy, positioning, and interaction path unchanged.
+  - Added twentieth-pass polish:
+    - Added ambient panel veiling (subtle upper wash and vertically faded rim stroke) to increase depth on the run-summary surface without changing overlay semantics.
+    - Added micro-highlight layers to the restart CTA body and key-pill shadow depth for a cleaner premium affordance under the existing copy/flow.
+  - Added twenty-first-pass polish:
+    - Added a cleaner panel sheen wash and CTA micro-focus detail (subtle sheen stripe + terminal accent mark) for improved legibility contrast.
+    - Kept `Press R to restart` copy/action and all gameplay transitions unchanged.
