@@ -140,7 +140,11 @@ Acceptance Checks:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
   - `AIPU.render.renderGameToText()` now also exposes `debug.audio` (when `AIPU.audio` is present) so floor music state can be validated from automation snapshots.
   - `AIPU.render.renderGameToText()` now also exposes `debug.playerSprite` mode/hold/facing internals for deterministic sprite routing and transition debugging.
+  - `buildRenderGameTextState()` uses `GameState.PLAYING` in state checks to keep deterministic snapshots stable in PLAYING without reference errors.
   - `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
 - Sprite cache busting for character art is now `v=20260222-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
 - Script cache-bust alignment and player-cache keys are now expected at `v=20260222-6` for this stability patch.
 - Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.
+- Run summary screen (GAME_OVER/VICTORY) is now concise and proof-first:
+  - Uses compact stat chips, split-card summary blocks, and reduced line count.
+  - Keeps `runSummary` actions and restart path unchanged (`Press R to restart`) and does not modify `DEATH_LESSON` composition.

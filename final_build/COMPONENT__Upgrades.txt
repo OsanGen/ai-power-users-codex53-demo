@@ -1,0 +1,62 @@
+Upgrades Component
+
+Purpose:
+- Owns upgrade definitions, stack progression, and derived player combat/state stats.
+- Calculates deterministic upgrades effect application during level progression.
+- Exposes upgrade offer generation and run telemetry for UI/debug hooks.
+
+Inputs:
+- `AIPU.constants` for base stat and gameplay tuning constants.
+- `AIPU.state` for shared `game` and `player` mutable state.
+- `AIPU.utils` (`clamp`, `randomFrom`, `shuffleArray`) for helper behavior.
+- `AIPU.content.N` for optional upgrade rename overrides.
+- `AIPU.systems.currentFloor()` for contextual floor metadata in upgrade history entries.
+
+Outputs / API:
+- `AIPU.upgrades`
+  - Catalog: `UPGRADE_DEFS`, `FALLBACK_UPGRADE_DEFS`.
+  - State: `upgradeState` (`stacks`, `history`, `lastTakenSerial`, `serial`).
+  - Core operations:
+    - `rollUpgradeOptions(_floorIndex, count = 3)`
+    - `applyUpgradeChoice(option)`
+    - `applyUpgrade(id)`
+    - `applyFallbackUpgrade(option)`
+    - `resetUpgradeRun()`
+    - `getUpgradeDef(id)` / `getFallbackDef(id)`
+    - `canTakeUpgrade(id)` / `getStack(id)`
+    - `getCollectedUpgradeEntries()` / `getUpgradeHudRows()`
+    - `getRunBuildEntries()`
+    - `getFloorsClearedCount()`
+  - Derived stat queries:
+    - `computeDerivedStats()`
+    - `getPlayerSpeed()`
+    - `getFireCooldown()`
+    - `getBulletRadius()`
+    - `getBulletSpeed()`
+    - `getBulletPierce()`
+    - `getPlayerMaxHP()`
+    - `getShieldChargesPerFloor()`
+    - `getInvulnDuration()`
+    - `getPickupMagnetRadius()`
+    - `getEnemyBulletSpeedMultiplier()`
+    - `syncPlayerMaxHP(healToFull)`
+
+State / Edges:
+- Upgrade stacks are bounded by each definition's `maxStacks`.
+- `heart_container` applies immediate heal through `apply` callback and increments max HP bonus through modifiers.
+- `fallback` offers (`fallback_heal`, `fallback_gold`) are injected only when regular options are exhausted.
+- `floor` context for logs uses current floor id when available, with fallback to `game.currentFloorIndex + 1`.
+- `buildFallbackOffer` avoids duplicate ids by suffixing fallback offers with stable deterministic suffixes.
+
+Dependency:
+- `AIPU.state` and `AIPU.systems` (run history context) for option/state accounting.
+- `AIPU.systems` consumes computed stats through APIs for combat/math derivation.
+- `AIPU.content.N` optionally renames upgrade names/description text.
+
+Acceptance checks:
+- `rollUpgradeOptions` must produce `count` offers when eligible/fallback pools have sufficient entries and never exceed pool boundaries.
+- `applyUpgrade` must reject unavailable ids and over-max stacks.
+- `applyFallbackUpgrade` must return valid effect text and not alter unrelated run counters.
+- `computeDerivedStats` and callers must stay deterministic for identical stack state.
+- `getPlayerMaxHP` + `syncPlayerMaxHP` should keep `player.maxHearts` and `player.hearts` coherent after upgrades.
+- `resetUpgradeRun` should fully reset stack/history/serial state between runs.

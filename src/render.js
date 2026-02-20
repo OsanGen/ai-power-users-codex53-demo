@@ -2770,7 +2770,7 @@
     ctx.lineWidth = 3;
     strokeRoundRect(panelX, panelY, panelW, panelH, 22);
 
-    ctx.fillStyle = rgba(accent, 0.22);
+    ctx.fillStyle = TOKENS.fog;
     fillRoundRect(panelX + 26, panelY + 26, panelW - 52, 10, 999);
 
     const floorCopy = getNarrativeFloorCopy(floor);
@@ -6631,148 +6631,162 @@
     const learnedBullets = (typeof getWhatYouLearnedBullets === "function" ? getWhatYouLearnedBullets() : [])
       .filter((line) => typeof line === "string" && line.trim())
       .slice(0, 3);
+    const threatRows = (typeof getThreatGlossaryRows === "function" ? getThreatGlossaryRows(2, true) : [])
+      .filter((line) => typeof line === "string" && line.trim())
+      .slice(0, 2);
+    const learnedTitle = uiText("runSummaryWhatLearned", "What you learned");
 
-    const panelW = 920;
-    const panelH = 460;
+    const panelW = Math.max(640, Math.min(920, WIDTH - 36));
+    const panelH = Math.max(420, Math.min(520, HEIGHT - 36));
     const panelX = (WIDTH - panelW) * 0.5;
     const panelY = (HEIGHT - panelH) * 0.5;
+    const padX = 32;
+    const contentW = panelW - padX * 2;
+    const cardH = 38;
 
-    ctx.fillStyle = rgba(TOKENS.white, 0.96);
-    fillRoundRect(panelX, panelY, panelW, panelH, 20);
+    function runSummaryBuildRows() {
+      if (buildEntries.length === 0) {
+        return [uiText("runSummaryNoUpgrades", "No upgrades collected.")];
+      }
+
+      const visibleBuildRows = buildEntries.slice(0, 4);
+      const rows = [];
+      for (let i = 0; i < visibleBuildRows.length; i += 1) {
+        const entry = visibleBuildRows[i];
+        const name =
+          entry && entry.def && typeof entry.def.name === "string" && entry.def.name.trim() ? entry.def.name.trim() : "Upgrade";
+        const stack = Number.isFinite(entry && entry.stack) ? entry.stack : 1;
+        rows.push(`${i + 1}. ${name} x${stack}`);
+      }
+
+      if (buildEntries.length > visibleBuildRows.length) {
+        rows.push(formatUiText("runSummaryMore", "+{count} more", { count: buildEntries.length - visibleBuildRows.length }));
+      }
+      return rows;
+    }
+
+    function drawSummaryCard(x, y, w, h, heading, rows) {
+      ctx.fillStyle = TOKENS.fog;
+      fillRoundRect(x, y, w, h, 16);
+      ctx.strokeStyle = TOKENS.ink;
+      ctx.lineWidth = 2;
+      strokeRoundRect(x, y, w, h, 16);
+
+      const innerX = x + 14;
+      const innerY = y + 12;
+      const innerW = w - 28;
+      const innerH = h - 24;
+      const headingY = innerY + 2;
+      const firstRowY = innerY + 28;
+      const rowH = 21;
+      const rowWidth = Math.max(140, innerW);
+
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "top";
+      ctx.font = '700 16px "Sora", "Inter", sans-serif';
+      ctx.fillText(fitCanvasText(heading, rowWidth), innerX, headingY);
+
+      withClipRect(innerX, firstRowY, innerW, Math.max(0, innerH - 34), () => {
+        let rowY = firstRowY;
+        for (let i = 0; i < rows.length; i += 1) {
+          rowY = drawWrappedText(rows[i], innerX, rowY, innerW, rowH, { maxLines: 2 });
+        }
+      });
+    }
+
+    ctx.fillStyle = TOKENS.white;
+    fillRoundRect(panelX, panelY, panelW, panelH, 22);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 20);
-
-    ctx.fillStyle = rgba(accent, 0.22);
-    fillRoundRect(panelX + 20, panelY + 20, panelW - 40, 10, 999);
+    strokeRoundRect(panelX, panelY, panelW, panelH, 22);
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(panelX + 20, panelY + 20, Math.min(110, panelW - 44), 10, 999);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "top";
-    const titleFont = fitHeadingFontSize(title, panelW - 100, 36, 28, 2);
+    const titleFont = fitHeadingFontSize(title, contentW, 40, 30, 2);
     ctx.font = `700 ${titleFont}px "Sora", "Inter", sans-serif`;
-    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + 44, panelW - 100, Math.round(titleFont * 1.14), {
+    const titleBottom = drawWrappedText(title, WIDTH * 0.5, panelY + 36, contentW, Math.round(titleFont * 1.13), {
       maxLines: 2
     });
 
     ctx.font = '500 20px "Inter", sans-serif';
-    const bodyBottom = drawWrappedText(body, WIDTH * 0.5, titleBottom + 10, panelW - 70, 30, { maxLines: 2 });
-    ctx.textAlign = "left";
+    const bodyBottom = drawWrappedText(body, WIDTH * 0.5, titleBottom + 8, contentW, 28, { maxLines: 2 });
 
-    const pillY = Math.max(panelY + 142, bodyBottom + 10);
-    const pillW = 212;
-    const pillH = 40;
+    const chipY = Math.max(panelY + 142, bodyBottom + 10);
+    const chipGap = 12;
+    const chipW = Math.floor((contentW - chipGap) / 2);
+    const chipX = panelX + padX;
+    const summaryCardsTop = chipY + cardH + 20;
 
-    ctx.fillStyle = rgba(accent, 0.18);
-    fillRoundRect(panelX + 48, pillY, pillW, pillH, 999);
-    fillRoundRect(panelX + 286, pillY, pillW, pillH, 999);
+    ctx.fillStyle = TOKENS.fog;
+    fillRoundRect(chipX, chipY, chipW, cardH, 999);
+    fillRoundRect(chipX + chipW + chipGap, chipY, chipW, cardH, 999);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
-    strokeRoundRect(panelX + 48, pillY, pillW, pillH, 999);
-    strokeRoundRect(panelX + 286, pillY, pillW, pillH, 999);
+    strokeRoundRect(chipX, chipY, chipW, cardH, 999);
+    strokeRoundRect(chipX + chipW + chipGap, chipY, chipW, cardH, 999);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 17px "Inter", sans-serif';
+    ctx.textAlign = "left";
+    ctx.font = '700 16px "Inter", sans-serif';
     ctx.fillText(
-      fitCanvasText(formatUiText("runSummaryFloorsCleared", "Floors cleared: {count}", { count: floorsCleared }), pillW - 12),
-      panelX + 68,
-      pillY + 11
+      fitCanvasText(
+        formatUiText("runSummaryFloorsCleared", "Floors cleared: {count}", {
+          count: floorsCleared
+        }),
+        chipW - 24
+      ),
+      chipX + 16,
+      chipY + 10
     );
     ctx.fillText(
-      fitCanvasText(formatUiText("runSummaryUpgradesTaken", "Upgrades taken: {count}", { count: totalTaken }), pillW - 12),
-      panelX + 305,
-      pillY + 11
+      fitCanvasText(
+        formatUiText("runSummaryUpgradesTaken", "Upgrades taken: {count}", {
+          count: totalTaken
+        }),
+        chipW - 24
+      ),
+      chipX + chipW + chipGap + 16,
+      chipY + 10
     );
 
-    const learnedX = panelX + 48;
-    const learnedY = pillY + 54;
-    const learnedW = panelW - 96;
-    const learnedH = 90;
+    const cardsY = summaryCardsTop;
+    const cardsH = panelY + panelH - cardsY - 46;
+    const useTwoCol = contentW >= 640;
+    const cardGap = 12;
+    const buildRows = runSummaryBuildRows();
+    const learnRows = [
+      ...learnedBullets.map((item) => `• ${item}`),
+      threatRows.length > 0
+        ? `${uiText("runSummaryThreatGlossary", "Threat glossary")}: ${threatRows.join(", ")}`
+        : uiText("runSummaryThreatGlossaryUnavailable", "Threat glossary unavailable.")
+    ];
 
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(learnedX, learnedY, learnedW, learnedH, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(learnedX, learnedY, learnedW, learnedH, 14);
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 18px "Sora", "Inter", sans-serif';
-    ctx.fillText(uiText("runSummaryWhatLearned", "What you learned"), learnedX + 14, learnedY + 10);
-    ctx.font = '600 14px "Inter", sans-serif';
-    for (let i = 0; i < learnedBullets.length; i += 1) {
-      const y = learnedY + 38 + i * 16;
-      ctx.fillText(`• ${fitCanvasText(learnedBullets[i], learnedW - 30)}`, learnedX + 16, y);
+    if (useTwoCol) {
+      const sectionW = Math.floor((contentW - cardGap) / 2);
+      const runBuildX = panelX + padX;
+      const learnX = runBuildX + sectionW + cardGap;
+      drawSummaryCard(runBuildX, cardsY, sectionW, cardsH, uiText("runSummaryRunBuild", "Run build"), buildRows);
+      drawSummaryCard(learnX, cardsY, sectionW, cardsH, learnedTitle, learnRows);
+    } else {
+      const sectionW = contentW;
+      const summaryH = Math.floor(cardsH / 2) - cardGap * 0.5;
+      const runBuildX = panelX + padX;
+      const learnX = runBuildX;
+      const learnY = cardsY + summaryH + cardGap;
+      drawSummaryCard(runBuildX, cardsY, sectionW, summaryH, uiText("runSummaryRunBuild", "Run build"), buildRows);
+      drawSummaryCard(learnX, learnY, sectionW, cardsH - summaryH - cardGap, learnedTitle, learnRows);
     }
-
-    const listX = panelX + 48;
-    const listY = learnedY + learnedH + 12;
-    const listW = panelW - 96;
-    const listBottom = panelY + panelH - 52;
-    const listH = Math.max(80, listBottom - listY);
-
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(listX, listY, listW, listH, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(listX, listY, listW, listH, 14);
-
-    withClipRect(listX + 2, listY + 2, listW - 4, listH - 4, () => {
-      const sectionGap = 24;
-      const sectionW = Math.floor((listW - 32 - sectionGap) / 2);
-      const runSectionX = listX + 16;
-      const glossarySectionX = runSectionX + sectionW + sectionGap;
-      const contentTop = listY + 12;
-      const rowsTop = listY + 50;
-      const rowH = 24;
-      const maxRows = Math.max(1, Math.floor((listH - 56) / rowH));
-      const namesOnlyGlossary = sectionW < 290;
-      const glossaryRows = getThreatGlossaryRows(6, namesOnlyGlossary).slice(0, 4);
-
-      ctx.fillStyle = TOKENS.ink;
-      ctx.font = '700 20px "Sora", "Inter", sans-serif';
-      ctx.fillText(fitCanvasText(uiText("runSummaryRunBuild", "Run build"), sectionW), runSectionX, contentTop);
-      ctx.fillText(
-        fitCanvasText(uiText("runSummaryThreatGlossary", "Threat glossary"), sectionW),
-        glossarySectionX,
-        contentTop
-      );
-
-      ctx.font = '600 15px "Inter", sans-serif';
-      if (buildEntries.length === 0) {
-        ctx.fillText(uiText("runSummaryNoUpgrades", "No upgrades collected."), runSectionX, rowsTop);
-      } else {
-        const visibleBuildRows = Math.min(buildEntries.length, maxRows);
-        for (let i = 0; i < visibleBuildRows; i += 1) {
-          const entry = buildEntries[i];
-          const label = `${i + 1}. ${entry.def.name} x${entry.stack}`;
-          ctx.fillText(fitCanvasText(label, sectionW), runSectionX, rowsTop + i * rowH);
-        }
-
-        if (buildEntries.length > visibleBuildRows) {
-          const remaining = buildEntries.length - visibleBuildRows;
-          const overflowY = rowsTop + (visibleBuildRows - 1) * rowH;
-          ctx.fillText(formatUiText("runSummaryMore", "+{count} more", { count: remaining }), runSectionX, overflowY);
-        }
-      }
-
-      if (glossaryRows.length === 0) {
-        ctx.fillText(
-          uiText("runSummaryThreatGlossaryUnavailable", "Threat glossary unavailable."),
-          glossarySectionX,
-          rowsTop
-        );
-      } else {
-        const visibleGlossaryRows = Math.min(glossaryRows.length, maxRows);
-        for (let i = 0; i < visibleGlossaryRows; i += 1) {
-          ctx.fillText(fitCanvasText(glossaryRows[i], sectionW), glossarySectionX, rowsTop + i * rowH);
-        }
-      }
-    });
 
     ctx.textAlign = "center";
     ctx.font = '700 16px "Inter", sans-serif';
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(footer, WIDTH * 0.5, panelY + panelH - 36);
-
+    ctx.fillText(footer, WIDTH * 0.5, panelY + panelH - 28);
     ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
   }
 
   function drawHeartIcon(x, y, type, accent, fillRatio) {
@@ -7162,7 +7176,7 @@
     const safeBullets = Array.isArray(collections.bullets) ? collections.bullets : [];
     const safeEnemyBullets = Array.isArray(collections.enemyBullets) ? collections.enemyBullets : [];
     const safePickups = Array.isArray(collections.pickups) ? collections.pickups : [];
-    const isPlayingState = safeState.state === gameStates.PLAYING;
+    const isPlayingState = safeState.state === GameState.PLAYING;
     const floorId = floor && Number.isFinite(floor.id) ? floor.id : null;
     const floorVisualTheme = floor
       ? resolveFloorVisualTheme(floor, TOKENS.blue)

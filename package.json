@@ -1,0 +1,27 @@
+{
+  "name": "wonderland",
+  "version": "1.0.0",
+  "description": "Canvas-based 2D top-down survival shooter (vanilla HTML/CSS/JS) with floor progression, stackable upgrades, bomb progression, run summary/share flow, and neural-net teaching copy.",
+  "main": "narrative.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "qa:bootstrap": "./scripts/check-ui-bootstrap.sh staged",
+    "qa:bootstrap:deployed": "QA_DEPLOYED_URL=https://osangen.github.io/ai-power-users-codex53-demo ./scripts/check-ui-bootstrap.sh deployed",
+    "qa:bootstrap:both": "./scripts/check-ui-bootstrap.sh both",
+    "qa:bootstrap:oneshot": "node scripts/check-ui-bootstrap-oneshot.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OsanGen/ai-power-users-codex53-demo.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/OsanGen/ai-power-users-codex53-demo/issues"
+  },
+  "homepage": "https://github.com/OsanGen/ai-power-users-codex53-demo#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

@@ -1,0 +1,55 @@
+name: QA UI Bootstrap
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  ui-bootstrap-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run UI bootstrap smoke (staged + deployed)
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 >/tmp/wonderland-ci-http.log 2>&1 &
+          SERVER_PID=$!
+
+          cleanup() {
+            kill "$SERVER_PID" >/dev/null 2>&1 || true
+            wait "$SERVER_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for i in $(seq 1 20); do
+            if curl -sSf http://127.0.0.1:4173 >/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+
+          ./scripts/check-ui-bootstrap.sh both
+          CHECK_EXIT=$?
+          exit $CHECK_EXIT
+
+      - name: Upload server log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-bootstrap-http-log
+          path: /tmp/wonderland-ci-http.log
+          retention-days: 7

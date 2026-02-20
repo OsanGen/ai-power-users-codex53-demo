@@ -33,6 +33,54 @@ python3 -m http.server 4173
 ```
 2. Open [http://127.0.0.1:4173/index.html](http://127.0.0.1:4173/index.html)
 
+## QA checks
+
+- Run a one-shot UI bootstrap smoke check against local staging:
+```bash
+./scripts/check-ui-bootstrap.sh staged
+# or override staging target:
+QA_TARGET_URL=http://127.0.0.1:4173 ./scripts/check-ui-bootstrap.sh
+```
+- NPM wrapper:
+```bash
+npm run qa:bootstrap
+```
+
+- Run the same check against the deployed page:
+```bash
+./scripts/check-ui-bootstrap.sh deployed
+# or override deployed target:
+QA_DEPLOYED_URL=https://osangen.github.io/ai-power-users-codex53-demo ./scripts/check-ui-bootstrap.sh deployed
+```
+- NPM wrapper:
+```bash
+npm run qa:bootstrap:deployed
+```
+
+- Run both staged and deployed checks in one pass:
+```bash
+./scripts/check-ui-bootstrap.sh both
+```
+- NPM wrapper:
+```bash
+npm run qa:bootstrap:both
+```
+- Run one-shot staged+deployed assertion in a single node automation step:
+```bash
+npm run qa:bootstrap:oneshot
+```
+```bash
+QA_TARGET_URL=http://localhost:4173 QA_DEPLOYED_URL=https://osangen.github.io/ai-power-users-codex53-demo npm run qa:bootstrap:oneshot
+```
+- CI usage:
+- GitHub Actions: `.github/workflows/qa-ui-bootstrap.yml`
+- Trigger paths: `workflow_dispatch`, `push` on `main`, or `pull_request`.
+
+- Direct Playwright command:
+```bash
+QA_TARGET_URL=https://osangen.github.io/ai-power-users-codex53-demo npx playwright test wonderland-qa.spec.js --grep "AIPU UI bootstrap smoke check"
+```
+
 ## Project layout
 
 - `/Users/abelsanchez/CODEX/WONDERLAND/index.html`: app shell, canvas, modals, script loading order

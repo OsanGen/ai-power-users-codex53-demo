@@ -7,6 +7,53 @@
 
   let lastTimestamp = performance.now();
   let manualStepping = false;
+  const runtimeState = {
+    ok: true,
+    phase: "idle",
+    consecutiveErrors: 0,
+    totalErrors: 0,
+    lastError: null,
+    lastErrorAt: 0
+  };
+
+  function formatRuntimeError(error) {
+    const err = error instanceof Error ? error : null;
+    return {
+      name: err && err.name ? err.name : "Error",
+      message: err && err.message ? err.message : "unknown",
+      stack: err && err.stack ? err.stack : ""
+    };
+  }
+
+  function recordFrameError(phase, error, context = {}) {
+    const snapshot = formatRuntimeError(error);
+    runtimeState.ok = false;
+    runtimeState.phase = phase;
+    runtimeState.consecutiveErrors += 1;
+    runtimeState.totalErrors += 1;
+    runtimeState.lastError = {
+      phase,
+      message: snapshot.message,
+      name: snapshot.name,
+      stack: snapshot.stack,
+      context,
+      at: typeof performance === "object" && performance !== null && typeof performance.now === "function" ? performance.now() : Date.now()
+    };
+    runtimeState.lastErrorAt = runtimeState.lastError.at;
+    window.__AIPU_RUNTIME = {
+      ...runtimeState
+    };
+  }
+
+  function clearFrameError() {
+    runtimeState.ok = true;
+    runtimeState.phase = "ok";
+    runtimeState.consecutiveErrors = 0;
+    runtimeState.lastError = null;
+    window.__AIPU_RUNTIME = {
+      ...runtimeState
+    };
+  }
 
   function runUiBootstrapSmoke() {
     const tokens = AIPU && AIPU.constants ? AIPU.constants.TOKENS : null;
@@ -43,11 +90,27 @@
   if (!uiBootstrapSmoke.ok) {
     console.warn("AIPU UI bootstrap smoke check failed", uiBootstrapSmoke);
   }
+  if (typeof window.__AIPU_RUNTIME === "undefined") {
+    window.__AIPU_RUNTIME = runtimeState;
+  }
 
   function runTick(dt) {
     const safeDt = Math.max(0, Math.min(MAX_FRAME_DT_SECONDS, Number.isFinite(dt) ? dt : 0));
-    AIPU.systems.update(safeDt);
-    AIPU.render.draw();
+    try {
+      AIPU.systems.update(safeDt);
+    } catch (error) {
+      recordFrameError("systems.update", error, { dt: safeDt });
+      return;
+    }
+
+    try {
+      AIPU.render.draw();
+    } catch (error) {
+      recordFrameError("render.draw", error, { dt: safeDt });
+      return;
+    }
+
+    clearFrameError();
   }
 
   function frame(now) {
@@ -72,11 +135,25 @@
 
     const stepMs = FIXED_STEP_SECONDS * 1000;
     const stepCount = Math.max(1, Math.round(totalMs / stepMs));
+    let hadUpdateError = false;
     manualStepping = true;
     for (let i = 0; i < stepCount; i += 1) {
-      AIPU.systems.update(FIXED_STEP_SECONDS);
+      try {
+        AIPU.systems.update(FIXED_STEP_SECONDS);
+      } catch (error) {
+        recordFrameError("systems.update (manual)", error, { stepIndex: i + 1, stepCount });
+        hadUpdateError = true;
+        break;
+      }
     }
-    AIPU.render.draw();
+    try {
+      AIPU.render.draw();
+      if (!hadUpdateError) {
+        clearFrameError();
+      }
+    } catch (error) {
+      recordFrameError("render.draw (manual)", error, { stepCount });
+    }
     lastTimestamp = performance.now();
     manualStepping = false;
     return stepCount;

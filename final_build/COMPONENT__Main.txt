@@ -3,6 +3,7 @@ Main Loop Component
 Purpose:
 - Own runtime bootstrap order and per-frame update/draw scheduling.
 - Bridge browser automation hooks to gameplay/render runtime without changing gameplay rules.
+- Isolate frame-level errors so a transient throw in update or render cannot permanently stop the RAF loop.
 
 Inputs:
 - `AIPU.systems.update(dt)` simulation tick.
@@ -16,6 +17,8 @@ Outputs:
 - `window.advanceTime(ms)` deterministic stepping hook for automation/testing.
 - `window.render_game_to_text()` JSON state snapshot delegating to renderer serializer.
 - `window.__AIPU_UI_BOOTSTRAP` and `AIPU.uiBootstrapSmoke` runtime diagnostics payload on boot.
+- QA command output hook: automated smoke tests can assert `window.__AIPU_UI_BOOTSTRAP.ok === true` in one-shot checks.
+- `window.__AIPU_RUNTIME` runtime diagnostics (`phase`, `ok`, `consecutiveErrors`, `totalErrors`, `lastError`) for deterministic error recovery and triage.
 
 State/Edges:
 - Keeps normal RAF behavior for interactive play.
@@ -24,6 +27,8 @@ State/Edges:
 - Positive `advanceTime(ms)` inputs use rounded 60Hz step counts (`Math.round`) with a minimum of 1 step to avoid deterministic undercount drift.
 - Invalid or zero `ms` inputs fail closed and do not throw.
 - A non-fatal smoke warning is emitted to console when required UI tokens/classes are missing, without affecting gameplay flow.
+- Runtime errors in `systems.update()` and `render.draw()` are captured per-frame and reflected in `window.__AIPU_RUNTIME`; successful frames clear transient error status.
+- On update/draw error, loop continues to run so gameplay can recover on the next frame.
 
 Dependencies:
 - `AIPU.systems`
@@ -36,3 +41,23 @@ Acceptance Checks:
 - `window.advanceTime(1000)` advances exactly 60 fixed simulation steps and returns `60`.
 - `window.render_game_to_text()` returns valid JSON string throughout all game states.
 - Browser/runtime can read `window.__AIPU_UI_BOOTSTRAP` and `AIPU.uiBootstrapSmoke` to verify token/class bootstrap success on initial load.
+- A one-shot QA assertion should pass for a healthy load:
+  - `window.__AIPU_UI_BOOTSTRAP.ok === true`
+  - `window.__AIPU_UI_BOOTSTRAP.missingTokens.length === 0`
+  - `window.__AIPU_UI_BOOTSTRAP.missingClasses.length === 0`
+- Staged/deployed coverage runs should use:
+  - `./scripts/check-ui-bootstrap.sh staged`
+  - `./scripts/check-ui-bootstrap.sh deployed`
+  - `./scripts/check-ui-bootstrap.sh both` (staged then deployed in one invocation).
+  - `node scripts/check-ui-bootstrap-oneshot.js` or `npm run qa:bootstrap:oneshot` (single pass, non-test runner, staged+deployed assertion).
+- npm-compatible wrappers are available:
+  - `npm run qa:bootstrap`
+  - `npm run qa:bootstrap:deployed`
+  - `npm run qa:bootstrap:both`
+- automation path: CI workflow `.github/workflows/qa-ui-bootstrap.yml` runs `./scripts/check-ui-bootstrap.sh both` with local staged serve + deployed assertion.
+- New runtime diagnostics contract:
+  - `window.__AIPU_RUNTIME.phase` reports last processed phase (`systems.update`, `render.draw`, or `ok`).
+  - `window.__AIPU_RUNTIME.ok` is true after a clean frame.
+  - Error path includes stack + phase in `window.__AIPU_RUNTIME.lastError`.
+- Error hardening is deterministic:
+  - The loop keeps scheduling frames after a caught frame exception.

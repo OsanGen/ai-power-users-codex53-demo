@@ -326,8 +326,7 @@
     };
   }
 
-  function rollUpgradeOptions(floorIndex, count = 3) {
-    void floorIndex;
+  function rollUpgradeOptions(_floorIndex, count = 3) {
     const eligible = UPGRADE_DEFS.filter((upgrade) => canTakeUpgrade(upgrade.id));
     const picks = [];
     const usedIds = new Set();
