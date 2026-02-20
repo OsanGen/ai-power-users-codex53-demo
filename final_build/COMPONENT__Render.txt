@@ -103,7 +103,7 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`render.js?v=20260222-9`) to force updated render bundle refresh.
+- `index.html` script tags use cache-bust tokens (`audio.js?v=20260222-10`, `systems.js?v=20260222-10`, `render.js?v=20260222-10`, `main.js?v=20260222-10`) to force updated runtime bundle refresh.
 - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
