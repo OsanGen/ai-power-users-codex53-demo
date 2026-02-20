@@ -4,6 +4,35 @@
   const AIPU = window.AIPU = window.AIPU || {};
   const MUSIC_CACHE_BUST = "v=20260221-20";
   const MUSIC_MUTED_STORAGE_KEY = "MUSIC_MUTED_V1";
+  const SFX_CACHE_BUST = "v=20260222-1";
+  const SFX_DEFS = Object.freeze({
+    shoot: Object.freeze({
+      path: "./assets/audio/sfx/shoot_soft.wav",
+      gain: 0.12,
+      cooldownMs: 55,
+      synth: Object.freeze({
+        wave: "square",
+        startHz: 820,
+        endHz: 560,
+        attackSeconds: 0.002,
+        decaySeconds: 0.08,
+        level: 0.2
+      })
+    }),
+    damage: Object.freeze({
+      path: "./assets/audio/sfx/damage_soft.wav",
+      gain: 0.18,
+      cooldownMs: 180,
+      synth: Object.freeze({
+        wave: "triangle",
+        startHz: 220,
+        endHz: 120,
+        attackSeconds: 0.003,
+        decaySeconds: 0.14,
+        level: 0.23
+      })
+    })
+  });
   const floorAudio =
     typeof document === "object" && document !== null && typeof document.createElement === "function"
       ? document.createElement("audio")
@@ -42,10 +71,28 @@
     pendingCandidateIndex: -1,
     requestId: 0,
     candidatePaths: [],
-    activeCandidateIndex: -1
+    activeCandidateIndex: -1,
+    sfxErrorCount: 0,
+    sfxLastError: null,
+    sfxLoaded: Object.create(null),
+    sfxLoadStatus: Object.create(null),
+    sfxLastPlayAt: Object.create(null)
   };
 
   let isAudioAvailable = Boolean(floorAudio && typeof floorAudio.play === "function");
+  let sfxContext = null;
+  let sfxMasterGain = null;
+  let sfxPreloadPromise = null;
+  const sfxBuffers = Object.create(null);
+  const sfxLoadPromises = Object.create(null);
+
+  const sfxIds = Object.keys(SFX_DEFS);
+  for (let i = 0; i < sfxIds.length; i += 1) {
+    const id = sfxIds[i];
+    audioState.sfxLoaded[id] = false;
+    audioState.sfxLoadStatus[id] = "idle";
+    audioState.sfxLastPlayAt[id] = 0;
+  }
 
   if (isAudioAvailable) {
     floorAudio.loop = true;
@@ -105,6 +152,18 @@
   }
 
   function requestAutoplayRetry() {
+    if (!audioState.isMuted) {
+      const context = ensureSfxContext();
+      if (context && context.state === "suspended" && typeof context.resume === "function") {
+        context.resume().catch((error) => {
+          void error;
+        });
+      }
+      if (!sfxPreloadPromise) {
+        preloadSfx();
+      }
+    }
+
     if (!isAudioAvailable || !floorAudio || !audioState.autoplayPending) {
       return;
     }
@@ -164,6 +223,253 @@
       return `${candidate}&${MUSIC_CACHE_BUST}`;
     }
     return `${candidate}?${MUSIC_CACHE_BUST}`;
+  }
+
+  function addSfxCacheBuster(path) {
+    const candidate = typeof path === "string" ? path.trim() : "";
+    if (!candidate) {
+      return "";
+    }
+    if (candidate.includes("?")) {
+      return `${candidate}&${SFX_CACHE_BUST}`;
+    }
+    return `${candidate}?${SFX_CACHE_BUST}`;
+  }
+
+  function nowMs() {
+    if (typeof performance === "object" && performance !== null && typeof performance.now === "function") {
+      return performance.now();
+    }
+    return Date.now();
+  }
+
+  function createSfxContext() {
+    if (typeof window !== "object" || window === null) {
+      return null;
+    }
+    const ContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (typeof ContextCtor !== "function") {
+      return null;
+    }
+    try {
+      return new ContextCtor();
+    } catch (error) {
+      void error;
+      return null;
+    }
+  }
+
+  function ensureSfxContext() {
+    if (!sfxContext) {
+      sfxContext = createSfxContext();
+    }
+    if (!sfxContext) {
+      return null;
+    }
+
+    if (!sfxMasterGain && typeof sfxContext.createGain === "function") {
+      sfxMasterGain = sfxContext.createGain();
+      sfxMasterGain.gain.value = audioState.isMuted ? 0 : 1;
+      sfxMasterGain.connect(sfxContext.destination);
+    }
+
+    return sfxContext;
+  }
+
+  function syncSfxMuteState() {
+    if (!sfxMasterGain || !sfxContext) {
+      return;
+    }
+    const now = sfxContext.currentTime;
+    sfxMasterGain.gain.cancelScheduledValues(now);
+    sfxMasterGain.gain.setValueAtTime(audioState.isMuted ? 0 : 1, now);
+  }
+
+  function resolveSfxPath(effectId) {
+    const def = SFX_DEFS[effectId];
+    if (!def || typeof def.path !== "string" || !def.path.trim()) {
+      return "";
+    }
+    return encodeURI(addSfxCacheBuster(def.path));
+  }
+
+  function isSfxKnown(effectId) {
+    return typeof effectId === "string" && Object.prototype.hasOwnProperty.call(SFX_DEFS, effectId);
+  }
+
+  function canPlaySfx(effectId) {
+    const def = SFX_DEFS[effectId];
+    if (!def) {
+      return false;
+    }
+    const now = nowMs();
+    const last = Number(audioState.sfxLastPlayAt[effectId]) || 0;
+    const cooldownMs = Number.isFinite(def.cooldownMs) ? Math.max(0, def.cooldownMs) : 0;
+    if (now - last < cooldownMs) {
+      return false;
+    }
+    audioState.sfxLastPlayAt[effectId] = now;
+    return true;
+  }
+
+  function playSynthSfx(effectId) {
+    const context = ensureSfxContext();
+    const def = SFX_DEFS[effectId];
+    if (!context || !def || !def.synth || !sfxMasterGain) {
+      return false;
+    }
+
+    const synth = def.synth;
+    const now = context.currentTime;
+    const wave = typeof synth.wave === "string" ? synth.wave : "square";
+    const startHz = Number.isFinite(synth.startHz) ? Math.max(50, synth.startHz) : 440;
+    const endHz = Number.isFinite(synth.endHz) ? Math.max(35, synth.endHz) : 220;
+    const attackSeconds = Number.isFinite(synth.attackSeconds) ? Math.max(0.001, synth.attackSeconds) : 0.003;
+    const decaySeconds = Number.isFinite(synth.decaySeconds) ? Math.max(0.02, synth.decaySeconds) : 0.1;
+    const level = Number.isFinite(synth.level) ? Math.max(0.01, synth.level) : 0.2;
+
+    const osc = context.createOscillator();
+    const env = context.createGain();
+    osc.type = wave;
+    osc.frequency.setValueAtTime(startHz, now);
+    osc.frequency.exponentialRampToValueAtTime(endHz, now + decaySeconds);
+    env.gain.setValueAtTime(0.0001, now);
+    env.gain.exponentialRampToValueAtTime(level, now + attackSeconds);
+    env.gain.exponentialRampToValueAtTime(0.0001, now + decaySeconds);
+    osc.connect(env);
+    env.connect(sfxMasterGain);
+    osc.start(now);
+    osc.stop(now + decaySeconds + 0.02);
+    return true;
+  }
+
+  function playBufferedSfx(effectId, buffer) {
+    const context = ensureSfxContext();
+    const def = SFX_DEFS[effectId];
+    if (!context || !sfxMasterGain || !def || !buffer) {
+      return false;
+    }
+
+    const source = context.createBufferSource();
+    source.buffer = buffer;
+
+    const gainNode = context.createGain();
+    const level = Number.isFinite(def.gain) ? Math.max(0.01, def.gain) : 0.12;
+    gainNode.gain.setValueAtTime(level, context.currentTime);
+
+    source.connect(gainNode);
+    gainNode.connect(sfxMasterGain);
+    source.start(0);
+    return true;
+  }
+
+  function loadSfxBuffer(effectId) {
+    if (!isSfxKnown(effectId)) {
+      return Promise.resolve(null);
+    }
+    if (sfxBuffers[effectId]) {
+      audioState.sfxLoaded[effectId] = true;
+      audioState.sfxLoadStatus[effectId] = "ready";
+      return Promise.resolve(sfxBuffers[effectId]);
+    }
+    if (audioState.sfxLoadStatus[effectId] === "error") {
+      return Promise.resolve(null);
+    }
+    if (sfxLoadPromises[effectId]) {
+      return sfxLoadPromises[effectId];
+    }
+
+    const context = ensureSfxContext();
+    if (!context || typeof fetch !== "function") {
+      return Promise.resolve(null);
+    }
+
+    const path = resolveSfxPath(effectId);
+    if (!path) {
+      audioState.sfxLoadStatus[effectId] = "error";
+      audioState.sfxLoaded[effectId] = false;
+      return Promise.resolve(null);
+    }
+
+    audioState.sfxLoadStatus[effectId] = "loading";
+    sfxLoadPromises[effectId] = fetch(path, { cache: "force-cache" })
+      .then((response) => {
+        if (!response || !response.ok) {
+          throw new Error(`SFX ${effectId} fetch failed (${response ? response.status : "unknown"})`);
+        }
+        return response.arrayBuffer();
+      })
+      .then((bytes) => context.decodeAudioData(bytes.slice(0)))
+      .then((decodedBuffer) => {
+        if (!decodedBuffer) {
+          throw new Error(`SFX ${effectId} decode failed`);
+        }
+        sfxBuffers[effectId] = decodedBuffer;
+        audioState.sfxLoaded[effectId] = true;
+        audioState.sfxLoadStatus[effectId] = "ready";
+        audioState.sfxLastError = null;
+        return decodedBuffer;
+      })
+      .catch((error) => {
+        audioState.sfxErrorCount += 1;
+        audioState.sfxLastError = getErrorMessage(error);
+        audioState.sfxLoaded[effectId] = false;
+        audioState.sfxLoadStatus[effectId] = "error";
+        return null;
+      })
+      .finally(() => {
+        delete sfxLoadPromises[effectId];
+      });
+
+    return sfxLoadPromises[effectId];
+  }
+
+  function preloadSfx() {
+    if (sfxPreloadPromise) {
+      return sfxPreloadPromise;
+    }
+    const context = ensureSfxContext();
+    if (!context) {
+      return Promise.resolve(false);
+    }
+    if (context.state === "suspended" && typeof context.resume === "function") {
+      context.resume().catch((error) => {
+        void error;
+      });
+    }
+
+    const ids = Object.keys(SFX_DEFS);
+    sfxPreloadPromise = Promise.allSettled(ids.map((id) => loadSfxBuffer(id))).then((results) =>
+      results.some((entry) => entry.status === "fulfilled" && !!entry.value)
+    );
+    return sfxPreloadPromise;
+  }
+
+  function playSfx(effectId) {
+    if (!isSfxKnown(effectId) || audioState.isMuted || !canPlaySfx(effectId)) {
+      return false;
+    }
+
+    const context = ensureSfxContext();
+    if (!context) {
+      return false;
+    }
+
+    if (context.state === "suspended" && typeof context.resume === "function") {
+      context.resume().catch((error) => {
+        void error;
+      });
+    }
+
+    const cachedBuffer = sfxBuffers[effectId];
+    if (cachedBuffer) {
+      return playBufferedSfx(effectId, cachedBuffer);
+    }
+
+    if (audioState.sfxLoadStatus[effectId] !== "error") {
+      loadSfxBuffer(effectId);
+    }
+    return playSynthSfx(effectId);
   }
 
   function getErrorMessage(error) {
@@ -325,10 +631,12 @@
     audioState.isMuted = !!nextMuted;
     writeStoredMutedPreference(audioState.isMuted);
     if (!isAudioAvailable || !floorAudio) {
+      syncSfxMuteState();
       return;
     }
 
     floorAudio.muted = audioState.isMuted;
+    syncSfxMuteState();
   }
 
   function toggleMuted() {
@@ -350,12 +658,18 @@
       lastError: audioState.lastError,
       activeCandidateIndex: audioState.activeCandidateIndex,
       candidateCount: Array.isArray(audioState.candidatePaths) ? audioState.candidatePaths.length : 0,
-      hasAudio: isAudioAvailable
+      hasAudio: isAudioAvailable,
+      sfxLoaded: { ...audioState.sfxLoaded },
+      sfxLoadStatus: { ...audioState.sfxLoadStatus },
+      sfxErrorCount: audioState.sfxErrorCount,
+      sfxLastError: audioState.sfxLastError
     };
   }
 
   AIPU.audio = {
     playForFloor,
+    playSfx,
+    preloadSfx,
     stop,
     setMuted,
     toggleMuted,

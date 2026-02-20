@@ -1109,6 +1109,14 @@
     audio.stop();
   }
 
+  function playGameSfx(effectId) {
+    const audio = AIPU.audio;
+    if (!audio || typeof audio.playSfx !== "function") {
+      return;
+    }
+    audio.playSfx(effectId);
+  }
+
   function toggleMusicMutedState() {
     const audio = AIPU.audio;
     if (!audio) {
@@ -2016,6 +2024,7 @@
     for (let i = 0; i < volleyDirections.length; i += 1) {
       spawnPlayerBullet(volleyDirections[i], bulletSpeed, bulletRadius, bulletPierce, volleyColors[i]);
     }
+    playGameSfx("shoot");
 
     if (game.state === GameState.PLAYING) {
       maybeShowDirectionalBurstHint(burstMode);
@@ -2890,6 +2899,9 @@
     const invulnDuration = upgrades.getInvulnDuration();
     const previousHearts = player.hearts;
     player.hearts = clamp(previousHearts - resolvedAmount, 0, player.maxHearts);
+    if (player.hearts < previousHearts) {
+      playGameSfx("damage");
+    }
     if (player.hearts <= 0) {
       player.hearts = 0;
       const deathFloor = currentFloor();
