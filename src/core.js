@@ -55,7 +55,8 @@
     shareDownloadBtn: getElementById("shareDownloadBtn"),
     shareCloseBtn: getElementById("shareCloseBtn"),
     shareDontAskEl: getElementById("shareDontAsk"),
-    overlayRestartBtn: getElementById("overlayRestartBtn")
+    overlayRestartBtn: getElementById("overlayRestartBtn"),
+    musicMuteBtn: getElementById("musicMuteBtn")
   };
 
   const canvasWidth = toFinite(dom.canvas && dom.canvas.width, 1024);

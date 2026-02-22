@@ -5,6 +5,8 @@
   const MUSIC_CACHE_BUST = "v=20260222-4";
   const MUSIC_VOLUME = 0.5;
   const MUSIC_MUTED_STORAGE_KEY = "MUSIC_MUTED_V1";
+  const MUSIC_MUTED_STORAGE_KEY_V2 = "MUSIC_MUTED_V2";
+  const SFX_MUTED_STORAGE_KEY = "SFX_MUTED_V2";
   const SFX_CACHE_BUST = "v=20260222-2";
   const SFX_ERROR_RETRY_COOLDOWN_MS = 4000;
   const RETRO_SFX_FAMILY_BASE = Object.freeze({
@@ -92,33 +94,60 @@
       ? document.createElement("audio")
       : null;
 
-  function readStoredMutedPreference() {
+  function readStoredBooleanPreference(storageKey) {
     try {
-      const raw = localStorage.getItem(MUSIC_MUTED_STORAGE_KEY);
+      const raw = localStorage.getItem(storageKey);
       if (raw == null) {
-        return false;
+        return null;
       }
       const normalized = String(raw).trim().toLowerCase();
-      return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+      if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
+        return true;
+      }
+      if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+        return false;
+      }
+      return null;
     } catch (error) {
       void error;
-      return false;
+      return null;
     }
   }
 
-  function writeStoredMutedPreference(nextMuted) {
+  function readStoredMutedPreference() {
+    const legacyMusicMuted = readStoredBooleanPreference(MUSIC_MUTED_STORAGE_KEY);
+    const musicMuted = readStoredBooleanPreference(MUSIC_MUTED_STORAGE_KEY_V2);
+    const sfxMuted = readStoredBooleanPreference(SFX_MUTED_STORAGE_KEY);
+
+    if (legacyMusicMuted !== null && musicMuted === null && sfxMuted === null) {
+      return {
+        isMusicMuted: legacyMusicMuted,
+        isSfxMuted: legacyMusicMuted
+      };
+    }
+
+    return {
+      isMusicMuted: musicMuted === null ? false : musicMuted,
+      isSfxMuted: sfxMuted === null ? false : sfxMuted
+    };
+  }
+
+  function writeStoredMutedPreference(storageKey, nextMuted) {
     try {
-      localStorage.setItem(MUSIC_MUTED_STORAGE_KEY, nextMuted ? "1" : "0");
+      localStorage.setItem(storageKey, nextMuted ? "1" : "0");
     } catch (error) {
       void error;
     }
   }
 
+  const storedMutePreference = readStoredMutedPreference();
   const audioState = {
     currentFloorId: null,
     currentSrc: "",
     currentTrackKey: "",
-    isMuted: readStoredMutedPreference(),
+    isMusicMuted: !!storedMutePreference.isMusicMuted,
+    isSfxMuted: !!storedMutePreference.isSfxMuted,
+    isMuted: !!storedMutePreference.isMusicMuted,
     isPlaying: false,
     errorCount: 0,
     lastError: null,
@@ -154,7 +183,7 @@
   if (isAudioAvailable) {
     floorAudio.loop = true;
     floorAudio.preload = "auto";
-    floorAudio.muted = !!audioState.isMuted;
+    floorAudio.muted = !!audioState.isMusicMuted;
     floorAudio.setAttribute("playsinline", "true");
     floorAudio.playsInline = true;
     applyMusicVolume();
@@ -210,7 +239,7 @@
   }
 
   function requestAutoplayRetry() {
-    if (!audioState.isMuted) {
+    if (!audioState.isMusicMuted) {
       const context = ensureSfxContext();
       if (context && context.state === "suspended" && typeof context.resume === "function") {
         context.resume().catch((error) => {
@@ -346,7 +375,7 @@
 
     if (!sfxMasterGain && typeof sfxContext.createGain === "function") {
       sfxMasterGain = sfxContext.createGain();
-      sfxMasterGain.gain.value = audioState.isMuted ? 0 : 1;
+      sfxMasterGain.gain.value = audioState.isSfxMuted ? 0 : 1;
       sfxMasterGain.connect(sfxContext.destination);
     }
 
@@ -359,7 +388,7 @@
     }
     const now = sfxContext.currentTime;
     sfxMasterGain.gain.cancelScheduledValues(now);
-    sfxMasterGain.gain.setValueAtTime(audioState.isMuted ? 0 : 1, now);
+    sfxMasterGain.gain.setValueAtTime(audioState.isSfxMuted ? 0 : 1, now);
   }
 
   function resolveSfxPath(effectId) {
@@ -529,7 +558,7 @@
   }
 
   function playSfx(effectId) {
-    if (!isSfxKnown(effectId) || audioState.isMuted || !canPlaySfx(effectId)) {
+    if (!isSfxKnown(effectId) || audioState.isSfxMuted || !canPlaySfx(effectId)) {
       return false;
     }
 
@@ -629,7 +658,7 @@
     audioState.currentTrackKey = normalizeAudioPath(path);
     audioState.lastError = null;
     audioState.isPlaying = false;
-    floorAudio.muted = !!audioState.isMuted;
+    floorAudio.muted = !!audioState.isMusicMuted;
     applyMusicVolume();
 
     try {
@@ -712,22 +741,40 @@
     stopAudioCore();
   }
 
-  function setMuted(nextMuted) {
-    audioState.isMuted = !!nextMuted;
-    writeStoredMutedPreference(audioState.isMuted);
+  function setMusicMuted(nextMuted) {
+    const normalized = !!nextMuted;
+    audioState.isMusicMuted = normalized;
+    audioState.isMuted = normalized;
+    writeStoredMutedPreference(MUSIC_MUTED_STORAGE_KEY_V2, audioState.isMusicMuted);
     if (!isAudioAvailable || !floorAudio) {
-      syncSfxMuteState();
       return;
     }
 
     floorAudio.muted = audioState.isMuted;
+  }
+
+  function toggleMusicMuted() {
+    setMusicMuted(!audioState.isMusicMuted);
+    return audioState.isMusicMuted;
+  }
+
+  function setSfxMuted(nextMuted) {
+    audioState.isSfxMuted = !!nextMuted;
+    writeStoredMutedPreference(SFX_MUTED_STORAGE_KEY, audioState.isSfxMuted);
     syncSfxMuteState();
   }
 
+  function toggleSfxMuted() {
+    setSfxMuted(!audioState.isSfxMuted);
+    return audioState.isSfxMuted;
+  }
+
+  function setMuted(nextMuted) {
+    setMusicMuted(nextMuted);
+  }
+
   function toggleMuted() {
-    const nextMuted = !audioState.isMuted;
-    setMuted(nextMuted);
-    return nextMuted;
+    return toggleMusicMuted();
   }
 
   function getState() {
@@ -738,6 +785,8 @@
       currentTrackKey: audioState.currentTrackKey,
       isPlaying: audioState.isPlaying,
       muted: audioState.isMuted,
+      musicMuted: audioState.isMusicMuted,
+      sfxMuted: audioState.isSfxMuted,
       autoplayPending: audioState.autoplayPending,
       pendingFloorId: audioState.currentFloorId,
       errorCount: audioState.errorCount,
@@ -759,6 +808,10 @@
     stop,
     setMuted,
     toggleMuted,
+    setMusicMuted,
+    toggleMusicMuted,
+    setSfxMuted,
+    toggleSfxMuted,
     getState
   };
 

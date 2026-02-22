@@ -3,6 +3,7 @@ Audio Component
 Purpose:
 - Own floor-scoped background music playback and track fallback behavior.
 - Keep music handling separate from combat/render/state logic while reusing `AIPU.content` floor song resolution.
+- Support channel-separated mute state for music and SFX with migration-safe persistence.
 
 Inputs:
 - `AIPU.content.getSongPathCandidatesForFloor` for floor->track candidate list resolution.
@@ -16,7 +17,12 @@ Outputs:
 - `AIPU.audio` singleton with methods:
   - `playForFloor(floorIdOrLabel)`
   - `stop()`
-  - `setMuted(value)`
+  - `setMuted(value)` (compat: music only)
+  - `toggleMuted()` (compat: music only)
+  - `setMusicMuted(value)`
+  - `toggleMusicMuted()`
+  - `setSfxMuted(value)`
+  - `toggleSfxMuted()`
   - `getState()`
 - `MUSIC_CACHE_BUST` string in `src/audio.js` is expected at `v=20260222-4` for deterministic track cache refresh.
 - `MUSIC_VOLUME` constant in `src/audio.js` set to `0.5` and applied through `applyMusicVolume()` so background music starts at ~50% nominal level.
@@ -25,11 +31,17 @@ State:
 - `currentFloorId`
 - `currentSrc` / `activeSrc`
 - `isPlaying`
-- `isMuted`
+- `isMuted` (compat alias for music)
+- `isMusicMuted`
+- `isSfxMuted`
 - `errorCount`
 - `lastError`
 - `sfxLoadStatus`, `sfxLoaded`, `sfxLastPlayAt`
 - `sfxLastErrorAt` (per-effect timestamp used for bounded retry after transient SFX load/decode failures)
+- Persistent keys:
+  - `MUSIC_MUTED_V2`
+  - `SFX_MUTED_V2`
+  - Legacy fallback: `MUSIC_MUTED_V1`
 
 Edge Cases:
 - Missing/invalid floor id is rejected (`playForFloor` resolves floor id to a finite value and calls `stop()` when invalid).
@@ -38,6 +50,11 @@ Edge Cases:
 - Same-floor replay no longer stalls on a stale “track in-flight” state: if a floor track is set but not actually playing, `playForFloor` can re-attempt playback.
 - Same-floor replay compares normalized base paths, so query-parameter/cache-bust variants and encoded URLs are treated as equivalent when avoiding redundant replays.
 - Multiple browser `play()`/decode errors are non-fatal and update `lastError`.
+- Music and SFX muting are independent:
+  - music muting only gates `floorAudio` playback.
+  - SFX muting only gates `playSfx()`.
+- Storage migration:
+  - If V2 keys are absent and legacy `MUSIC_MUTED_V1` exists, both channels initialize from legacy state.
 - SFX file load/decode failures are no longer permanently latched:
   - failed effect IDs enter `error` status with timestamp;
   - retry is allowed again after cooldown (`SFX_ERROR_RETRY_COOLDOWN_MS`) to recover from transient network/cache issues;
@@ -49,6 +66,10 @@ Edge Cases:
 Dependencies:
 - HTMLAudioElement and browser autoplay policy constraints.
 - `AIPU.content` floor naming helpers in `/src/content.js`.
+- `localStorage` persistence for mute migration and rehydrate:
+  - `MUSIC_MUTED_V1`
+  - `MUSIC_MUTED_V2`
+  - `SFX_MUTED_V2`
 
 Acceptance checks:
 - Entering a floor with available track starts looped background music.
@@ -59,3 +80,5 @@ Acceptance checks:
 - `getState()` exposes active source and status including floor index/ID transitions when floors change during gameplay.
 - `getState()` now includes candidate diagnostics (`activeCandidateIndex`, `candidateCount`) for live floor-music debugging.
 - After a forced SFX fetch/decode failure, effect playback still produces synth fallback immediately and file-backed playback can recover on later attempts after retry cooldown.
+- `setMuted` / `toggleMuted` remain music-compatible for legacy callers.
+- `setMusicMuted`/`toggleMusicMuted` and `setSfxMuted`/`toggleSfxMuted` are independent and persist across reload.

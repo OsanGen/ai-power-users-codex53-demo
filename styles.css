@@ -398,6 +398,26 @@ canvas {
   background: var(--white);
   color: var(--ink-muted);
   min-height: 28px;
+  cursor: default;
+  user-select: none;
+  text-align: left;
+  white-space: nowrap;
+  appearance: none;
+}
+
+button.status-chip {
+  cursor: pointer;
+  text-align: center;
+}
+
+button.status-chip:hover {
+  background: var(--fog);
+}
+
+button.status-chip:focus-visible,
+.status-chip:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .status-chip::before {
@@ -427,7 +447,8 @@ canvas {
 }
 
 .app-footer #appFooterGoal,
-.app-footer #appFooterRestart {
+.app-footer #appFooterRestart,
+.app-footer #musicMuteBtn {
   display: inline-flex;
   align-items: center;
 }

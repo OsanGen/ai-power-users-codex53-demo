@@ -130,6 +130,8 @@ window.AI_POWER_USER_NARRATIVE = {
     appSubtitle: "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor.",
     appFooterGoal: "Survive each timer and learn the loop.",
     appFooterRestart: "Restart run: R",
+    appFooterMusicButton: "Music: {state}",
+    appFooterMusicButtonLabel: "Toggle music",
     overlayRestartButton: "Restart lesson",
     textModalTitle: "Lesson source text",
     textModalNote: "Edit the source text used in lesson cards.",

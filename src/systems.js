@@ -10,7 +10,8 @@
     lessonTextInputEl,
     lessonTextSaveBtn,
     lessonTextSampleBtn,
-    lessonTextCloseBtn
+    lessonTextCloseBtn,
+    musicMuteBtn
   } = AIPU.dom;
   const {
     TOKENS,
@@ -467,6 +468,40 @@
     return text;
   }
 
+  function getAudioMuteSnapshot() {
+    const audio = AIPU.audio;
+    if (!audio || typeof audio.getState !== "function") {
+      return {
+        musicMuted: false,
+        sfxMuted: false
+      };
+    }
+    try {
+      const audioState = audio.getState();
+      return {
+        musicMuted: !!(audioState && (audioState.musicMuted || audioState.muted)),
+        sfxMuted: !!(audioState && audioState.sfxMuted)
+      };
+    } catch (error) {
+      void error;
+      return {
+        musicMuted: false,
+        sfxMuted: false
+      };
+    }
+  }
+
+  function syncAudioUiControls() {
+    if (!musicMuteBtn) {
+      return;
+    }
+    const { musicMuted } = getAudioMuteSnapshot();
+    musicMuteBtn.textContent = formatUiText("appFooterMusicButton", "Music: {state}", {
+      state: musicMuted ? "Off" : "On"
+    });
+    musicMuteBtn.setAttribute("aria-pressed", String(!!musicMuted));
+  }
+
   function nowMs() {
     if (typeof performance !== "undefined" && typeof performance.now === "function") {
       return performance.now();
@@ -839,6 +874,13 @@
       appFooterRestartEl.textContent = formatUiText("appFooterRestart", "Restart run: R");
     }
 
+    if (musicMuteBtn) {
+      musicMuteBtn.setAttribute(
+        "aria-label",
+        formatUiText("appFooterMusicButtonLabel", "Toggle music")
+      );
+    }
+
     const textModalTitleEl = document.getElementById("textModalTitle");
     if (textModalTitleEl) {
       textModalTitleEl.textContent = formatUiText("textModalTitle", "Lesson source text");
@@ -874,8 +916,19 @@
     }
   }
 
+  function initializeAudioControls() {
+    if (musicMuteBtn) {
+      musicMuteBtn.addEventListener("click", () => {
+        toggleMusicMutedState();
+        syncAudioUiControls();
+      });
+    }
+  }
+
   initializeLessonTextModal();
+  initializeAudioControls();
   applyNarrativeStaticUiLabels();
+  syncAudioUiControls();
 
   window.addEventListener("keydown", (event) => {
     if (isTextModalOpen()) {
@@ -896,6 +949,13 @@
 
     if ((lower === "m" || code === "KeyM") && !event.repeat) {
       toggleMusicMutedState();
+      syncAudioUiControls();
+      event.preventDefault();
+      return;
+    }
+
+    if ((lower === "e" || code === "KeyE") && !event.repeat) {
+      toggleSfxMutedState();
       event.preventDefault();
       return;
     }
@@ -1123,27 +1183,61 @@
       return false;
     }
 
+    if (typeof audio.toggleMusicMuted === "function") {
+      return !!audio.toggleMusicMuted();
+    }
+
     if (typeof audio.toggleMuted === "function") {
       return !!audio.toggleMuted();
     }
 
-    if (typeof audio.setMuted !== "function") {
+    if (typeof audio.setMusicMuted !== "function" || typeof audio.getState !== "function") {
       return false;
     }
 
     let currentMuted = false;
-    if (typeof audio.getState === "function") {
-      try {
-        const state = audio.getState();
-        currentMuted = !!(state && state.muted);
-      } catch (error) {
-        void error;
-      }
+    try {
+      const state = audio.getState();
+      currentMuted = !!(state && (state.musicMuted || state.muted));
+    } catch (error) {
+      void error;
     }
 
     const nextMuted = !currentMuted;
-    audio.setMuted(nextMuted);
+    if (typeof audio.setMusicMuted === "function") {
+      audio.setMusicMuted(nextMuted);
+    } else if (typeof audio.setMuted === "function") {
+      audio.setMuted(nextMuted);
+    } else {
+      return false;
+    }
     return nextMuted;
+  }
+
+  function toggleSfxMutedState() {
+    const audio = AIPU.audio;
+    if (!audio) {
+      return false;
+    }
+
+    if (typeof audio.toggleSfxMuted === "function") {
+      return !!audio.toggleSfxMuted();
+    }
+
+    if (typeof audio.setSfxMuted !== "function" || typeof audio.getState !== "function") {
+      return false;
+    }
+
+    let currentMuted = false;
+    try {
+      const state = audio.getState();
+      currentMuted = !!(state && state.sfxMuted);
+    } catch (error) {
+      void error;
+    }
+
+    audio.setSfxMuted(!currentMuted);
+    return !currentMuted;
   }
 
   function resetPlayerVisuals() {

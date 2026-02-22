@@ -15,6 +15,10 @@ Inputs:
 - `AIPU.share` for share modal entry.
 - `AIPU.utils` for math/utility helpers.
 - `AIPU.utils` random helpers as high-frequency spawner and burst emitters.
+- Audio control UI and hotkeys:
+  - `musicMuteBtn` from `AIPU.dom` for footer music toggle.
+  - `KeyM` for music mute hotkey.
+  - `KeyE` for SFX mute hotkey.
 
 Outputs:
 - Mutates `AIPU.state` across all game states:
@@ -33,6 +37,8 @@ Outputs:
 State/Edges:
 - Input model:
   - Tracks movement and action keys in `AIPU.input.keys`.
+  - Accepts non-repeating `M` (`KeyM`) to toggle music mute and non-repeating `E` (`KeyE`) to toggle SFX mute.
+  - `musicMuteBtn` click triggers music mute toggle and immediate footer refresh.
   - Normalizes key handling from `event.code` with fallback aliases for legacy `event.key` values (`Up`/`Down`/`Left`/`Right`) and single-char movement fallback.
   - Movement is `WASD` (`KeyW/KeyA/KeyS/KeyD`), while shoot direction is read from arrow keys (`ArrowUp/ArrowDown/ArrowLeft/ArrowRight`).
   - Numpad directional controls (`Numpad8/2/4/6`) are normalized to arrow directions for shooting where the browser reports keypad codes.
@@ -89,6 +95,7 @@ State/Edges:
   - FLOOR_INTRO -> PLAYING transition reissues `playFloorMusicForFloor(currentFloor())` to recover from interrupted/browser-blocked starts without touching gameplay flow.
   - `playFloorMusicForFloor()` validates resolved floor id and stops audio when the floor context is missing or invalid.
   - Title, game over, and victory transitions stop playback explicitly to prevent stale looping.
+  - `KeyM` and `#musicMuteBtn` only affect `AIPU.audio` music channel; `KeyE` only affects SFX channel.
 
 Dependencies:
 - `AIPU.upgrades` for stat aggregation and upgrade selection.
@@ -123,3 +130,7 @@ Acceptance Checks:
   - SPACE bomb decrements charge count without state corruption
   - GAME_OVER transition clears directional burst tracking and stops audio
   - restart path returns to TITLE and relaunches PLAYING with reset hold/bomb/audio floor state.
+- Keyboard mute controls remain isolated:
+  - Pressing `M` must only toggle `musicMuted`.
+  - Pressing `E` must only toggle `sfxMuted`.
+  - Footer music button click must only toggle `musicMuted`.

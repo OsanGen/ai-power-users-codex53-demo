@@ -21,7 +21,20 @@ test('AIPU UI bootstrap smoke check', async ({ page }) => {
 });
 
 test('diagnose input/sprite/audio states', async ({ page }) => {
-  await page.goto('http://127.0.0.1:4173');
+  const target = process.env.QA_TARGET_URL || "http://127.0.0.1:4173";
+  const readAudioState = async () => page.evaluate(() => {
+    const state = window.AIPU?.audio?.getState?.() || null;
+    if (!state) {
+      return null;
+    }
+    return {
+      musicMuted: !!(state.musicMuted || state.muted),
+      sfxMuted: !!state.sfxMuted,
+      hasAudio: state.hasAudio !== false
+    };
+  });
+
+  await page.goto(target, { waitUntil: "domcontentloaded" });
   await page.waitForLoadState('networkidle');
   await expect(page.locator('canvas')).toBeVisible();
 
@@ -30,6 +43,63 @@ test('diagnose input/sprite/audio states', async ({ page }) => {
     floor: window.AIPU?.state?.game?.currentFloorIndex
   }));
   expect(boot.state).toBe('TITLE');
+
+  const musicButton = page.locator("#musicMuteBtn");
+  await expect(musicButton).toBeVisible();
+
+  const initialAudio = await readAudioState();
+  expect(typeof initialAudio?.musicMuted, "audio state should expose musicMuted").toBe("boolean");
+  expect(typeof initialAudio?.sfxMuted, "audio state should expose sfxMuted").toBe("boolean");
+
+  await page.evaluate(() => {
+    localStorage.setItem("MUSIC_MUTED_V1", "1");
+    localStorage.removeItem("MUSIC_MUTED_V2");
+    localStorage.removeItem("SFX_MUTED_V2");
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator("canvas")).toBeVisible();
+  const legacyAudio = await readAudioState();
+  expect(legacyAudio.musicMuted, "legacy migration should map V1 into both channels").toBe(true);
+  expect(legacyAudio.sfxMuted, "legacy migration should map V1 into sfx state when V2 keys are absent").toBe(true);
+
+  await page.evaluate(() => {
+    localStorage.removeItem("MUSIC_MUTED_V1");
+    localStorage.removeItem("MUSIC_MUTED_V2");
+    localStorage.removeItem("SFX_MUTED_V2");
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator("canvas")).toBeVisible();
+  const resetAudio = await readAudioState();
+  expect(resetAudio.musicMuted, "fresh state without storage should default musicMuted false").toBe(false);
+  expect(resetAudio.sfxMuted, "fresh state without storage should default sfxMuted false").toBe(false);
+
+  const postResetAudio = await readAudioState();
+  expect(postResetAudio.musicMuted, "post-migration cleanup resets storage defaults").toBe(resetAudio.musicMuted);
+  expect(postResetAudio.sfxMuted, "post-migration cleanup resets storage defaults").toBe(resetAudio.sfxMuted);
+
+  await page.keyboard.press("m");
+  const afterMusicMute = await readAudioState();
+  expect(afterMusicMute.musicMuted, "M should toggle music mute").toBe(!initialAudio.musicMuted);
+  expect(afterMusicMute.sfxMuted, "M should not affect sfx mute").toBe(initialAudio.sfxMuted);
+
+  await page.keyboard.press("e");
+  const afterSfxMute = await readAudioState();
+  expect(afterSfxMute.sfxMuted, "E should toggle sfx mute").toBe(!afterMusicMute.sfxMuted);
+  expect(afterSfxMute.musicMuted, "E should not affect music mute").toBe(afterMusicMute.musicMuted);
+
+  await musicButton.click();
+  const afterMusicButton = await readAudioState();
+  expect(afterMusicButton.musicMuted, "music footer button should toggle music").toBe(!afterSfxMute.musicMuted);
+  expect(afterMusicButton.sfxMuted, "music button should not affect sfx mute").toBe(afterSfxMute.sfxMuted);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('canvas')).toBeVisible();
+  const persistedAudio = await readAudioState();
+  expect(persistedAudio.musicMuted, "music mute should persist across reload").toBe(afterMusicButton.musicMuted);
+  expect(persistedAudio.sfxMuted, "sfx mute should persist across reload").toBe(afterSfxMute.sfxMuted);
 
   await page.keyboard.press('Space');
   await page.waitForTimeout(120);
