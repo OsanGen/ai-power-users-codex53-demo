@@ -19,6 +19,7 @@ Outputs:
   - `setMuted(value)`
   - `getState()`
 - `MUSIC_CACHE_BUST` string in `src/audio.js` is expected at `v=20260222-4` for deterministic track cache refresh.
+- `MUSIC_VOLUME` constant in `src/audio.js` set to `0.5` and applied through `applyMusicVolume()` so background music starts at ~50% nominal level.
 
 State:
 - `currentFloorId`
@@ -43,6 +44,7 @@ Edge Cases:
   - synth fallback remains immediate while file retry occurs asynchronously.
 - `stop()` clears playback source, resets state, and remains safe to call repeatedly.
 - Audio element is now mounted hidden in DOM and marked `playsinline` for better browser compatibility.
+- Music volume changes are centralized through `MUSIC_VOLUME` and `applyMusicVolume()`, making loudness tuning a single configurable constant.
 
 Dependencies:
 - HTMLAudioElement and browser autoplay policy constraints.

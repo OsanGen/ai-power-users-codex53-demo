@@ -3,6 +3,7 @@
 
   const AIPU = window.AIPU = window.AIPU || {};
   const MUSIC_CACHE_BUST = "v=20260222-4";
+  const MUSIC_VOLUME = 0.5;
   const MUSIC_MUTED_STORAGE_KEY = "MUSIC_MUTED_V1";
   const SFX_CACHE_BUST = "v=20260222-2";
   const SFX_ERROR_RETRY_COOLDOWN_MS = 4000;
@@ -39,6 +40,13 @@
       cooldownMs: Math.max(0, toFiniteOr(source.cooldownMs, 80)),
       synth: createRetroSynthPreset(source.synth)
     });
+  }
+
+  function applyMusicVolume() {
+    if (!isAudioAvailable || !floorAudio) {
+      return;
+    }
+    floorAudio.volume = Number.isFinite(MUSIC_VOLUME) ? Math.min(1, Math.max(0, MUSIC_VOLUME)) : 0.5;
   }
 
   const SFX_DEFS = Object.freeze({
@@ -149,6 +157,7 @@
     floorAudio.muted = !!audioState.isMuted;
     floorAudio.setAttribute("playsinline", "true");
     floorAudio.playsInline = true;
+    applyMusicVolume();
 
     floorAudio.addEventListener("error", () => {
       if (!isAudioAvailable) {
@@ -621,6 +630,7 @@
     audioState.lastError = null;
     audioState.isPlaying = false;
     floorAudio.muted = !!audioState.isMuted;
+    applyMusicVolume();
 
     try {
       const pathWithVersion = addMusicCacheBuster(path);

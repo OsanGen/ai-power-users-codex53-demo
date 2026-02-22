@@ -187,3 +187,4 @@
 - /Users/abelsanchez/CODEX/WONDERLAND/src/main.js | completed | Hardened the RAF tick path with guarded `update` and `draw` calls, added runtime error telemetry at `window.__AIPU_RUNTIME`, and added frame error counters to avoid single-frame hard crashes.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/render.js | completed | Fixed deterministic serialization path to use `GameState.PLAYING` in `buildRenderGameTextState()` to keep `window.render_game_to_text()` safe in `PLAYING`.
 - /Users/abelsanchez/CODEX/WONDERLAND/src/upgrades.js | completed | Removed dead statement `void floorIndex` from `rollUpgradeOptions` and standardized unused floor argument to `_floorIndex` for clarity.
+- /Users/abelsanchez/CODEX/WONDERLAND/src/audio.js | completed | Reduced floor music loudness by introducing `MUSIC_VOLUME=0.5` + `applyMusicVolume()`; next action: verify playback is visibly quieter on both desktop/mobile by running staged/deployed smoke checks and adjust if needed.
