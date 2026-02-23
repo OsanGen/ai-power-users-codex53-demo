@@ -131,7 +131,7 @@ window.AI_POWER_USER_NARRATIVE = {
     appFooterGoal: "Survive each timer and learn the loop.",
     appFooterControlsHint: "Controls: WASD and Arrows • Spacebar: bomb • M: mute music • E: mute sound effects",
     appFooterControlsAriaLabel: "Controls shortcuts",
-    appFooterControlsTitle: "Controls",
+    appFooterControlsTitle: "CONTROLS",
     appFooterMoveHintKey: "WASD + Arrows",
     appFooterMoveHintAction: "Move",
     appFooterBombHintKey: "Spacebar",

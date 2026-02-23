@@ -82,11 +82,34 @@ body {
   border-bottom: 0;
   border-top: 2px solid var(--ink);
   background: #ecf0f4;
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
+  display: block;
+  min-height: 0;
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
   font-size: 0.9rem;
   letter-spacing: 0.01em;
+}
+
+.header-controls-stack {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.24rem;
+}
+
+.controls-title-band {
+  align-self: flex-start;
+  font: 700 0.72rem/1 "Sora", "Inter", sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: transparent;
+  background: linear-gradient(90deg, var(--cog-blue), var(--cog-yellow), var(--cog-mint), var(--cog-pink));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  padding: 0.24rem 0.54rem;
+  border-radius: 999px;
+  border: 2px solid rgba(31, 36, 48, 0.22);
 }
 
 #appTitle,
@@ -451,14 +474,14 @@ button.status-chip:focus-visible,
   left: 1rem;
 }
 
-.app-footer #appFooterGoal,
-.app-footer #appFooterRestart,
-.app-footer #musicMuteBtn {
+.header-controls-stack #appFooterGoal,
+.header-controls-stack #appFooterRestart,
+.header-controls-stack #musicMuteBtn {
   display: inline-flex;
   align-items: center;
 }
 
-.app-footer #appFooterGoal {
+.header-controls-stack #appFooterGoal {
   margin-right: 0;
 }
 
@@ -485,18 +508,6 @@ button.status-chip:focus-visible,
 
 .control-strip::-webkit-scrollbar {
   height: 0.4rem;
-}
-
-.control-strip-title {
-  flex: 0 0 auto;
-  font: 700 0.75rem/1 "Sora", "Inter", sans-serif;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--ink);
-  padding: 0.24rem 0.48rem;
-  border-radius: 999px;
-  border: 2px solid rgba(31, 36, 48, 0.9);
-  background: #ffffff;
 }
 
 .control-pill {
@@ -615,12 +626,12 @@ button.status-chip:focus-visible,
   color: var(--ink-soft);
 }
 
-.app-footer #appFooterControlsHint {
+.header-controls-stack #appFooterControlsHint {
   min-width: 0;
   max-width: 100%;
 }
 
-.app-footer #appFooterRestart::before {
+.header-controls-stack #appFooterRestart::before {
   content: "⌘";
   opacity: 0.9;
   margin-right: 0.35rem;
