@@ -385,8 +385,12 @@ canvas {
   display: flex;
   gap: 0.45rem;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   font-size: 0.84rem;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 .status-chip {
@@ -455,19 +459,22 @@ button.status-chip:focus-visible,
 }
 
 .app-footer #appFooterGoal {
-  margin-right: auto;
+  margin-right: 0;
+}
+
+.status-grid > * {
+  flex: 0 0 auto;
 }
 
 .control-strip {
-  flex: 1 1 100%;
+  flex: 0 0 auto;
   min-width: 0;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: start;
   gap: 0.36rem;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   padding: 0;
   padding-right: 0.3rem;
   border: 0;
@@ -629,11 +636,11 @@ button.status-chip:focus-visible,
 
   .status-grid {
     width: 100%;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .control-strip {
-    width: 100%;
+    width: auto;
     gap: 0.3rem;
   }
 
