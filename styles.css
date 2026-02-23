@@ -474,9 +474,7 @@ button.status-chip:focus-visible,
   left: 1rem;
 }
 
-.header-controls-stack #appFooterGoal,
-.header-controls-stack #appFooterRestart,
-.header-controls-stack #musicMuteBtn {
+.header-controls-stack #appFooterGoal {
   display: inline-flex;
   align-items: center;
 }
@@ -629,13 +627,6 @@ button.status-chip:focus-visible,
 .header-controls-stack #appFooterControlsHint {
   min-width: 0;
   max-width: 100%;
-}
-
-.header-controls-stack #appFooterRestart::before {
-  content: "⌘";
-  opacity: 0.9;
-  margin-right: 0.35rem;
-  transform: translateY(-0.5px);
 }
 
 @media (max-width: 860px) {

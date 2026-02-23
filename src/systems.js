@@ -10,8 +10,7 @@
     lessonTextInputEl,
     lessonTextSaveBtn,
     lessonTextSampleBtn,
-    lessonTextCloseBtn,
-    musicMuteBtn
+    lessonTextCloseBtn
   } = AIPU.dom;
   const {
     TOKENS,
@@ -491,17 +490,6 @@
     }
   }
 
-  function syncAudioUiControls() {
-    if (!musicMuteBtn) {
-      return;
-    }
-    const { musicMuted } = getAudioMuteSnapshot();
-    musicMuteBtn.textContent = formatUiText("appFooterMusicButton", "Music: {state}", {
-      state: musicMuted ? "Off" : "On"
-    });
-    musicMuteBtn.setAttribute("aria-pressed", String(!!musicMuted));
-  }
-
   function nowMs() {
     if (typeof performance !== "undefined" && typeof performance.now === "function") {
       return performance.now();
@@ -869,11 +857,6 @@
       appFooterGoalEl.textContent = formatUiText("appFooterGoal", "Survive each timer and learn the loop.");
     }
 
-    const appFooterRestartEl = document.getElementById("appFooterRestart");
-    if (appFooterRestartEl) {
-      appFooterRestartEl.textContent = formatUiText("appFooterRestart", "Restart run: R");
-    }
-
     const appFooterControlsHintEl = document.getElementById("appFooterControlsHint");
     if (appFooterControlsHintEl) {
       appFooterControlsHintEl.setAttribute(
@@ -927,13 +910,6 @@
       appFooterSfxHintActionEl.textContent = formatUiText("appFooterSfxHintAction", "Mute sound effects");
     }
 
-    if (musicMuteBtn) {
-      musicMuteBtn.setAttribute(
-        "aria-label",
-        formatUiText("appFooterMusicButtonLabel", "Toggle music")
-      );
-    }
-
     const textModalTitleEl = document.getElementById("textModalTitle");
     if (textModalTitleEl) {
       textModalTitleEl.textContent = formatUiText("textModalTitle", "Lesson source text");
@@ -969,19 +945,8 @@
     }
   }
 
-  function initializeAudioControls() {
-    if (musicMuteBtn) {
-      musicMuteBtn.addEventListener("click", () => {
-        toggleMusicMutedState();
-        syncAudioUiControls();
-      });
-    }
-  }
-
   initializeLessonTextModal();
-  initializeAudioControls();
   applyNarrativeStaticUiLabels();
-  syncAudioUiControls();
 
   window.addEventListener("keydown", (event) => {
     if (isTextModalOpen()) {
@@ -1002,7 +967,6 @@
 
     if ((lower === "m" || code === "KeyM") && !event.repeat) {
       toggleMusicMutedState();
-      syncAudioUiControls();
       event.preventDefault();
       return;
     }
