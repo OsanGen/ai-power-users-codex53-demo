@@ -746,6 +746,7 @@
     audioState.isMusicMuted = normalized;
     audioState.isMuted = normalized;
     writeStoredMutedPreference(MUSIC_MUTED_STORAGE_KEY_V2, audioState.isMusicMuted);
+    writeStoredMutedPreference(MUSIC_MUTED_STORAGE_KEY, audioState.isMusicMuted);
     if (!isAudioAvailable || !floorAudio) {
       return;
     }
@@ -801,6 +802,29 @@
     };
   }
 
+  function getAudioHealth() {
+    const state = getState();
+    return {
+      isAvailable: state.hasAudio,
+      musicEnabled: !state.musicMuted,
+      sfxEnabled: !state.sfxMuted,
+      isPlaying: state.isPlaying,
+      autoplayPending: state.autoplayPending,
+      currentFloorId: state.currentFloorId,
+      currentTrackKey: state.currentTrackKey,
+      candidateCount: state.candidateCount,
+      activeCandidateIndex: state.activeCandidateIndex,
+      recentErrors: {
+        music: state.lastError,
+        sfx: state.sfxLastError,
+        musicErrorCount: state.errorCount,
+        sfxErrorCount: state.sfxErrorCount
+      },
+      hasAudioContext: Boolean(sfxContext),
+      hasMusicNode: Boolean(floorAudio)
+    };
+  }
+
   AIPU.audio = {
     playForFloor,
     playSfx,
@@ -812,7 +836,8 @@
     toggleMusicMuted,
     setSfxMuted,
     toggleSfxMuted,
-    getState
+    getState,
+    getAudioHealth
   };
 
   if (typeof window === "object" && window !== null && typeof window.addEventListener === "function") {

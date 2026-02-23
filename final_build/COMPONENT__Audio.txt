@@ -24,6 +24,7 @@ Outputs:
   - `setSfxMuted(value)`
   - `toggleSfxMuted()`
   - `getState()`
+  - `getAudioHealth()`
 - `MUSIC_CACHE_BUST` string in `src/audio.js` is expected at `v=20260222-4` for deterministic track cache refresh.
 - `MUSIC_VOLUME` constant in `src/audio.js` set to `0.5` and applied through `applyMusicVolume()` so background music starts at ~50% nominal level.
 
@@ -79,6 +80,7 @@ Acceptance checks:
 - `getState()` exposes `autoplayPending` during user-gesture blocked startup and clears after a successful play or explicit stop.
 - `getState()` exposes active source and status including floor index/ID transitions when floors change during gameplay.
 - `getState()` now includes candidate diagnostics (`activeCandidateIndex`, `candidateCount`) for live floor-music debugging.
+- `getAudioHealth()` returns compact audio system telemetry including availability flags, enablement state, playback/autoplay status, and recent errors.
 - After a forced SFX fetch/decode failure, effect playback still produces synth fallback immediately and file-backed playback can recover on later attempts after retry cooldown.
 - `setMuted` / `toggleMuted` remain music-compatible for legacy callers.
 - `setMusicMuted`/`toggleMusicMuted` and `setSfxMuted`/`toggleSfxMuted` are independent and persist across reload.

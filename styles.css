@@ -461,17 +461,27 @@ button.status-chip:focus-visible,
 .control-strip {
   flex: 1 1 100%;
   min-width: 0;
-  display: inline-flex;
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: start;
   gap: 0.36rem;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 0;
+  padding-right: 0.3rem;
   border: 0;
   background: transparent;
   box-shadow: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.control-strip::-webkit-scrollbar {
+  height: 0.4rem;
 }
 
 .control-strip-title {
+  flex: 0 0 auto;
   font: 700 0.75rem/1 "Sora", "Inter", sans-serif;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -486,13 +496,100 @@ button.status-chip:focus-visible,
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
-  border: 2px solid rgba(31, 36, 48, 0.9);
+  border: 2px solid rgba(31, 36, 48, 0.8);
   border-radius: 999px;
   padding: 0.2rem 0.52rem;
   background: #ffffff;
   color: var(--ink);
   line-height: 1.16;
   box-shadow: 0 1px 0 rgba(31, 36, 48, 0.15);
+  min-height: 30px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.control-pill-button {
+  cursor: pointer;
+  text-align: left;
+}
+
+.control-pill-button:hover {
+  background: #eef3f8;
+  transform: translateY(-1px);
+}
+
+.control-pill-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 36, 48, 0.26);
+  flex-shrink: 0;
+}
+
+.control-pill-dot--move {
+  background: var(--cog-blue);
+}
+
+.control-pill-dot--bomb {
+  background: var(--cog-yellow);
+}
+
+.control-pill-dot--music {
+  background: var(--cog-pink);
+}
+
+.control-pill-dot--sfx {
+  background: var(--cog-mint);
+}
+
+.control-pill--move {
+  border-color: rgba(62, 121, 216, 0.48);
+}
+
+.control-pill--move:hover {
+  border-color: rgba(62, 121, 216, 0.82);
+}
+
+.control-pill--bomb {
+  border-color: rgba(163, 109, 45, 0.48);
+}
+
+.control-pill--bomb:hover {
+  border-color: rgba(163, 109, 45, 0.78);
+}
+
+.control-pill--music {
+  border-color: rgba(232, 130, 202, 0.48);
+}
+
+.control-pill--music:hover {
+  border-color: rgba(232, 130, 202, 0.78);
+}
+
+.control-pill--sfx {
+  border-color: rgba(23, 143, 112, 0.48);
+}
+
+.control-pill--sfx:hover {
+  border-color: rgba(27, 147, 119, 0.78);
+}
+
+.control-pill-button:active {
+  transform: translateY(0);
+  box-shadow: inset 0 2px 7px rgba(31, 36, 48, 0.12);
+}
+
+.control-pill-button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .control-pill kbd {
@@ -533,6 +630,11 @@ button.status-chip:focus-visible,
   .status-grid {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .control-strip {
+    width: 100%;
+    gap: 0.3rem;
   }
 
   .app-shell {

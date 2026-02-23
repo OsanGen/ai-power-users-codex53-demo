@@ -904,7 +904,7 @@
 
     const appFooterBombHintActionEl = document.getElementById("appFooterBombHintAction");
     if (appFooterBombHintActionEl) {
-      appFooterBombHintActionEl.textContent = formatUiText("appFooterBombHintAction", "Bomb");
+      appFooterBombHintActionEl.textContent = formatUiText("appFooterBombHintAction", "Use bomb");
     }
 
     const appFooterMusicHintKeyEl = document.getElementById("appFooterMusicHintKey");

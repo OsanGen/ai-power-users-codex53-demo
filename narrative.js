@@ -135,7 +135,7 @@ window.AI_POWER_USER_NARRATIVE = {
     appFooterMoveHintKey: "WASD + Arrows",
     appFooterMoveHintAction: "Move",
     appFooterBombHintKey: "Spacebar",
-    appFooterBombHintAction: "Bomb",
+    appFooterBombHintAction: "Use bomb",
     appFooterMusicHintKey: "M",
     appFooterMusicHintAction: "Mute music",
     appFooterSfxHintKey: "E",
