@@ -874,6 +874,14 @@
       appFooterRestartEl.textContent = formatUiText("appFooterRestart", "Restart run: R");
     }
 
+    const appFooterControlsHintEl = document.getElementById("appFooterControlsHint");
+    if (appFooterControlsHintEl) {
+      appFooterControlsHintEl.textContent = formatUiText(
+        "appFooterControlsHint",
+        "Controls: WASD and Arrows • Spacebar: bomb • M: mute music • E: mute sound effects"
+      );
+    }
+
     if (musicMuteBtn) {
       musicMuteBtn.setAttribute(
         "aria-label",

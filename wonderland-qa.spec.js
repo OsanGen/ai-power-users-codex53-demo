@@ -51,6 +51,14 @@ test('diagnose input/sprite/audio states', async ({ page }) => {
   expect(typeof initialAudio?.musicMuted, "audio state should expose musicMuted").toBe("boolean");
   expect(typeof initialAudio?.sfxMuted, "audio state should expose sfxMuted").toBe("boolean");
 
+  const controlsHint = page.locator("#appFooterControlsHint");
+  await expect(controlsHint).toBeVisible();
+  const controlsText = (await controlsHint.textContent()) || "";
+  expect(controlsText).toMatch(/Controls/i);
+  expect(controlsText).toMatch(/Spacebar/i);
+  expect(controlsText).toMatch(/\bM\b.*music/i);
+  expect(controlsText).toMatch(/\bE\b.*sound effects/i);
+
   await page.evaluate(() => {
     localStorage.setItem("MUSIC_MUTED_V1", "1");
     localStorage.removeItem("MUSIC_MUTED_V2");

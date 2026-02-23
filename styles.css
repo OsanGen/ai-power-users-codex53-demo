@@ -448,13 +448,22 @@ button.status-chip:focus-visible,
 
 .app-footer #appFooterGoal,
 .app-footer #appFooterRestart,
-.app-footer #musicMuteBtn {
+.app-footer #musicMuteBtn,
+.app-footer #appFooterControlsHint {
   display: inline-flex;
   align-items: center;
 }
 
 .app-footer #appFooterGoal {
   margin-right: auto;
+}
+
+.app-footer #appFooterControlsHint {
+  min-width: 0;
+  max-width: 32rem;
+  white-space: normal;
+  line-height: 1.3;
+  color: var(--ink);
 }
 
 .app-footer #appFooterRestart::before {
