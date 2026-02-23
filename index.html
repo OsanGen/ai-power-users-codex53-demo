@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=20260223-3" />
   </head>
   <body>
     <a class="skip-link" href="#gameFrame">Skip to game area</a>
@@ -71,7 +71,13 @@
 
       <footer class="app-footer">
         <div class="status-grid">
-          <span id="appFooterControlsHint" class="status-chip">Controls: WASD and Arrows • Spacebar: bomb • M: mute music • E: mute sound effects</span>
+          <div id="appFooterControlsHint" class="control-strip" aria-label="Controls shortcuts">
+            <span class="control-strip-title">Controls</span>
+            <span class="control-pill"><kbd>WASD + Arrows</kbd><span>Move</span></span>
+            <span class="control-pill"><kbd>Spacebar</kbd><span>Bomb</span></span>
+            <span class="control-pill"><kbd>M</kbd><span>Mute music</span></span>
+            <span class="control-pill"><kbd>E</kbd><span>Mute sound effects</span></span>
+          </div>
           <span id="appFooterGoal" class="status-chip">Survive each timer and learn the loop.</span>
           <button id="musicMuteBtn" type="button" class="status-chip">Music: On</button>
           <span id="appFooterRestart" class="status-chip">Restart run: R</span>
@@ -86,7 +92,7 @@
     <script src="./src/upgrades.js?v=20260221-22"></script>
     <script src="./src/share.js?v=20260221-22"></script>
     <script src="./src/audio.js?v=20260222-11"></script>
-    <script src="./src/systems.js?v=20260222-11"></script>
+    <script src="./src/systems.js?v=20260223-3"></script>
     <script src="https://cdn.jsdelivr.net/npm/glfx@0.0.4/glfx.js"></script>
     <script src="./src/render.js?v=20260222-10"></script>
     <script src="./src/main.js?v=20260223-1"></script>
