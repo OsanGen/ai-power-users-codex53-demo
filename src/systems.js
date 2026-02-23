@@ -468,77 +468,6 @@
     return text;
   }
 
-  function createFooterControlPill(keyLabel, actionLabel) {
-    const pillEl = document.createElement("span");
-    pillEl.className = "control-pill";
-
-    const keyEl = document.createElement("kbd");
-    keyEl.textContent = keyLabel;
-    pillEl.appendChild(keyEl);
-
-    const actionEl = document.createElement("span");
-    actionEl.textContent = actionLabel;
-    pillEl.appendChild(actionEl);
-
-    return pillEl;
-  }
-
-  function renderFooterControlsHint(container, hintText) {
-    if (!container) {
-      return;
-    }
-
-    const text = String(hintText || "").replace(/\s+/g, " ").trim();
-    const segments = text
-      .split("•")
-      .map((segment) => segment.trim())
-      .filter(Boolean);
-
-    container.textContent = "";
-    container.classList.add("control-strip");
-
-    if (!segments.length) {
-      container.textContent = text;
-      return;
-    }
-
-    for (let i = 0; i < segments.length; i += 1) {
-      const segment = segments[i];
-      const colonIndex = segment.indexOf(":");
-      if (i === 0) {
-        if (colonIndex === -1) {
-          const titleEl = document.createElement("span");
-          titleEl.className = "control-strip-title";
-          titleEl.textContent = segment;
-          container.appendChild(titleEl);
-          continue;
-        }
-
-        const label = segment.slice(0, colonIndex).trim() || "Controls";
-        const movementKey = segment.slice(colonIndex + 1).trim();
-
-        const titleEl = document.createElement("span");
-        titleEl.className = "control-strip-title";
-        titleEl.textContent = label;
-        container.appendChild(titleEl);
-
-        if (movementKey) {
-          container.appendChild(createFooterControlPill(movementKey, "move"));
-        }
-        continue;
-      }
-
-      if (colonIndex === -1) {
-        container.appendChild(createFooterControlPill(segment, ""));
-        continue;
-      }
-
-      const keyLabel = segment.slice(0, colonIndex).trim();
-      const actionLabel = segment.slice(colonIndex + 1).trim();
-      container.appendChild(createFooterControlPill(keyLabel, actionLabel));
-    }
-  }
-
   function getAudioMuteSnapshot() {
     const audio = AIPU.audio;
     if (!audio || typeof audio.getState !== "function") {
@@ -947,11 +876,55 @@
 
     const appFooterControlsHintEl = document.getElementById("appFooterControlsHint");
     if (appFooterControlsHintEl) {
-      const controlsHintText = formatUiText(
-        "appFooterControlsHint",
-        "Controls: WASD and Arrows • Spacebar: bomb • M: mute music • E: mute sound effects"
+      appFooterControlsHintEl.setAttribute(
+        "aria-label",
+        formatUiText("appFooterControlsAriaLabel", "Controls shortcuts")
       );
-      renderFooterControlsHint(appFooterControlsHintEl, controlsHintText);
+    }
+
+    const appFooterControlsTitleEl = document.getElementById("appFooterControlsTitle");
+    if (appFooterControlsTitleEl) {
+      appFooterControlsTitleEl.textContent = formatUiText("appFooterControlsTitle", "Controls");
+    }
+
+    const appFooterMoveHintKeyEl = document.getElementById("appFooterMoveHintKey");
+    if (appFooterMoveHintKeyEl) {
+      appFooterMoveHintKeyEl.textContent = formatUiText("appFooterMoveHintKey", "WASD + Arrows");
+    }
+
+    const appFooterMoveHintActionEl = document.getElementById("appFooterMoveHintAction");
+    if (appFooterMoveHintActionEl) {
+      appFooterMoveHintActionEl.textContent = formatUiText("appFooterMoveHintAction", "Move");
+    }
+
+    const appFooterBombHintKeyEl = document.getElementById("appFooterBombHintKey");
+    if (appFooterBombHintKeyEl) {
+      appFooterBombHintKeyEl.textContent = formatUiText("appFooterBombHintKey", "Spacebar");
+    }
+
+    const appFooterBombHintActionEl = document.getElementById("appFooterBombHintAction");
+    if (appFooterBombHintActionEl) {
+      appFooterBombHintActionEl.textContent = formatUiText("appFooterBombHintAction", "Bomb");
+    }
+
+    const appFooterMusicHintKeyEl = document.getElementById("appFooterMusicHintKey");
+    if (appFooterMusicHintKeyEl) {
+      appFooterMusicHintKeyEl.textContent = formatUiText("appFooterMusicHintKey", "M");
+    }
+
+    const appFooterMusicHintActionEl = document.getElementById("appFooterMusicHintAction");
+    if (appFooterMusicHintActionEl) {
+      appFooterMusicHintActionEl.textContent = formatUiText("appFooterMusicHintAction", "Mute music");
+    }
+
+    const appFooterSfxHintKeyEl = document.getElementById("appFooterSfxHintKey");
+    if (appFooterSfxHintKeyEl) {
+      appFooterSfxHintKeyEl.textContent = formatUiText("appFooterSfxHintKey", "E");
+    }
+
+    const appFooterSfxHintActionEl = document.getElementById("appFooterSfxHintAction");
+    if (appFooterSfxHintActionEl) {
+      appFooterSfxHintActionEl.textContent = formatUiText("appFooterSfxHintAction", "Mute sound effects");
     }
 
     if (musicMuteBtn) {

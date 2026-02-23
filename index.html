@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260223-3" />
+    <link rel="stylesheet" href="./styles.css?v=20260223-4" />
   </head>
   <body>
     <a class="skip-link" href="#gameFrame">Skip to game area</a>
@@ -72,11 +72,11 @@
       <footer class="app-footer">
         <div class="status-grid">
           <div id="appFooterControlsHint" class="control-strip" aria-label="Controls shortcuts">
-            <span class="control-strip-title">Controls</span>
-            <span class="control-pill"><kbd>WASD + Arrows</kbd><span>Move</span></span>
-            <span class="control-pill"><kbd>Spacebar</kbd><span>Bomb</span></span>
-            <span class="control-pill"><kbd>M</kbd><span>Mute music</span></span>
-            <span class="control-pill"><kbd>E</kbd><span>Mute sound effects</span></span>
+            <span id="appFooterControlsTitle" class="control-strip-title">Controls</span>
+            <span class="control-pill"><kbd id="appFooterMoveHintKey">WASD + Arrows</kbd><span id="appFooterMoveHintAction">Move</span></span>
+            <span class="control-pill"><kbd id="appFooterBombHintKey">Spacebar</kbd><span id="appFooterBombHintAction">Bomb</span></span>
+            <span class="control-pill"><kbd id="appFooterMusicHintKey">M</kbd><span id="appFooterMusicHintAction">Mute music</span></span>
+            <span class="control-pill"><kbd id="appFooterSfxHintKey">E</kbd><span id="appFooterSfxHintAction">Mute sound effects</span></span>
           </div>
           <span id="appFooterGoal" class="status-chip">Survive each timer and learn the loop.</span>
           <button id="musicMuteBtn" type="button" class="status-chip">Music: On</button>
@@ -85,14 +85,14 @@
       </footer>
     </main>
 
-    <script src="./narrative.js?v=20260221-22"></script>
+    <script src="./narrative.js?v=20260223-4"></script>
     <script src="./src/ui-tokens.js?v=20260223-2"></script>
     <script src="./src/core.js?v=20260223-2"></script>
     <script src="./src/content.js?v=20260222-7"></script>
     <script src="./src/upgrades.js?v=20260221-22"></script>
     <script src="./src/share.js?v=20260221-22"></script>
     <script src="./src/audio.js?v=20260222-11"></script>
-    <script src="./src/systems.js?v=20260223-3"></script>
+    <script src="./src/systems.js?v=20260223-4"></script>
     <script src="https://cdn.jsdelivr.net/npm/glfx@0.0.4/glfx.js"></script>
     <script src="./src/render.js?v=20260222-10"></script>
     <script src="./src/main.js?v=20260223-1"></script>
