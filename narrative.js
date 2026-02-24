@@ -129,7 +129,7 @@ window.AI_POWER_USER_NARRATIVE = {
     appTitle: "Neural Nets: Learn the Loop",
     appSubtitle: "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor.",
     appFooterGoal: "Survive each timer and learn the loop.",
-    appFooterControlsHint: "Controls: WASD and Arrows • Spacebar: bomb • M: mute music • E: mute sound effects",
+    appFooterControlsHint: "Press Spacebar to use bomb • M to mute music • E to mute sound effects",
     appFooterControlsAriaLabel: "Controls shortcuts",
     appFooterControlsTitle: "CONTROLS",
     appFooterMoveHintKey: "WASD + Arrows",

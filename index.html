@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Sora:wght@500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="./styles.css?v=20260223-9" />
+    <link rel="stylesheet" href="./styles.css?v=20260223-14" />
   </head>
   <body>
     <a class="skip-link" href="#gameFrame">Skip to game area</a>
@@ -19,16 +19,20 @@
         <h1 id="appTitle">Neural Nets: Learn the Loop</h1>
         <p id="appSubtitle">Move with WASD. Shoot with Arrow Keys. Learn one concept per floor.</p>
         <div class="header-controls-stack">
-          <div class="status-grid">
-            <div id="appFooterControlsHint" class="control-strip" aria-label="Controls shortcuts">
+          <section class="controls-cluster">
+            <p id="appFooterControlsTitle" class="controls-title-band">CONTROLS</p>
+            <p id="appFooterControlsHint" class="controls-hint">Controls</p>
+            <div id="appFooterControlStrip" class="control-strip" aria-label="Controls shortcuts">
               <button
                 type="button"
                 class="control-pill control-pill-button control-pill--bomb"
                 id="appFooterBombHintBtn"
-                aria-label="Use the bomb with spacebar"
+                aria-label="Use the bomb with Spacebar"
               >
                 <span class="control-pill-dot control-pill-dot--bomb" aria-hidden="true"></span>
-                <kbd id="appFooterBombHintKey">Spacebar</kbd><span id="appFooterBombHintAction">Use bomb</span>
+                <span class="control-pill-key" id="appFooterBombHintKey">Spacebar</span>
+                <span id="appFooterBombHintAction">Use bomb</span>
+                <span id="appFooterBombHintState" class="control-pill-state" aria-hidden="true">Action</span>
               </button>
               <button
                 type="button"
@@ -37,7 +41,9 @@
                 aria-label="Mute or unmute music with M"
               >
                 <span class="control-pill-dot control-pill-dot--music" aria-hidden="true"></span>
-                <kbd id="appFooterMusicHintKey">M</kbd><span id="appFooterMusicHintAction">Mute music</span>
+                <span class="control-pill-key" id="appFooterMusicHintKey">M</span>
+                <span id="appFooterMusicHintAction">Mute music</span>
+                <span id="appFooterMusicHintState" class="control-pill-state" aria-hidden="true">On</span>
               </button>
               <button
                 type="button"
@@ -46,11 +52,13 @@
                 aria-label="Mute or unmute sound effects with E"
               >
                 <span class="control-pill-dot control-pill-dot--sfx" aria-hidden="true"></span>
-                <kbd id="appFooterSfxHintKey">E</kbd><span id="appFooterSfxHintAction">Mute sound effects</span>
+                <span class="control-pill-key" id="appFooterSfxHintKey">E</span>
+                <span id="appFooterSfxHintAction">Mute sound effects</span>
+                <span id="appFooterSfxHintState" class="control-pill-state" aria-hidden="true">On</span>
               </button>
             </div>
-            <span id="appFooterGoal" class="status-chip">Survive each timer and learn the loop.</span>
-          </div>
+          </section>
+          <span id="appFooterGoal" class="status-chip">Survive each timer and learn the loop.</span>
         </div>
       </header>
 
@@ -107,16 +115,16 @@
       </footer>
     </main>
 
-    <script src="./narrative.js?v=20260223-4"></script>
+    <script src="./narrative.js?v=20260223-15"></script>
     <script src="./src/ui-tokens.js?v=20260223-2"></script>
     <script src="./src/core.js?v=20260223-2"></script>
     <script src="./src/content.js?v=20260222-7"></script>
     <script src="./src/upgrades.js?v=20260221-22"></script>
     <script src="./src/share.js?v=20260221-22"></script>
     <script src="./src/audio.js?v=20260222-11"></script>
-    <script src="./src/systems.js?v=20260223-5"></script>
+    <script src="./src/systems.js?v=20260223-8"></script>
     <script src="https://cdn.jsdelivr.net/npm/glfx@0.0.4/glfx.js"></script>
-    <script src="./src/render.js?v=20260222-10"></script>
+    <script src="./src/render.js?v=20260223-13"></script>
     <script src="./src/main.js?v=20260223-1"></script>
   </body>
 </html>

@@ -97,6 +97,14 @@ body {
   gap: 0.24rem;
 }
 
+.controls-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
 .controls-title-band {
   align-self: flex-start;
   font: 700 0.72rem/1 "Sora", "Inter", sans-serif;
@@ -487,6 +495,22 @@ button.status-chip:focus-visible,
   flex: 0 0 auto;
 }
 
+.controls-hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font: 500 0.74rem/1.25 "Inter", sans-serif;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  text-overflow: ellipsis;
+}
+
+.controls-hint::-webkit-scrollbar {
+  height: 0.32rem;
+}
+
 .control-strip {
   flex: 0 0 auto;
   min-width: 0;
@@ -494,13 +518,16 @@ button.status-chip:focus-visible,
   flex-wrap: nowrap;
   align-items: center;
   justify-content: start;
-  gap: 0.36rem;
-  overflow: visible;
+  gap: 0.46rem;
+  width: min(100%, 100%);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  scrollbar-width: thin;
   padding: 0;
-  padding-right: 0.3rem;
   border: 0;
   background: transparent;
-  box-shadow: none;
+  max-width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -509,19 +536,22 @@ button.status-chip:focus-visible,
 }
 
 .control-pill {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: auto auto 1fr;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.3rem;
   border: 2px solid rgba(31, 36, 48, 0.8);
   border-radius: 999px;
-  padding: 0.2rem 0.52rem;
-  background: #ffffff;
+  padding: 0.26rem 0.58rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   color: var(--ink);
-  line-height: 1.16;
+  font-size: 0.72rem;
+  line-height: 1.14;
   box-shadow: 0 1px 0 rgba(31, 36, 48, 0.15);
-  min-height: 30px;
+  min-height: 34px;
   white-space: nowrap;
   flex: 0 0 auto;
+  max-width: max-content;
   transition:
     transform 120ms ease,
     border-color 120ms ease,
@@ -566,6 +596,10 @@ button.status-chip:focus-visible,
   background: var(--cog-mint);
 }
 
+.control-pill[aria-pressed="true"] .control-pill-dot {
+  box-shadow: 0 0 0 2px rgba(31, 36, 48, 0.16);
+}
+
 .control-pill--move {
   border-color: rgba(62, 121, 216, 0.48);
 }
@@ -598,6 +632,15 @@ button.status-chip:focus-visible,
   border-color: rgba(27, 147, 119, 0.78);
 }
 
+.control-pill--music[aria-pressed="true"],
+.control-pill--sfx[aria-pressed="true"] {
+  opacity: 0.87;
+}
+
+.control-pill--bomb[aria-pressed="true"] {
+  opacity: 0.84;
+}
+
 .control-pill-button:active {
   transform: translateY(0);
   box-shadow: inset 0 2px 7px rgba(31, 36, 48, 0.12);
@@ -608,8 +651,8 @@ button.status-chip:focus-visible,
   outline-offset: 2px;
 }
 
-.control-pill kbd {
-  font: 700 0.72rem/1 "Sora", "Inter", sans-serif;
+.control-pill-key {
+  font: 700 0.68rem/1 "Sora", "Inter", sans-serif;
   letter-spacing: 0.02em;
   padding: 0.18rem 0.34rem 0.14rem;
   border-radius: 7px;
@@ -622,6 +665,19 @@ button.status-chip:focus-visible,
 .control-pill span {
   font: 600 0.72rem/1.12 "Inter", sans-serif;
   color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.control-pill-state {
+  font: 600 0.6rem/1.1 "Inter", sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.34rem 0.03rem;
+  border-radius: 999px;
+  border: 1px solid rgba(31, 36, 48, 0.25);
+  background: #eef2f6;
 }
 
 .header-controls-stack #appFooterControlsHint {
@@ -642,8 +698,26 @@ button.status-chip:focus-visible,
   }
 
   .control-strip {
-    width: auto;
+    width: 100%;
     gap: 0.3rem;
+  }
+
+  .controls-hint {
+    font-size: 0.7rem;
+    white-space: nowrap;
+  }
+
+  .controls-title-band {
+    font-size: 0.66rem;
+  }
+
+  .control-pill-key {
+    font-size: 0.64rem;
+  }
+
+  .control-pill-state,
+  .control-pill span {
+    white-space: nowrap;
   }
 
   .app-shell {

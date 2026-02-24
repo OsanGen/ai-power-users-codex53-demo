@@ -2907,9 +2907,14 @@
         : game.bombBriefingMode === "upgrade"
           ? "upgrade"
           : "intro";
-    const copy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy(briefingMode) : BOMB_BRIEFING_FALLBACK;
-    const chargeCount = clamp(Number.parseInt(String(copy.chargeCount || 1), 10) || 1, 1, 3);
-    const showChargeDetails = chargeCount > 1;
+    const sourceCopy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy(briefingMode) : null;
+    const copy = Object.assign({}, BOMB_BRIEFING_FALLBACK, sourceCopy || {});
+    const chargeCount = clamp(
+      Number.parseInt(String(copy.chargeCount || 1), 10) || 1,
+      1,
+      3
+    );
+    const chargeDetailCount = Math.max(1, chargeCount);
     const enterGoal = Math.max(1, BOMB_BRIEFING_ACCEPT_COUNT || 3);
     const accepted = clamp(game.bombBriefingEnterCount, 0, enterGoal);
     const nextStep = clamp(accepted + 1, 1, enterGoal);
@@ -2923,16 +2928,76 @@
         ? uiText("bombBriefingAcceptedHint", "Use Space in PLAYING to clear screen.")
         : uiText("bombBriefingPendingHint", "Then press Space in PLAYING");
 
-    const safeMarginX = Math.round(WIDTH * 0.06);
-    const safeMarginY = Math.round(HEIGHT * 0.06);
+    const lessonTag = formatUiText("bombBriefingLessonTag", "Floor {floor} power lesson", { floor: floor.id });
+    const title = copy.title || "Press Space: Escalation Pulse";
+    const subtitle = copy.subtitle || "In gameplay, Space clears enemies and enemy bullets.";
+    const abilityName = copy.abilityName || "Escalation Pulse";
+    const bullets = Array.isArray(copy.bullets)
+      ? copy.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 4)
+      : [];
+    const steps = Array.isArray(copy.steps)
+      ? copy.steps.filter((line) => typeof line === "string" && line.trim()).slice(0, enterGoal)
+      : [];
+
+    const safeMarginX = clamp(Math.round(WIDTH * 0.06), 16, 44);
+    const safeMarginY = clamp(Math.round(HEIGHT * 0.05), 14, 48);
     const panelX = safeMarginX;
     const panelY = safeMarginY;
     const panelW = WIDTH - safeMarginX * 2;
     const panelH = HEIGHT - safeMarginY * 2;
+    const panelPad = clamp(Math.round(panelW * 0.03), 18, 38);
+    const contentX = panelX + panelPad;
+    const contentW = panelW - panelPad * 2;
 
-    ctx.fillStyle = rgba(accent, 0.2);
+    const isCompact = panelH < 560 || panelW < 980;
+    const hasSideRail = !isCompact;
+    const bodyTop = panelY + 132;
+    const ctaAreaH = isCompact ? 90 : 86;
+    const ctaY = panelY + panelH - ctaAreaH - 28;
+    const bodyH = Math.max(210, ctaY - bodyTop - 14);
+
+    function normalizeLine(value, fallback) {
+      if (typeof value === "string") {
+        const normalized = value.trim();
+        if (normalized) {
+          return normalized;
+        }
+      }
+      return fallback;
+    }
+
+    function drawGlassCard(x, y, w, h, fill = TOKENS.fog, borderAlpha = 0.35) {
+      ctx.fillStyle = fill;
+      fillRoundRect(x, y, w, h, 16);
+      ctx.strokeStyle = rgba(TOKENS.ink, borderAlpha);
+      ctx.lineWidth = 2;
+      strokeRoundRect(x, y, w, h, 16);
+    }
+
+    function drawBullets(lines, x, y, w, lineHeight, limit = 5) {
+      let cursorY = y;
+      let used = 0;
+      const effectiveLimit = Math.max(1, Math.min(limit, Math.floor((panelH - 180) / lineHeight)));
+      ctx.textAlign = "left";
+      for (let i = 0; i < lines.length && used < effectiveLimit; i += 1) {
+        const text = normalizeLine(lines[i], "");
+        if (!text) {
+          continue;
+        }
+        const wrapped = getWrappedLines(text, w - 18, effectiveLimit - used);
+        for (let j = 0; j < wrapped.length && used < effectiveLimit; j += 1) {
+          const linePrefix = j === 0 ? "• " : "  ";
+          ctx.fillText(linePrefix + wrapped[j], x, cursorY);
+          cursorY += lineHeight;
+          used += 1;
+        }
+      }
+      return { endY: cursorY, usedLines: used };
+    }
+
+    ctx.fillStyle = rgba(accent, 0.24);
     fillRoundRect(panelX + 10, panelY + 14, panelW, panelH, 26);
-    ctx.strokeStyle = rgba(TOKENS.ink, 0.24);
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.2);
     ctx.lineWidth = 2;
     strokeRoundRect(panelX + 10, panelY + 14, panelW, panelH, 26);
 
@@ -2942,316 +3007,268 @@
     ctx.lineWidth = 3;
     strokeRoundRect(panelX, panelY, panelW, panelH, 26);
 
-    ctx.fillStyle = rgba(accent, 0.24);
+    ctx.fillStyle = rgba(accent, 0.22);
     fillRoundRect(panelX + 24, panelY + 22, panelW - 48, 10, 999);
 
-    const panelPad = 28;
-    const zoneGap = 14;
-    const headerH = 72;
-    const ctaH = 92;
-    const bodyGap = 18;
-    const rightW = 360;
-    const contentX = panelX + panelPad;
-    const contentW = panelW - panelPad * 2;
-    const headerY = panelY + 40;
-    const ctaY = panelY + panelH - panelPad - ctaH;
-    const bodyY = headerY + headerH + zoneGap;
-    const bodyBottom = ctaY - zoneGap;
-    const bodyH = Math.max(220, bodyBottom - bodyY);
-
-    const leftRect = { x: contentX, y: bodyY, w: contentW - rightW - bodyGap, h: bodyH };
-    const rightRect = { x: leftRect.x + leftRect.w + bodyGap, y: bodyY, w: rightW, h: bodyH };
-
-    const title = copy.title || "Press Space: Escalation Pulse";
-    const subtitle = copy.subtitle || "In gameplay, Space clears enemies and enemy bullets.";
-    const bullets = Array.isArray(copy.bullets)
-      ? copy.bullets.filter((line) => typeof line === "string" && line.trim()).slice(0, 3)
-      : [];
-    const steps = Array.isArray(copy.steps)
-      ? copy.steps.filter((line) => typeof line === "string" && line.trim()).slice(0, enterGoal)
-      : [];
-    const lessonTag = formatUiText("bombBriefingLessonTag", "Floor {floor} power lesson", { floor: floor.id });
-    const badgeText = copy.abilityName || "Escalation Pulse";
-
+    const headerY = panelY + 38;
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    ctx.font = '700 17px "Inter", sans-serif';
-    ctx.fillText(fitCanvasText(lessonTag, contentW - 340), contentX, headerY + 8);
-
-    const badgeFont = fitFontSizeForLine(badgeText, 280, 48, 18, '700 ${size}px "Sora", "Inter", sans-serif');
-    ctx.font = `700 ${badgeFont}px "Sora", "Inter", sans-serif`;
-    const badgeW = clamp(Math.ceil(ctx.measureText(badgeText).width) + 54, 204, 296);
-    const badgeH = 62;
-    const badgeX = contentX + contentW - badgeW;
-    const badgeY = headerY + 4;
-    ctx.fillStyle = rgba(accent, 0.2);
-    fillRoundRect(badgeX + 8, badgeY + 6, badgeW, badgeH, 999);
-    ctx.fillStyle = accent;
-    fillRoundRect(badgeX, badgeY, badgeW, badgeH, 999);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 3;
-    strokeRoundRect(badgeX, badgeY, badgeW, badgeH, 999);
-    ctx.fillStyle = TOKENS.ink;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(badgeText, badgeX + badgeW * 0.5, badgeY + badgeH * 0.5 + 1);
-
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(leftRect.x, leftRect.y, leftRect.w, leftRect.h, 18);
-    fillRoundRect(rightRect.x, rightRect.y, rightRect.w, rightRect.h, 18);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(leftRect.x, leftRect.y, leftRect.w, leftRect.h, 18);
-    strokeRoundRect(rightRect.x, rightRect.y, rightRect.w, rightRect.h, 18);
-
-    const leftInnerX = leftRect.x + 18;
-    const leftInnerY = leftRect.y + 16;
-    const leftInnerW = leftRect.w - 36;
-    const leftInnerH = leftRect.h - 32;
-    const keyCalloutH = 64;
-    const actionStripH = 40;
-    const chargeRowH = showChargeDetails ? 34 : 0;
-    const bulletLineH = 20;
-    const blockGap = 10;
-    const maxBulletCount = Math.min(2, bullets.length);
-    const bulletAreaH = maxBulletCount > 0 ? maxBulletCount * bulletLineH + 6 : 0;
-    const chargeRowBudget = chargeRowH > 0 ? chargeRowH + blockGap : 0;
-    const reservedBottom = keyCalloutH + actionStripH + chargeRowBudget + bulletAreaH + blockGap * 3;
-    const topTextH = Math.max(108, leftInnerH - reservedBottom);
-
-    withClipRect(leftInnerX, leftInnerY, leftInnerW, leftInnerH, () => {
-      const topCopyRect = { x: leftInnerX, y: leftInnerY, w: leftInnerW, h: topTextH };
-      const keyRect = { x: leftInnerX, y: topCopyRect.y + topCopyRect.h + blockGap, w: Math.min(338, leftInnerW), h: keyCalloutH };
-      const actionRect = { x: leftInnerX, y: keyRect.y + keyRect.h + blockGap, w: leftInnerW, h: actionStripH };
-      const chargeRect = chargeRowH
-        ? { x: leftInnerX, y: actionRect.y + actionRect.h + blockGap, w: leftInnerW, h: chargeRowH }
-        : null;
-      const bulletsRect = {
-        x: leftInnerX,
-        y: chargeRect ? chargeRect.y + chargeRect.h + blockGap : actionRect.y + actionRect.h + blockGap,
-        w: leftInnerW,
-        h: Math.max(0, leftInnerY + leftInnerH - (chargeRect ? chargeRect.y + chargeRect.h + blockGap : actionRect.y + actionRect.h + blockGap))
-      };
-
-      withClipRect(topCopyRect.x, topCopyRect.y, topCopyRect.w, topCopyRect.h, () => {
-        let textY = leftInnerY;
-        const headingMaxH = Math.max(64, topCopyRect.h - 34);
-        const headingSize = fitHeadingFontSizeForBox(title, leftInnerW, headingMaxH, 58, 30, 2, 1.04);
-        ctx.fillStyle = TOKENS.ink;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        ctx.font = `700 ${headingSize}px "Sora", "Inter", sans-serif`;
-        const headingLineH = Math.round(headingSize * 1.04);
-        const headingLines = getWrappedLines(title, leftInnerW, 2);
-        for (let i = 0; i < headingLines.length; i += 1) {
-          ctx.fillText(headingLines[i], leftInnerX, textY + i * headingLineH);
-        }
-        textY += headingLines.length * headingLineH;
-        textY += 6;
-        const subtitleMaxH = Math.max(20, topCopyRect.y + topCopyRect.h - textY);
-        let subtitleSize = topCopyRect.h >= 130 ? 17 : 15;
-        let subtitleLineH = Math.round(subtitleSize * 1.24);
-        let subtitleLines = getWrappedLines(subtitle, leftInnerW, topCopyRect.h >= 130 ? 2 : 1);
-        while (subtitleSize > 14) {
-          ctx.font = `600 ${subtitleSize}px "Inter", sans-serif`;
-          subtitleLineH = Math.round(subtitleSize * 1.24);
-          subtitleLines = getWrappedLines(subtitle, leftInnerW, topCopyRect.h >= 130 ? 2 : 1);
-          if (subtitleLines.length * subtitleLineH <= subtitleMaxH) {
-            break;
-          }
-          subtitleSize -= 1;
-        }
-        ctx.font = `600 ${subtitleSize}px "Inter", sans-serif`;
-        for (let i = 0; i < subtitleLines.length; i += 1) {
-          ctx.fillText(subtitleLines[i], leftInnerX, textY + i * subtitleLineH);
-        }
-      });
-
-      ctx.fillStyle = rgba(accent, 0.22);
-      fillRoundRect(keyRect.x + 9, keyRect.y + 7, keyRect.w, keyRect.h, 18);
-      ctx.fillStyle = accent;
-      fillRoundRect(keyRect.x, keyRect.y, keyRect.w, keyRect.h, 18);
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 3;
-      strokeRoundRect(keyRect.x, keyRect.y, keyRect.w, keyRect.h, 18);
-
-      ctx.fillStyle = TOKENS.ink;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      const keyLabel = uiText("bombBriefingKeyLabel", "SPACE");
-      const keyWordSize = fitHeadingFontSizeForBox(keyLabel, keyRect.w - 24, Math.max(28, keyRect.h - 32), 54, 34, 1, 1.02);
-      ctx.font = `700 ${keyWordSize}px "Sora", "Inter", sans-serif`;
-      ctx.fillText(keyLabel, keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h * 0.45);
-      ctx.font = '700 15px "Inter", sans-serif';
-      ctx.fillText(uiText("bombBriefingUseWindow", "Use during PLAYING"), keyRect.x + keyRect.w * 0.5, keyRect.y + keyRect.h - 20);
-
-      ctx.fillStyle = TOKENS.white;
-      fillRoundRect(actionRect.x, actionRect.y, actionRect.w, actionRect.h, 12);
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 2;
-      strokeRoundRect(actionRect.x, actionRect.y, actionRect.w, actionRect.h, 12);
-      ctx.fillStyle = TOKENS.ink;
-      ctx.textAlign = "left";
-      ctx.textBaseline = "top";
-      const actionLine = uiText("bombBriefingActionLine", "Clears all enemies + enemy bullets");
-      const actionTextSize = fitFontSizeForLine(
-        actionLine,
-        actionRect.w - 24,
-        34,
-        16,
-        '700 ${size}px "Inter", sans-serif'
-      );
-      ctx.font = `700 ${actionTextSize}px "Inter", sans-serif`;
-      const actionLineH = Math.round(actionTextSize * 1.15);
-      const actionTextY = actionRect.y + Math.round((actionRect.h - actionLineH) * 0.5);
-      ctx.fillText(fitCanvasText(actionLine, actionRect.w - 24), actionRect.x + 12, actionTextY);
-
-      if (chargeRect) {
-        const chipGap = 12;
-        const chipW = Math.floor((chargeRect.w - chipGap * (chargeCount - 1)) / chargeCount);
-        for (let i = 0; i < chargeCount; i += 1) {
-          const chipX = chargeRect.x + i * (chipW + chipGap);
-          ctx.fillStyle = rgba(accent, 0.24);
-          fillRoundRect(chipX, chargeRect.y, chipW, chargeRect.h, 999);
-          ctx.strokeStyle = TOKENS.ink;
-          ctx.lineWidth = 2;
-          strokeRoundRect(chipX, chargeRect.y, chipW, chargeRect.h, 999);
-          ctx.fillStyle = TOKENS.ink;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.font = '700 14px "Inter", sans-serif';
-          ctx.fillText(
-            formatUiText("bombBriefingChargeChip", "SPACE #{index}", { index: i + 1 }),
-            chipX + chipW * 0.5,
-            chargeRect.y + chargeRect.h * 0.5 + 1
-          );
-        }
-      }
-
-      withClipRect(bulletsRect.x, bulletsRect.y, bulletsRect.w, bulletsRect.h, () => {
-        ctx.fillStyle = TOKENS.ink;
-        ctx.font = '600 16px "Inter", sans-serif';
-        let lineY = bulletsRect.y;
-        const maxBullets = Math.min(maxBulletCount, Math.max(0, Math.floor(bulletsRect.h / bulletLineH)));
-        for (let i = 0; i < maxBullets; i += 1) {
-          lineY = drawWrappedText(`• ${bullets[i]}`, leftInnerX, lineY, leftInnerW, bulletLineH, { maxLines: 1 });
-        }
-      });
-    });
-
-    const rightInnerX = rightRect.x + 16;
-    const rightInnerY = rightRect.y + 16;
-    const rightInnerW = rightRect.w - 32;
-    const rightInnerH = rightRect.h - 32;
-
-    withClipRect(rightInnerX, rightInnerY, rightInnerW, rightInnerH, () => {
-      const stepGap = 12;
-      const upgradeBadgeH = showChargeDetails ? 52 : 0;
-      const upgradeBadgeGap = showChargeDetails ? 10 : 0;
-      let stepY = rightInnerY;
-      let stepAreaH = rightInnerH;
-
-      if (showChargeDetails) {
-        ctx.fillStyle = rgba(accent, 0.24);
-        fillRoundRect(rightInnerX, rightInnerY, rightInnerW, upgradeBadgeH, 14);
-        ctx.strokeStyle = TOKENS.ink;
-        ctx.lineWidth = 2;
-        strokeRoundRect(rightInnerX, rightInnerY, rightInnerW, upgradeBadgeH, 14);
-        ctx.fillStyle = TOKENS.ink;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = '700 28px "Sora", "Inter", sans-serif';
-        ctx.fillText(
-          formatUiText("bombBriefingChargeCount", "{count} CHARGES", { count: chargeCount }),
-          rightInnerX + rightInnerW * 0.5,
-          rightInnerY + upgradeBadgeH * 0.5 + 1
-        );
-        stepY += upgradeBadgeH + upgradeBadgeGap;
-        stepAreaH -= upgradeBadgeH + upgradeBadgeGap;
-      }
-
-      const stepCardH = Math.max(78, Math.floor((stepAreaH - stepGap * (enterGoal - 1)) / enterGoal));
-
-      for (let i = 0; i < enterGoal; i += 1) {
-        const isDone = i < accepted;
-        const label = steps[i] || formatUiText("bombBriefingStepFallback", "Step {step}", { step: i + 1 });
-        const stepLine = formatUiText("bombBriefingStepLine", "Enter {step}: {label}", { step: i + 1, label });
-        const cardX = rightInnerX;
-        const cardY = stepY;
-        const cardW = rightInnerW;
-        const markerGutter = 32;
-
-        ctx.fillStyle = isDone ? rgba(accent, 0.28) : rgba(TOKENS.white, 0.9);
-        fillRoundRect(cardX, cardY, cardW, stepCardH, 14);
-        ctx.strokeStyle = TOKENS.ink;
-        ctx.lineWidth = isDone ? 3 : 2;
-        strokeRoundRect(cardX, cardY, cardW, stepCardH, 14);
-
-        ctx.fillStyle = TOKENS.ink;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "top";
-        let stepFont = 17;
-        let stepLineH = 22;
-        let stepLines = getWrappedLines(stepLine, cardW - markerGutter - 26, 2);
-        const stepTextHLimit = Math.max(26, stepCardH - 24);
-        while (stepFont > 14) {
-          ctx.font = `700 ${stepFont}px "Inter", sans-serif`;
-          stepLineH = Math.round(stepFont * 1.22);
-          stepLines = getWrappedLines(stepLine, cardW - markerGutter - 26, 2);
-          if (stepLines.length * stepLineH <= stepTextHLimit) {
-            break;
-          }
-          stepFont -= 1;
-        }
-        ctx.font = `700 ${stepFont}px "Inter", sans-serif`;
-        const stepTextY = cardY + Math.max(10, Math.floor((stepCardH - stepLines.length * stepLineH) * 0.5));
-        for (let j = 0; j < stepLines.length; j += 1) {
-          ctx.fillText(stepLines[j], cardX + 16, stepTextY + j * stepLineH);
-        }
-
-        ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.45);
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = '700 30px "Inter", sans-serif';
-        ctx.fillText(isDone ? "✓" : "•", cardX + cardW - 20, cardY + stepCardH * 0.5 + 1);
-
-        stepY += stepCardH + stepGap;
-      }
-    });
-
-    const ctaW = contentW - 118;
-    const ctaX = contentX + (contentW - ctaW) * 0.5;
-    ctx.fillStyle = rgba(accent, 0.24);
-    fillRoundRect(ctaX - 7, ctaY - 5, ctaW + 14, ctaH + 10, 999);
-    ctx.fillStyle = accent;
-    fillRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 3;
-    strokeRoundRect(ctaX, ctaY, ctaW, ctaH, 999);
-
-    const ctaInnerW = ctaW - 44;
-    const ctaLine1Size = fitHeadingFontSizeForBox(ctaLine1, ctaInnerW, 38, 40, 22, 1, 1.08);
-    const ctaLine2Size = fitHeadingFontSizeForBox(
-      ctaLine2,
-      ctaInnerW,
-      26,
-      22,
-      15,
-      1,
-      1.2,
-      '700 ${size}px "Inter", sans-serif'
+    ctx.font = '600 15px "Inter", sans-serif';
+    ctx.fillText(fitCanvasText(lessonTag, contentW), contentX, headerY);
+    const titleSize = fitHeadingFontSizeForBox(
+      title,
+      contentW,
+      isCompact ? 64 : 82,
+      isCompact ? 46 : 56,
+      28,
+      2,
+      1.06,
+      '700 ${size}px "Sora", "Inter", sans-serif'
     );
 
     ctx.fillStyle = TOKENS.ink;
+    ctx.font = `700 ${titleSize}px "Sora", "Inter", sans-serif`;
+    const titleLines = getWrappedLines(normalizeLine(title, ""), contentW, 2);
+    const titleLineH = Math.round(titleSize * 1.06);
+    for (let i = 0; i < titleLines.length; i += 1) {
+      ctx.fillText(titleLines[i], contentX, headerY + 24 + i * titleLineH);
+    }
+
+    const abilityTagText = normalizeLine(abilityName, "Escalation Pulse");
+    ctx.fillStyle = accent;
+    const badgePadY = headerY + Math.max(64, titleLineH * titleLines.length + 32);
+    fillRoundRect(contentX, badgePadY - 6, Math.min(contentW - 4, 320), 40, 999);
+    ctx.fillStyle = rgba(accent, 0.18);
+    fillRoundRect(contentX, badgePadY - 6, 40, 40, 999);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 15px "Sora", "Inter", sans-serif';
+    const badgeLabelX = contentX + 50;
+    const badgeLabelMaxW = Math.min(contentW - 4 - 56, Math.ceil(ctx.measureText(abilityTagText).width) + 10);
+    ctx.fillText(
+      fitCanvasText(abilityTagText, badgeLabelMaxW),
+      badgeLabelX,
+      badgePadY + 2
+    );
+
+    const sideRailW = hasSideRail ? clamp(Math.round(contentW * 0.35), 226, 320) : 0;
+    const leftW = hasSideRail ? contentW - sideRailW - 16 : contentW;
+    const leftX = contentX;
+    const rightX = contentX + leftW + 16;
+    const bodyY = bodyTop;
+    const rightY = bodyTop;
+    const rightH = bodyH;
+    const leftH = hasSideRail ? bodyH : Math.round(bodyH * 0.58);
+
+    drawGlassCard(leftX, bodyY, leftW, leftH, TOKENS.fog, 0.4);
+    const leftInnerX = leftX + 16;
+    const leftInnerW = leftW - 32;
+    const leftInnerY = bodyY + 14;
+
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '600 16px "Inter", sans-serif';
+    const subtitleSize = fitFontSizeForLine(subtitle, leftInnerW, 26, 14, '600 ${size}px "Inter", sans-serif');
+    ctx.font = `600 ${subtitleSize}px "Inter", sans-serif`;
+    const subtitleLines = getWrappedLines(subtitle, leftInnerW, hasSideRail ? 4 : 3);
+    let cursorY = leftInnerY;
+    for (let i = 0; i < subtitleLines.length; i += 1) {
+      ctx.fillText(subtitleLines[i], leftInnerX, cursorY);
+      cursorY += Math.round(subtitleSize * 1.28);
+    }
+
+    cursorY += 14;
+    const sectionTitle = hasSideRail ? "How to use in PLAYING" : "Details";
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '700 13px "Sora", "Inter", sans-serif';
+    ctx.fillText(sectionTitle, leftInnerX, cursorY);
+    cursorY += 15;
+    ctx.fillStyle = TOKENS.ink;
+    ctx.font = '600 15px "Inter", sans-serif';
+    drawBullets(bullets, leftInnerX, cursorY, leftInnerW, Math.round(18 * 1.18), 6);
+
+    const keyKeyText = uiText("bombBriefingKeyLabel", "SPACE");
+    const spaceCalloutY = leftInnerY + leftH - 88;
+    drawGlassCard(leftInnerX, spaceCalloutY, leftInnerW, 56, rgba(accent, 0.12), 0.32);
+    const keyPillW = Math.min(92, leftInnerW - 24);
+    ctx.fillStyle = TOKENS.white;
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 1;
+    const keyPillX = leftInnerX + 12;
+    const keyPillY = spaceCalloutY + 12;
+    fillRoundRect(keyPillX, keyPillY, keyPillW, 32, 9);
+    strokeRoundRect(keyPillX, keyPillY, keyPillW, 32, 9);
+    ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = '700 16px "Sora", "Inter", sans-serif';
+    ctx.fillText(keyKeyText, keyPillX + keyPillW * 0.5, keyPillY + 16);
+    ctx.textAlign = "left";
     ctx.textBaseline = "top";
+    ctx.font = '600 15px "Inter", sans-serif';
+    ctx.fillText(
+      uiText("bombBriefingUseWindow", "Use during PLAYING"),
+      keyPillX + keyPillW + 12,
+      keyPillY + 8
+    );
+    const calloutText = uiText("bombBriefingActionLine", "Clears all enemies + enemy bullets.");
+    drawWrappedText(
+      calloutText,
+      leftInnerX + 12,
+      keyPillY + 44,
+      leftInnerW - 24,
+      Math.round(15 * 1.2),
+      { maxLines: 1 }
+    );
+
+    if (hasSideRail) {
+      drawGlassCard(rightX, rightY, sideRailW, rightH, rgba(accent, 0.08), 0.32);
+      const rightInnerX = rightX + 12;
+      const rightInnerW = sideRailW - 24;
+      let stepTop = rightY + 12;
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 13px "Sora", "Inter", sans-serif';
+      ctx.fillText(
+        formatUiText("bombBriefingChargeCount", "CHARGES: {count}", { count: chargeDetailCount }),
+        rightInnerX,
+        stepTop
+      );
+
+      const chipRowY = stepTop + 26;
+      const chipW = Math.floor((rightInnerW - 14) / chargeDetailCount);
+      const chipGap = chargeDetailCount > 1 ? 7 : 0;
+      for (let i = 0; i < chargeDetailCount; i += 1) {
+        const x = rightInnerX + i * (chipW + chipGap);
+        ctx.fillStyle = rgba(accent, 0.22);
+        fillRoundRect(x, chipRowY, chipW, 24, 999);
+        ctx.strokeStyle = TOKENS.ink;
+        ctx.lineWidth = 1.4;
+        strokeRoundRect(x, chipRowY, chipW, 24, 999);
+        ctx.fillStyle = TOKENS.ink;
+        ctx.font = '700 13px "Inter", sans-serif';
+        const chipLabel = formatUiText("bombBriefingChargeChip", "{n}", { n: i + 1 });
+        ctx.textAlign = "center";
+        ctx.fillText(fitCanvasText(chipLabel, chipW), x + chipW * 0.5, chipRowY + 7);
+        ctx.textAlign = "left";
+      }
+
+      const progressY = chipRowY + 36;
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 13px "Sora", "Inter", sans-serif';
+      ctx.fillText("Accept floor update", rightInnerX, progressY);
+      const stepCardGap = 10;
+      const stepCardStart = progressY + 24;
+      const stepAreaHeight = rightY + rightH - stepCardStart - 14;
+      const stepCardH = Math.max(56, Math.floor((stepAreaHeight - stepCardGap * (enterGoal - 1)) / enterGoal));
+
+      for (let i = 0; i < enterGoal; i += 1) {
+        const isDone = i < accepted;
+        const stepY = stepCardStart + i * (stepCardH + stepCardGap);
+        const stepLabel = steps[i] || formatUiText("bombBriefingStepFallback", "Step {step}", { step: i + 1 });
+        const stepText = formatUiText("bombBriefingStepLine", "Enter {step}: {label}", { step: i + 1, label: stepLabel });
+        const stepTextW = rightInnerW - 34;
+        const isActive = i === accepted && accepted < enterGoal;
+        ctx.fillStyle = isDone ? rgba(accent, 0.28) : isActive ? rgba(TOKENS.white, 0.95) : TOKENS.white;
+        fillRoundRect(rightInnerX, stepY, rightInnerW, stepCardH, 12);
+        ctx.strokeStyle = TOKENS.ink;
+        ctx.lineWidth = isActive ? 2.4 : 1.8;
+        strokeRoundRect(rightInnerX, stepY, rightInnerW, stepCardH, 12);
+
+        const stepFont = fitFontSizeForLine(stepText, stepTextW - 28, isDone ? 16 : isActive ? 15 : 14, 11, '700 ${size}px "Inter", sans-serif');
+        ctx.fillStyle = TOKENS.ink;
+        ctx.font = `700 ${stepFont}px "Inter", sans-serif`;
+        const stepLineH = Math.round(stepFont * 1.22);
+        const stepLines = getWrappedLines(stepText, stepTextW, 2);
+        const stepTextY = stepY + Math.max(6, Math.floor((stepCardH - Math.min(stepLines.length, 2) * stepLineH) * 0.5));
+        for (let j = 0; j < stepLines.length; j += 1) {
+          ctx.fillText(stepLines[j], rightInnerX + 12, stepTextY + j * stepLineH);
+        }
+        ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.44);
+        ctx.font = '700 22px "Inter", sans-serif';
+        ctx.textAlign = "right";
+        ctx.fillText(isDone ? "✓" : `${i + 1}`, rightInnerX + rightInnerW - 10, stepY + Math.floor(stepCardH * 0.5) + 1);
+        ctx.textAlign = "left";
+      }
+    } else {
+      const stepsY = bodyTop + leftH + 14;
+      const singleAreaH = bodyH - leftH - 14;
+      drawGlassCard(leftX, stepsY, leftW, singleAreaH, TOKENS.fog, 0.34);
+      const stepInnerX = leftX + 12;
+      const stepInnerW = leftW - 24;
+      let stepY = stepsY + 12;
+      const heading = formatUiText("bombBriefingChargeCount", "Progress: {count}/{total} ENTER", {
+        count: accepted,
+        total: enterGoal
+      });
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 13px "Sora", "Inter", sans-serif';
+      ctx.fillText(heading, stepInnerX, stepY);
+      stepY += 20;
+      const stepGap = 8;
+      const stepCardH = Math.max(36, Math.floor((singleAreaH - 28 - stepGap * (enterGoal - 1)) / enterGoal));
+      for (let i = 0; i < enterGoal; i += 1) {
+        const isDone = i < accepted;
+        const isActive = i === accepted && accepted < enterGoal;
+        const stepCardY = stepY + i * (stepCardH + stepGap);
+        const raw = steps[i] || formatUiText("bombBriefingStepFallback", "Step {step}", { step: i + 1 });
+        const line = formatUiText("bombBriefingStepLine", "Enter {step}: {label}", { step: i + 1, label: raw });
+        ctx.fillStyle = isDone ? rgba(accent, 0.25) : TOKENS.white;
+        fillRoundRect(stepInnerX, stepCardY, stepInnerW, stepCardH, 10);
+        ctx.strokeStyle = TOKENS.ink;
+        ctx.lineWidth = isActive ? 2 : 1.6;
+        strokeRoundRect(stepInnerX, stepCardY, stepInnerW, stepCardH, 10);
+
+        ctx.fillStyle = TOKENS.ink;
+        ctx.font = isActive ? '700 13px "Inter", sans-serif' : '600 12px "Inter", sans-serif';
+        const rowText = getWrappedLines(line, stepInnerW - 34, 2);
+        const rowH = Math.round(16 * (isActive ? 1.1 : 1));
+        const rowY = stepCardY + Math.max(4, Math.floor((stepCardH - rowText.length * rowH) / 2));
+        for (let j = 0; j < rowText.length; j += 1) {
+          ctx.fillText(rowText[j], stepInnerX + 12, rowY + j * rowH);
+        }
+        ctx.textAlign = "right";
+        ctx.font = '700 18px "Inter", sans-serif';
+        ctx.fillStyle = isDone ? TOKENS.ink : rgba(TOKENS.ink, 0.45);
+        ctx.fillText(isDone ? "✓" : `${i + 1}`, stepInnerX + stepInnerW - 10, stepCardY + Math.floor(stepCardH * 0.5) + 1);
+        ctx.textAlign = "left";
+      }
+    }
+
+    const ctaW = Math.min(contentW - 40, Math.max(430, Math.floor(contentW * 0.82)));
+    const ctaX = contentX + (contentW - ctaW) * 0.5;
+    const ctaLineW = ctaW - 44;
+    ctx.fillStyle = rgba(accent, 0.22);
+    fillRoundRect(ctaX - 5, ctaY - 3, ctaW + 10, ctaAreaH + 6, 999);
+    ctx.fillStyle = accent;
+    fillRoundRect(ctaX, ctaY, ctaW, ctaAreaH, 999);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2.4;
+    strokeRoundRect(ctaX, ctaY, ctaW, ctaAreaH, 999);
+
+    const ctaLine1Size = fitFontSizeForLine(
+      ctaLine1,
+      ctaLineW,
+      44,
+      16,
+      '700 ${size}px "Sora", "Inter", sans-serif'
+    );
+    const ctaLine2Size = fitFontSizeForLine(
+      ctaLine2,
+      ctaLineW,
+      22,
+      12,
+      '600 ${size}px "Inter", sans-serif'
+    );
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
     ctx.font = `700 ${ctaLine1Size}px "Sora", "Inter", sans-serif`;
-    const ctaLine1Y = ctaY + 11;
-    ctx.fillText(fitCanvasText(ctaLine1, ctaInnerW), ctaX + ctaW * 0.5, ctaLine1Y);
-    ctx.font = `700 ${ctaLine2Size}px "Inter", sans-serif`;
-    const ctaLine2Y = ctaY + ctaH - Math.round(ctaLine2Size * 1.2) - 5;
-    ctx.fillText(fitCanvasText(ctaLine2, ctaInnerW), ctaX + ctaW * 0.5, ctaLine2Y);
+    ctx.fillText(fitCanvasText(ctaLine1, ctaLineW), ctaX + ctaW * 0.5, ctaY + Math.round(ctaAreaH * 0.4) - 8);
+    ctx.font = `600 ${ctaLine2Size}px "Inter", sans-serif`;
+    ctx.fillText(
+      fitCanvasText(ctaLine2, ctaLineW),
+      ctaX + ctaW * 0.5,
+      ctaY + Math.round(ctaAreaH * 0.72) + 6
+    );
 
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";

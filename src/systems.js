@@ -12,6 +12,10 @@
     lessonTextSampleBtn,
     lessonTextCloseBtn
   } = AIPU.dom;
+  const appFooterMusicHintBtn = document.getElementById("appFooterMusicHintBtn");
+  const appFooterSfxHintBtn = document.getElementById("appFooterSfxHintBtn");
+  const appFooterMusicHintStateEl = document.getElementById("appFooterMusicHintState");
+  const appFooterSfxHintStateEl = document.getElementById("appFooterSfxHintState");
   const {
     TOKENS,
     GameState,
@@ -490,6 +494,60 @@
     }
   }
 
+  function refreshAudioControlButtons() {
+    const snapshot = getAudioMuteSnapshot();
+    const musicAction = formatUiText("appFooterMusicHintAction", "Mute music");
+    const sfxAction = formatUiText("appFooterSfxHintAction", "Mute sound effects");
+
+    if (appFooterMusicHintBtn) {
+      appFooterMusicHintBtn.setAttribute("aria-pressed", String(snapshot.musicMuted));
+      appFooterMusicHintBtn.setAttribute(
+        "aria-label",
+        `${musicAction}${snapshot.musicMuted ? " (muted)" : " (on)"}`
+      );
+    }
+
+    if (appFooterSfxHintBtn) {
+      appFooterSfxHintBtn.setAttribute("aria-pressed", String(snapshot.sfxMuted));
+      appFooterSfxHintBtn.setAttribute(
+        "aria-label",
+        `${sfxAction}${snapshot.sfxMuted ? " (muted)" : " (on)"}`
+      );
+    }
+
+    if (appFooterMusicHintStateEl) {
+      appFooterMusicHintStateEl.textContent = snapshot.musicMuted ? "Muted" : "On";
+    }
+
+    if (appFooterSfxHintStateEl) {
+      appFooterSfxHintStateEl.textContent = snapshot.sfxMuted ? "Muted" : "On";
+    }
+  }
+
+  function initializeFooterControlButtons() {
+    if (appFooterMusicHintBtn) {
+      appFooterMusicHintBtn.setAttribute("type", "button");
+      appFooterMusicHintBtn.addEventListener("click", () => {
+        if (isTextModalOpen() || isShareModalOpen()) {
+          return;
+        }
+        toggleMusicMutedState();
+      });
+    }
+
+    if (appFooterSfxHintBtn) {
+      appFooterSfxHintBtn.setAttribute("type", "button");
+      appFooterSfxHintBtn.addEventListener("click", () => {
+        if (isTextModalOpen() || isShareModalOpen()) {
+          return;
+        }
+        toggleSfxMutedState();
+      });
+    }
+
+    refreshAudioControlButtons();
+  }
+
   function nowMs() {
     if (typeof performance !== "undefined" && typeof performance.now === "function") {
       return performance.now();
@@ -859,6 +917,10 @@
 
     const appFooterControlsHintEl = document.getElementById("appFooterControlsHint");
     if (appFooterControlsHintEl) {
+      appFooterControlsHintEl.textContent = formatUiText(
+        "appFooterControlsHint",
+        "Press Spacebar to use bomb • M to mute music • E to mute sound effects"
+      );
       appFooterControlsHintEl.setAttribute(
         "aria-label",
         formatUiText("appFooterControlsAriaLabel", "Controls shortcuts")
@@ -868,16 +930,6 @@
     const appFooterControlsTitleEl = document.getElementById("appFooterControlsTitle");
     if (appFooterControlsTitleEl) {
       appFooterControlsTitleEl.textContent = formatUiText("appFooterControlsTitle", "Controls");
-    }
-
-    const appFooterMoveHintKeyEl = document.getElementById("appFooterMoveHintKey");
-    if (appFooterMoveHintKeyEl) {
-      appFooterMoveHintKeyEl.textContent = formatUiText("appFooterMoveHintKey", "WASD + Arrows");
-    }
-
-    const appFooterMoveHintActionEl = document.getElementById("appFooterMoveHintAction");
-    if (appFooterMoveHintActionEl) {
-      appFooterMoveHintActionEl.textContent = formatUiText("appFooterMoveHintAction", "Move");
     }
 
     const appFooterBombHintKeyEl = document.getElementById("appFooterBombHintKey");
@@ -947,6 +999,7 @@
 
   initializeLessonTextModal();
   applyNarrativeStaticUiLabels();
+  initializeFooterControlButtons();
 
   window.addEventListener("keydown", (event) => {
     if (isTextModalOpen()) {
@@ -1201,11 +1254,15 @@
     }
 
     if (typeof audio.toggleMusicMuted === "function") {
-      return !!audio.toggleMusicMuted();
+      const nextMuted = !!audio.toggleMusicMuted();
+      refreshAudioControlButtons();
+      return nextMuted;
     }
 
     if (typeof audio.toggleMuted === "function") {
-      return !!audio.toggleMuted();
+      const nextMuted = !!audio.toggleMuted();
+      refreshAudioControlButtons();
+      return nextMuted;
     }
 
     if (typeof audio.setMusicMuted !== "function" || typeof audio.getState !== "function") {
@@ -1228,6 +1285,7 @@
     } else {
       return false;
     }
+    refreshAudioControlButtons();
     return nextMuted;
   }
 
@@ -1238,7 +1296,9 @@
     }
 
     if (typeof audio.toggleSfxMuted === "function") {
-      return !!audio.toggleSfxMuted();
+      const nextMuted = !!audio.toggleSfxMuted();
+      refreshAudioControlButtons();
+      return nextMuted;
     }
 
     if (typeof audio.setSfxMuted !== "function" || typeof audio.getState !== "function") {
@@ -1254,6 +1314,7 @@
     }
 
     audio.setSfxMuted(!currentMuted);
+    refreshAudioControlButtons();
     return !currentMuted;
   }
 
