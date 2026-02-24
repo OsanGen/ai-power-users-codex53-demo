@@ -93,31 +93,13 @@ body {
 .header-controls-stack {
   margin-top: 0.45rem;
   display: flex;
-  flex-direction: column;
-  gap: 0.24rem;
-}
-
-.controls-cluster {
-  display: flex;
-  flex-direction: column;
-  gap: 0.28rem;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.controls-title-band {
-  align-self: flex-start;
-  font: 700 0.72rem/1 "Sora", "Inter", sans-serif;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: transparent;
-  background: linear-gradient(90deg, var(--cog-blue), var(--cog-yellow), var(--cog-mint), var(--cog-pink));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  padding: 0.24rem 0.54rem;
-  border-radius: 999px;
-  border: 2px solid rgba(31, 36, 48, 0.22);
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.48rem;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 #appTitle,
@@ -474,6 +456,7 @@ button.status-chip:focus-visible,
 .header-controls-stack #appFooterGoal {
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .header-controls-stack #appFooterGoal {
@@ -487,41 +470,36 @@ button.status-chip:focus-visible,
 .controls-hint {
   margin: 0;
   color: var(--ink-muted);
-  font: 500 0.74rem/1.25 "Inter", sans-serif;
+  font: 500 0.74rem/1.15 "Inter", sans-serif;
+  line-height: 1.1;
+  flex: 0 0 auto;
   white-space: nowrap;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  text-overflow: ellipsis;
+  min-width: max-content;
 }
 
 .controls-hint::-webkit-scrollbar {
-  height: 0.32rem;
+  height: 0;
 }
 
 .control-strip {
   flex: 0 0 auto;
-  min-width: 0;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   justify-content: start;
   gap: 0.46rem;
-  width: min(100%, 100%);
-  overflow-x: auto;
-  overflow-y: hidden;
+  width: auto;
+  min-width: max-content;
+  overflow: visible;
   white-space: nowrap;
-  scrollbar-width: thin;
   padding: 0;
   border: 0;
   background: transparent;
-  max-width: 100%;
-  -webkit-overflow-scrolling: touch;
+  max-width: none;
 }
 
 .control-strip::-webkit-scrollbar {
-  height: 0.4rem;
+  height: 0;
 }
 
 .control-pill {
@@ -688,17 +666,13 @@ button.status-chip:focus-visible,
   }
 
   .control-strip {
-    width: 100%;
     gap: 0.3rem;
   }
 
   .controls-hint {
     font-size: 0.7rem;
     white-space: nowrap;
-  }
-
-  .controls-title-band {
-    font-size: 0.66rem;
+    flex-shrink: 0;
   }
 
   .control-pill-key {

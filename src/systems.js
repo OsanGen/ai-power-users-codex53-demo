@@ -943,11 +943,6 @@
       );
     }
 
-    const appFooterControlsTitleEl = document.getElementById("appFooterControlsTitle");
-    if (appFooterControlsTitleEl) {
-      appFooterControlsTitleEl.textContent = formatUiText("appFooterControlsTitle", "Controls");
-    }
-
     const appFooterBombHintKeyEl = document.getElementById("appFooterBombHintKey");
     if (appFooterBombHintKeyEl) {
       appFooterBombHintKeyEl.textContent = formatUiText("appFooterBombHintKey", "Spacebar");

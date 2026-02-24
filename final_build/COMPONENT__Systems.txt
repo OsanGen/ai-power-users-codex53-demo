@@ -21,6 +21,7 @@ Inputs:
   - `appFooterMusicHintAction` and `appFooterSfxHintAction` for live action text (`Mute`/`Unmute`) bound to runtime audio state.
   - `appFooterMusicHintState` and `appFooterSfxHintState` for live channel state labels.
   - `appFooterControlsHint` for the one-line control legend text (`Spacebar`, `M`, `E`).
+  - `appFooterControlsTitle` is deprecated/no-op in runtime UI wiring and is no longer populated by systems.
   - `KeyM` for music mute hotkey.
   - `KeyE` for SFX mute hotkey.
 
@@ -44,6 +45,7 @@ State/Edges:
   - Accepts non-repeating `M` (`KeyM`) to toggle music mute and non-repeating `E` (`KeyE`) to toggle SFX mute.
   - `appFooterMusicHintBtn` and `appFooterSfxHintBtn` clicks trigger channel-specific toggles and immediate footer refresh.
   - Control legend (`appFooterControlsHint`) is refreshed on startup from narrative copy for explicit key mapping.
+  - Systems now intentionally updates only hint/strip/goal controls in the header rail and does not bind a controls-title chip.
   - Per-channel controls now render live action text (`Mute`/`Unmute`) and state pills (`On`/`Muted`) so labels never contradict runtime channel state.
   - Normalizes key handling from `event.code` with fallback aliases for legacy `event.key` values (`Up`/`Down`/`Left`/`Right`) and single-char movement fallback.
   - Movement is `WASD` (`KeyW/KeyA/KeyS/KeyD`), while shoot direction is read from arrow keys (`ArrowUp/ArrowDown/ArrowLeft/ArrowRight`).
