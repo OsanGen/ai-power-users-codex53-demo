@@ -122,7 +122,7 @@
     if (legacyMusicMuted !== null && musicMuted === null && sfxMuted === null) {
       return {
         isMusicMuted: legacyMusicMuted,
-        isSfxMuted: legacyMusicMuted
+        isSfxMuted: false
       };
     }
 

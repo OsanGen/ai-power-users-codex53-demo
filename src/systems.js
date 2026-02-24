@@ -14,6 +14,8 @@
   } = AIPU.dom;
   const appFooterMusicHintBtn = document.getElementById("appFooterMusicHintBtn");
   const appFooterSfxHintBtn = document.getElementById("appFooterSfxHintBtn");
+  const appFooterMusicHintActionEl = document.getElementById("appFooterMusicHintAction");
+  const appFooterSfxHintActionEl = document.getElementById("appFooterSfxHintAction");
   const appFooterMusicHintStateEl = document.getElementById("appFooterMusicHintState");
   const appFooterSfxHintStateEl = document.getElementById("appFooterSfxHintState");
   const {
@@ -481,8 +483,10 @@
     }
     try {
       const audioState = audio.getState();
+      const hasMusicMutedField =
+        !!audioState && Object.prototype.hasOwnProperty.call(audioState, "musicMuted");
       return {
-        musicMuted: !!(audioState && (audioState.musicMuted || audioState.muted)),
+        musicMuted: !!(audioState && (hasMusicMutedField ? audioState.musicMuted : audioState.muted)),
         sfxMuted: !!(audioState && audioState.sfxMuted)
       };
     } catch (error) {
@@ -496,8 +500,12 @@
 
   function refreshAudioControlButtons() {
     const snapshot = getAudioMuteSnapshot();
-    const musicAction = formatUiText("appFooterMusicHintAction", "Mute music");
-    const sfxAction = formatUiText("appFooterSfxHintAction", "Mute sound effects");
+    const musicMuteAction = formatUiText("appFooterMusicHintAction", "Mute music");
+    const musicUnmuteAction = formatUiText("appFooterMusicUnmuteAction", "Unmute music");
+    const sfxMuteAction = formatUiText("appFooterSfxHintAction", "Mute sound effects");
+    const sfxUnmuteAction = formatUiText("appFooterSfxUnmuteAction", "Unmute sound effects");
+    const musicAction = snapshot.musicMuted ? musicUnmuteAction : musicMuteAction;
+    const sfxAction = snapshot.sfxMuted ? sfxUnmuteAction : sfxMuteAction;
 
     if (appFooterMusicHintBtn) {
       appFooterMusicHintBtn.setAttribute("aria-pressed", String(snapshot.musicMuted));
@@ -513,6 +521,14 @@
         "aria-label",
         `${sfxAction}${snapshot.sfxMuted ? " (muted)" : " (on)"}`
       );
+    }
+
+    if (appFooterMusicHintActionEl) {
+      appFooterMusicHintActionEl.textContent = musicAction;
+    }
+
+    if (appFooterSfxHintActionEl) {
+      appFooterSfxHintActionEl.textContent = sfxAction;
     }
 
     if (appFooterMusicHintStateEl) {
@@ -947,7 +963,6 @@
       appFooterMusicHintKeyEl.textContent = formatUiText("appFooterMusicHintKey", "M");
     }
 
-    const appFooterMusicHintActionEl = document.getElementById("appFooterMusicHintAction");
     if (appFooterMusicHintActionEl) {
       appFooterMusicHintActionEl.textContent = formatUiText("appFooterMusicHintAction", "Mute music");
     }
@@ -957,7 +972,6 @@
       appFooterSfxHintKeyEl.textContent = formatUiText("appFooterSfxHintKey", "E");
     }
 
-    const appFooterSfxHintActionEl = document.getElementById("appFooterSfxHintAction");
     if (appFooterSfxHintActionEl) {
       appFooterSfxHintActionEl.textContent = formatUiText("appFooterSfxHintAction", "Mute sound effects");
     }

@@ -18,6 +18,7 @@ Inputs:
 - Audio control UI and hotkeys:
   - `appFooterMusicHintBtn` for footer music toggle button.
   - `appFooterSfxHintBtn` for footer SFX toggle button.
+  - `appFooterMusicHintAction` and `appFooterSfxHintAction` for live action text (`Mute`/`Unmute`) bound to runtime audio state.
   - `appFooterMusicHintState` and `appFooterSfxHintState` for live channel state labels.
   - `appFooterControlsHint` for the one-line control legend text (`Spacebar`, `M`, `E`).
   - `KeyM` for music mute hotkey.
@@ -43,7 +44,7 @@ State/Edges:
   - Accepts non-repeating `M` (`KeyM`) to toggle music mute and non-repeating `E` (`KeyE`) to toggle SFX mute.
   - `appFooterMusicHintBtn` and `appFooterSfxHintBtn` clicks trigger channel-specific toggles and immediate footer refresh.
   - Control legend (`appFooterControlsHint`) is refreshed on startup from narrative copy for explicit key mapping.
-  - Per-channel state pills now render live channel state (`On`/`Muted`) so each control is readable at a glance.
+  - Per-channel controls now render live action text (`Mute`/`Unmute`) and state pills (`On`/`Muted`) so labels never contradict runtime channel state.
   - Normalizes key handling from `event.code` with fallback aliases for legacy `event.key` values (`Up`/`Down`/`Left`/`Right`) and single-char movement fallback.
   - Movement is `WASD` (`KeyW/KeyA/KeyS/KeyD`), while shoot direction is read from arrow keys (`ArrowUp/ArrowDown/ArrowLeft/ArrowRight`).
   - Numpad directional controls (`Numpad8/2/4/6`) are normalized to arrow directions for shooting where the browser reports keypad codes.
@@ -141,4 +142,4 @@ Acceptance Checks:
   - Pressing `E` must only toggle `sfxMuted`.
   - Footer music button click must only toggle `musicMuted`.
   - Footer SFX button click must only toggle `sfxMuted`.
-  - Control hint and state labels must always match: `Press Spacebar...M...E` text and `Muted/On` pills should remain in sync with `AIPU.audio.getState()` after any interaction or reload.
+  - Control hint, action labels, and state labels must always match: `Press Spacebar...M...E` text, `Mute/Unmute` action labels, and `Muted/On` pills should remain in sync with `AIPU.audio.getState()` after any interaction or reload.

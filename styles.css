@@ -389,17 +389,6 @@ canvas {
   position: relative;
 }
 
-.app-header::after {
-  content: "";
-  position: absolute;
-  left: var(--space-4);
-  right: var(--space-4);
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(to right, transparent, rgba(31, 36, 48, 0.24), transparent);
-  pointer-events: none;
-}
-
 .sr-only {
   position: absolute;
   width: 1px;
@@ -536,10 +525,9 @@ button.status-chip:focus-visible,
 }
 
 .control-pill {
-  display: inline-grid;
-  grid-template-columns: auto auto 1fr;
+  display: inline-flex;
   align-items: center;
-  gap: 0.3rem;
+  gap: 0.34rem;
   border: 2px solid rgba(31, 36, 48, 0.8);
   border-radius: 999px;
   padding: 0.26rem 0.58rem;
@@ -675,9 +663,11 @@ button.status-chip:focus-visible,
   letter-spacing: 0.02em;
   text-transform: uppercase;
   padding: 0.05rem 0.34rem 0.03rem;
+  margin-left: 0.08rem;
   border-radius: 999px;
   border: 1px solid rgba(31, 36, 48, 0.25);
   background: #eef2f6;
+  flex-shrink: 0;
 }
 
 .header-controls-stack #appFooterControlsHint {

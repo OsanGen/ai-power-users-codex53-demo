@@ -55,7 +55,7 @@ Edge Cases:
   - music muting only gates `floorAudio` playback.
   - SFX muting only gates `playSfx()`.
 - Storage migration:
-  - If V2 keys are absent and legacy `MUSIC_MUTED_V1` exists, both channels initialize from legacy state.
+  - If V2 keys are absent and legacy `MUSIC_MUTED_V1` exists, legacy value initializes music only and SFX defaults to unmuted (`false`).
 - SFX file load/decode failures are no longer permanently latched:
   - failed effect IDs enter `error` status with timestamp;
   - retry is allowed again after cooldown (`SFX_ERROR_RETRY_COOLDOWN_MS`) to recover from transient network/cache issues;
@@ -84,3 +84,4 @@ Acceptance checks:
 - After a forced SFX fetch/decode failure, effect playback still produces synth fallback immediately and file-backed playback can recover on later attempts after retry cooldown.
 - `setMuted` / `toggleMuted` remain music-compatible for legacy callers.
 - `setMusicMuted`/`toggleMusicMuted` and `setSfxMuted`/`toggleSfxMuted` are independent and persist across reload.
+- Legacy-only storage profiles (`MUSIC_MUTED_V1` with no V2 keys) rehydrate as music-muted only; SFX channel remains enabled until explicitly muted.

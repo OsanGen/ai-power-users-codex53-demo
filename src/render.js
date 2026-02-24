@@ -3087,14 +3087,17 @@
     drawBullets(bullets, leftInnerX, cursorY, leftInnerW, Math.round(18 * 1.18), 6);
 
     const keyKeyText = uiText("bombBriefingKeyLabel", "SPACE");
-    const spaceCalloutY = leftInnerY + leftH - 88;
-    drawGlassCard(leftInnerX, spaceCalloutY, leftInnerW, 56, rgba(accent, 0.12), 0.32);
-    const keyPillW = Math.min(92, leftInnerW - 24);
+    const spaceCalloutH = 74;
+    const spaceCalloutY = leftInnerY + leftH - spaceCalloutH - 12;
+    drawGlassCard(leftInnerX, spaceCalloutY, leftInnerW, spaceCalloutH, rgba(accent, 0.12), 0.32);
+    const calloutInsetX = leftInnerX + 12;
+    const calloutInnerW = leftInnerW - 24;
+    const keyPillW = Math.max(72, Math.min(92, calloutInnerW - 24));
     ctx.fillStyle = TOKENS.white;
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 1;
-    const keyPillX = leftInnerX + 12;
-    const keyPillY = spaceCalloutY + 12;
+    const keyPillX = calloutInsetX;
+    const keyPillY = spaceCalloutY + 9;
     fillRoundRect(keyPillX, keyPillY, keyPillW, 32, 9);
     strokeRoundRect(keyPillX, keyPillY, keyPillW, 32, 9);
     ctx.fillStyle = TOKENS.ink;
@@ -3111,12 +3114,20 @@
       keyPillY + 8
     );
     const calloutText = uiText("bombBriefingActionLine", "Clears all enemies + enemy bullets.");
+    const calloutFontSize = fitFontSizeForLine(
+      calloutText,
+      calloutInnerW,
+      14,
+      11,
+      '600 ${size}px "Inter", sans-serif'
+    );
+    ctx.font = `600 ${calloutFontSize}px "Inter", sans-serif`;
     drawWrappedText(
       calloutText,
-      leftInnerX + 12,
-      keyPillY + 44,
-      leftInnerW - 24,
-      Math.round(15 * 1.2),
+      calloutInsetX,
+      spaceCalloutY + 46,
+      calloutInnerW,
+      Math.round(calloutFontSize * 1.18),
       { maxLines: 1 }
     );
 
@@ -3145,7 +3156,7 @@
         strokeRoundRect(x, chipRowY, chipW, 24, 999);
         ctx.fillStyle = TOKENS.ink;
         ctx.font = '700 13px "Inter", sans-serif';
-        const chipLabel = formatUiText("bombBriefingChargeChip", "{n}", { n: i + 1 });
+        const chipLabel = formatUiText("bombBriefingChargeChip", "SPACE #{index}", { index: i + 1, n: i + 1 });
         ctx.textAlign = "center";
         ctx.fillText(fitCanvasText(chipLabel, chipW), x + chipW * 0.5, chipRowY + 7);
         ctx.textAlign = "left";
@@ -3247,27 +3258,34 @@
     const ctaLine1Size = fitFontSizeForLine(
       ctaLine1,
       ctaLineW,
-      44,
-      16,
+      38,
+      18,
       '700 ${size}px "Sora", "Inter", sans-serif'
     );
     const ctaLine2Size = fitFontSizeForLine(
       ctaLine2,
       ctaLineW,
-      22,
+      20,
       12,
       '600 ${size}px "Inter", sans-serif'
     );
+    const ctaLine1H = Math.round(ctaLine1Size * 1.06);
+    const ctaLine2H = Math.round(ctaLine2Size * 1.18);
+    const ctaLineGap = Math.max(6, Math.round(ctaAreaH * 0.07));
+    const ctaTextBlockH = ctaLine1H + ctaLineGap + ctaLine2H;
+    const ctaTextTop = ctaY + Math.max(4, Math.floor((ctaAreaH - ctaTextBlockH) * 0.5));
+    const ctaLine1Y = ctaTextTop + Math.round(ctaLine1H * 0.5);
+    const ctaLine2Y = ctaTextTop + ctaLine1H + ctaLineGap + Math.round(ctaLine2H * 0.5);
     ctx.fillStyle = TOKENS.ink;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.font = `700 ${ctaLine1Size}px "Sora", "Inter", sans-serif`;
-    ctx.fillText(fitCanvasText(ctaLine1, ctaLineW), ctaX + ctaW * 0.5, ctaY + Math.round(ctaAreaH * 0.4) - 8);
+    ctx.fillText(fitCanvasText(ctaLine1, ctaLineW), ctaX + ctaW * 0.5, ctaLine1Y);
     ctx.font = `600 ${ctaLine2Size}px "Inter", sans-serif`;
     ctx.fillText(
       fitCanvasText(ctaLine2, ctaLineW),
       ctaX + ctaW * 0.5,
-      ctaY + Math.round(ctaAreaH * 0.72) + 6
+      ctaLine2Y
     );
 
     ctx.textAlign = "left";

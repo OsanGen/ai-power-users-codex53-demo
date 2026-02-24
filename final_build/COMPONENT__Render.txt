@@ -51,6 +51,10 @@ State/Edges:
 - Uses `ctx.textAlign`/`textBaseline` state carefully and resets at block exits.
 - Uses `withRectClip` for lesson/death text clipping and `withClipRect` for rounded-panel masking.
 - Keeps overlay text readable by top-aligned clipping paths with insets.
+- Bomb briefing overlay layout now hardens three visual-risk areas without changing flow/state:
+  - charge-chip labels interpolate both `{index}` and `{n}` placeholders to avoid raw token leakage;
+  - SPACE action callout reserves explicit two-row geometry (key/use row + effect row) to prevent clipping;
+  - two-line CTA vertical alignment is line-height-driven instead of fixed offsets for cleaner hierarchy.
 - Supports reduced-motion by removing motion terms.
 - Adds optional background strip-warp distortion in `updateDynamicLayer()` after base corridor draw.
   - Distortion is world-only (`WORLD` clip), low tier disabled/near-flat.
@@ -119,6 +123,9 @@ Acceptance Checks:
 - UI overlays honor current floor count:
   - `drawStateOverlay` clear-state footer only shows "Transitioning..." when floor id is below `FLOORS.length`.
 - Run summary pill labels and spacing remain correctly anchored within the summary panel bounds.
+- Bomb briefing charge chips render deterministic labels (`SPACE #1/#2/#3`) with no unresolved template text.
+- Bomb briefing SPACE callout action text remains fully visible inside the callout card at desktop and compact sizes.
+- Bomb briefing CTA keeps a two-line contract while preserving visual balance in pending and accepted states.
 - Prompt 6 impact effects implemented:
   - Render-only `fxParticles` array has object pool backed storage and cap by quality tier.
   - Hit events trigger pooled micro sparks near enemy impact points.
