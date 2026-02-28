@@ -128,6 +128,8 @@ window.AI_POWER_USER_NARRATIVE = {
     gameCanvasAriaLabel: "Neural net game canvas",
     appTitle: "Neural Nets: Learn the Loop",
     appSubtitle: "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor.",
+    appMoveHintText: "WASD: MOVE",
+    appShootHintText: "ARROWS: SHOOT",
     appFooterGoal: "Survive each timer and learn the loop.",
     appFooterControlsHint: "Press Spacebar to use bomb • M to mute music • E to mute sound effects",
     appFooterControlsAriaLabel: "Controls shortcuts",

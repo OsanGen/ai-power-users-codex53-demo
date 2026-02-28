@@ -971,12 +971,14 @@
       appTitleEl.textContent = formatUiText("appTitle", "Neural Nets: Learn the Loop");
     }
 
-    const appSubtitleEl = document.getElementById("appSubtitle");
-    if (appSubtitleEl) {
-      appSubtitleEl.textContent = formatUiText(
-        "appSubtitle",
-        "Move with WASD. Shoot with Arrow Keys. Learn one concept per floor."
-      );
+    const appMoveHintTextEl = document.getElementById("appMoveHintText");
+    if (appMoveHintTextEl) {
+      appMoveHintTextEl.textContent = formatUiText("appMoveHintText", "WASD: MOVE");
+    }
+
+    const appShootHintTextEl = document.getElementById("appShootHintText");
+    if (appShootHintTextEl) {
+      appShootHintTextEl.textContent = formatUiText("appShootHintText", "ARROWS: SHOOT");
     }
 
     if (canvas) {
