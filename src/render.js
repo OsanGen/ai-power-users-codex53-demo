@@ -285,6 +285,7 @@
     activeDirection: "front",
     holdFrames: PLAYER_ANIMATION_MODE_SWITCH_FRAMES
   };
+  const SHOW_AIM_LINE_WITH_SPRITE = false;
   let playerSpriteCachePrimed = false;
 
   function resetPlayerSpriteState() {
@@ -5924,7 +5925,7 @@
     if (!drewSprite) {
       drawPlayerProceduralSprite(direction, accent, visualTheme);
     }
-    if (isPlayerShootInputActive()) {
+    if (isPlayerShootInputActive() && (!drewSprite || SHOW_AIM_LINE_WITH_SPRITE)) {
       drawPlayerAimLine();
     }
   }
@@ -5969,12 +5970,18 @@
     const y = player.y;
     const aimX = Number.isFinite(player.lastAimX) ? player.lastAimX : 0;
     const aimY = Number.isFinite(player.lastAimY) ? player.lastAimY : -1;
+    const baseY = y - 3;
+    const startOffset = 5;
+    const endOffset = 14;
+    ctx.save();
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(x, y - 3);
-    ctx.lineTo(x + aimX * 14, y + aimY * 14 - 3);
+    ctx.moveTo(x + aimX * startOffset, baseY + aimY * startOffset);
+    ctx.lineTo(x + aimX * endOffset, baseY + aimY * endOffset);
     ctx.stroke();
+    ctx.restore();
   }
 
   function drawPlayerCog(accent, visualTheme = null) {
