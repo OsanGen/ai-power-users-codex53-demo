@@ -53,6 +53,7 @@
   let enemies = [];
   let pickups = [];
   let particles = [];
+  let muzzleFlashes = [];
   const bulletTrailHistory = new Map();
   const enemyBulletTrailHistory = new Map();
   const fxActiveEnemyIds = new Set();
@@ -2281,6 +2282,7 @@
     enemies = c.enemies;
     pickups = c.pickups;
     particles = c.particles;
+    muzzleFlashes = Array.isArray(c.muzzleFlashes) ? c.muzzleFlashes : [];
   }
 
   function withRenderContext(targetCtx, drawFn) {
@@ -2647,9 +2649,10 @@
     drawEnvironment(floor, accent, visualTheme);
 
     drawPickups(accent);
-    drawBullets(accent);
     drawEnemies(accent);
     drawPlayer(accent, visualTheme);
+    drawMuzzleFlashes(accent, visualTheme);
+    drawBullets(accent);
     drawParticles();
     drawFxParticles();
     applyChromaEdgeSplit(visualTheme);
@@ -5638,6 +5641,98 @@
       const bob = Math.sin(pickup.wobble) * (2 * reducedMotionScale);
       drawHeartIcon(pickup.x, pickup.y + bob, pickup.type, accent, 1);
     }
+  }
+
+  function drawMuzzleFlashes(accent, visualTheme = null) {
+    if (!Array.isArray(muzzleFlashes) || muzzleFlashes.length === 0) {
+      return;
+    }
+
+    const reducedMotion = isReducedMotion();
+    const supportColor =
+      visualTheme && Array.isArray(visualTheme.support) && visualTheme.support.length > 0
+        ? visualTheme.support[0]
+        : TOKENS.mint;
+    const streakCount = reducedMotion ? 1 : 2;
+
+    ctx.save();
+    ctx.globalCompositeOperation = "lighter";
+
+    for (let i = 0; i < muzzleFlashes.length; i += 1) {
+      const flash = muzzleFlashes[i];
+      if (!flash) {
+        continue;
+      }
+
+      const x = Number(flash.x);
+      const y = Number(flash.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        continue;
+      }
+
+      const ttl = Number.isFinite(flash.ttl) && flash.ttl > 0 ? flash.ttl : 0.09;
+      const age = Number.isFinite(flash.age) ? flash.age : ttl;
+      const life = clamp(1 - age / ttl, 0, 1);
+      if (life <= 0) {
+        continue;
+      }
+
+      const dxRaw = Number.isFinite(flash.dx) ? flash.dx : 1;
+      const dyRaw = Number.isFinite(flash.dy) ? flash.dy : 0;
+      const length = Math.hypot(dxRaw, dyRaw) || 1;
+      const dx = dxRaw / length;
+      const dy = dyRaw / length;
+      const px = -dy;
+      const py = dx;
+      const seed = Number.isFinite(flash.intensitySeed) ? flash.intensitySeed : 0.5;
+      const flashColor = typeof flash.color === "string" && flash.color ? flash.color : accent;
+
+      const coreRadius = (reducedMotion ? 2.1 : 2.8) + seed * 1.2;
+      const bloomRadius = (reducedMotion ? 7 : 10) + seed * 3.2;
+      const coneLength = (reducedMotion ? 9 : 13) + life * 6 + seed * 2;
+      const coneSpread = (reducedMotion ? 2.2 : 3.2) + seed * 1.1;
+
+      const bloom = ctx.createRadialGradient(x, y, 0, x, y, bloomRadius);
+      bloom.addColorStop(0, rgba(TOKENS.white, clamp(0.72 + life * 0.22, 0.72, 1)));
+      bloom.addColorStop(0.32, rgba(flashColor, clamp(0.35 + life * 0.42, 0.2, 0.84)));
+      bloom.addColorStop(0.72, rgba(supportColor, clamp(0.18 + life * 0.28, 0.12, 0.58)));
+      bloom.addColorStop(1, rgba(supportColor, 0));
+      ctx.fillStyle = bloom;
+      ctx.beginPath();
+      ctx.arc(x, y, bloomRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = rgba(flashColor, clamp(0.44 + life * 0.36, 0.22, 0.9));
+      ctx.beginPath();
+      ctx.moveTo(x + px * coneSpread * 0.5, y + py * coneSpread * 0.5);
+      ctx.lineTo(x + dx * coneLength, y + dy * coneLength);
+      ctx.lineTo(x - px * coneSpread * 0.5, y - py * coneSpread * 0.5);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = rgba(TOKENS.white, clamp(0.78 + life * 0.2, 0.78, 1));
+      ctx.beginPath();
+      ctx.ellipse(x, y, coreRadius, coreRadius * 0.7, Math.atan2(dy, dx), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = rgba(supportColor, clamp(0.18 + life * 0.32, 0.1, 0.54));
+      ctx.lineCap = "round";
+      ctx.lineWidth = reducedMotion ? 1.2 : 1.8;
+      for (let streak = 0; streak < streakCount; streak += 1) {
+        const offset = (streak === 0 ? 1 : -1) * (1.25 + seed * 1.15);
+        const jitter = reducedMotion ? 0 : (streak === 0 ? 0.65 : -0.65) * life;
+        const tailLength = coneLength + 2 + jitter;
+        ctx.beginPath();
+        ctx.moveTo(x + px * offset, y + py * offset);
+        ctx.lineTo(
+          x + dx * tailLength + px * offset * 0.35,
+          y + dy * tailLength + py * offset * 0.35
+        );
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
   }
 
   function drawBullets(accent) {

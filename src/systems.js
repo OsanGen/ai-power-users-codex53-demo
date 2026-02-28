@@ -61,6 +61,7 @@
   let enemies = [];
   let pickups = [];
   let particles = [];
+  let muzzleFlashes = [];
   let simAccumulator = 0;
   const SIM_STEP = 1 / 60;
   const MAX_ACCUMULATED_TIME = 0.25;
@@ -91,9 +92,18 @@
   const CHECKPOINT_FLOOR_KEY = "checkpoint_floor_v1";
   const LESSON_TEXT_KEY = "LESSON_TEXT_V1";
   const LESSON_TEXT_MAX_CHARS = 4000;
+  const MUZZLE_FLASH_TTL_MIN = 0.06;
+  const MUZZLE_FLASH_TTL_MAX = 0.12;
+  const MUZZLE_FLASH_SOFT_CAP = 84;
   const LESSON_TEXT_SAMPLE =
     "Inputs are numbers like counts and signals. Weights scale each input, then gates combine them to produce one guess. A tiny input change can flip a prediction.";
   const COGSEC_BULLET_COLORS = [TOKENS.yellow, TOKENS.blue, TOKENS.mint, TOKENS.pink];
+  const MUZZLE_ANCHOR_PROFILE = Object.freeze({
+    "1,0": Object.freeze({ forwardScale: 1.24, lateralScale: -0.06, xBiasScale: 0.08, yBiasScale: -0.2 }),
+    "-1,0": Object.freeze({ forwardScale: 1.14, lateralScale: 0.06, xBiasScale: -0.08, yBiasScale: -0.2 }),
+    "0,-1": Object.freeze({ forwardScale: 1.08, lateralScale: 0, xBiasScale: 0.06, yBiasScale: -0.34 }),
+    "0,1": Object.freeze({ forwardScale: 0.98, lateralScale: 0, xBiasScale: 0.06, yBiasScale: -0.1 })
+  });
   const FALLBACK_ENEMY_DEFS = Object.freeze({
     dual: {
       hp: 1,
@@ -1247,6 +1257,7 @@
     clearCollection(enemies, releaseEnemy);
     clearCollection(pickups, releasePickup);
     clearCollection(particles, releaseParticle);
+    muzzleFlashes.length = 0;
     resetCollisionEpoch();
   }
 
@@ -1257,7 +1268,8 @@
       enemyBullets,
       enemies,
       pickups,
-      particles
+      particles,
+      muzzleFlashes
     };
   }
 
@@ -1932,6 +1944,7 @@
     if (game.state !== GameState.DEATH_ANIM) {
       updateParticles(dt);
     }
+    updateMuzzleFlashes(dt);
 
     if (game.state === GameState.TITLE) {
       game.titleIntroTime += dt;
@@ -2429,21 +2442,84 @@
     }
   }
 
+  function resolveCardinalMuzzleDirection(dir) {
+    const rawX = Number.isFinite(dir && dir.x) ? dir.x : 0;
+    const rawY = Number.isFinite(dir && dir.y) ? dir.y : 0;
+    if (Math.abs(rawX) >= Math.abs(rawY)) {
+      const x = rawX < 0 ? -1 : 1;
+      return { x, y: 0, key: `${x},0` };
+    }
+    const y = rawY < 0 ? -1 : 1;
+    return { x: 0, y, key: `0,${y}` };
+  }
+
+  function resolvePlayerMuzzleAnchor(dir) {
+    const direction = resolveCardinalMuzzleDirection(dir);
+    const profile = MUZZLE_ANCHOR_PROFILE[direction.key] || MUZZLE_ANCHOR_PROFILE["1,0"];
+    const radius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
+    const forwardX = direction.x;
+    const forwardY = direction.y;
+    const sideX = -forwardY;
+    const sideY = forwardX;
+
+    return {
+      x:
+        player.x +
+        forwardX * radius * profile.forwardScale +
+        sideX * radius * profile.lateralScale +
+        radius * profile.xBiasScale,
+      y:
+        player.y +
+        forwardY * radius * profile.forwardScale +
+        sideY * radius * profile.lateralScale +
+        radius * profile.yBiasScale,
+      dx: forwardX,
+      dy: forwardY
+    };
+  }
+
+  function pushMuzzleFlashEvent(x, y, dir, color) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      return;
+    }
+
+    const direction = resolveCardinalMuzzleDirection(dir);
+    if (muzzleFlashes.length >= MUZZLE_FLASH_SOFT_CAP) {
+      const overflow = muzzleFlashes.length - MUZZLE_FLASH_SOFT_CAP + 1;
+      if (overflow > 0) {
+        muzzleFlashes.splice(0, overflow);
+      }
+    }
+
+    muzzleFlashes.push({
+      x,
+      y,
+      dx: direction.x,
+      dy: direction.y,
+      color: color || TOKENS.yellow,
+      age: 0,
+      ttl: rand(MUZZLE_FLASH_TTL_MIN, MUZZLE_FLASH_TTL_MAX),
+      intensitySeed: rand(0, 1)
+    });
+  }
+
   function spawnPlayerBullet(dir, bulletSpeed, bulletRadius, bulletPierce, colorOverride = "") {
-    const spawnDistance = player.radius + 9;
+    const muzzleAnchor = resolvePlayerMuzzleAnchor(dir);
+    const bulletColor = colorOverride || nextCogsecBulletColor();
     bullets.push(
       acquirePlayerBullet({
-        x: player.x + dir.x * spawnDistance,
-        y: player.y + dir.y * spawnDistance,
+        x: muzzleAnchor.x,
+        y: muzzleAnchor.y,
         vx: dir.x * bulletSpeed,
         vy: dir.y * bulletSpeed,
         radius: bulletRadius,
         pierce: bulletPierce,
         life: 0.95,
-        color: colorOverride || nextCogsecBulletColor(),
+        color: bulletColor,
         hitEpoch: nextCollisionEpoch()
       })
     );
+    pushMuzzleFlashEvent(muzzleAnchor.x, muzzleAnchor.y, dir, bulletColor);
   }
 
   function getShootDirection() {
@@ -3198,6 +3274,28 @@
       write += 1;
     }
     particles.length = write;
+  }
+
+  function updateMuzzleFlashes(dt) {
+    if (muzzleFlashes.length === 0) {
+      return;
+    }
+
+    let write = 0;
+    for (let i = 0; i < muzzleFlashes.length; i += 1) {
+      const flash = muzzleFlashes[i];
+      if (!flash) {
+        continue;
+      }
+      const ttl = Number.isFinite(flash.ttl) && flash.ttl > 0 ? flash.ttl : MUZZLE_FLASH_TTL_MAX;
+      flash.age = Math.max(0, (Number.isFinite(flash.age) ? flash.age : 0) + dt);
+      if (flash.age >= ttl) {
+        continue;
+      }
+      muzzleFlashes[write] = flash;
+      write += 1;
+    }
+    muzzleFlashes.length = write;
   }
 
   function isMoveUp() {
