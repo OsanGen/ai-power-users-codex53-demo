@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-02-28T15:01:41Z
+- UpdatedAt: 2026-02-28T22:19:19Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 96b64ffa22a1d8db6d4f6d9f8df3d9e2f3c7d6a1b
-- Dirty state: yes (untracked: node_modules/, output/, test-results/)
+- Branch, HEAD commit hash: main, c13a84c4c2de30d01e9fd36b242b538283ea47e4
+- Dirty state: yes (modified: src/render.js, final_build/CURRENT_GAPS.txt, final_build/COMPONENT__Render.txt; untracked: node_modules/, output/, test-results/)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -40,6 +40,7 @@ WONDERLAND is a browser-first vanilla web game (canvas-based), centered on a flo
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` holds active gaps and `final_build/COMPONENT__*.txt` holds component specs.
 
 ## 7) Recent change log (rolling)
+- 2026-02-28 | Increased muzzle flash reach and shifted muzzle flash rendering to projectile-color-dominant bloom/streak composition for clearer shot-to-bullet continuity | src/render.js
 - 2026-02-28 | Commit 96b64ff: Added adaptive render governor state machine with query/localStorage modes, frame pressure hysteresis, quality-tier routing, and `debug.renderPerf` diagnostics | src/render.js
 - 2026-02-28 | Added QA bootstrap dependency contract enforcement and script updates for staged/deployed smoke checks | scripts/check-dependency-contract.js, scripts/check-ui-bootstrap.sh, scripts/check-ui-bootstrap-oneshot.js, package.json
 - 2026-02-28 | Added UI element contract cleanup and shared selector hygiene across runtime handlers | src/ui-tokens.js, index.html, src/core.js, src/main.js, src/share.js, src/systems.js

@@ -115,6 +115,7 @@ Dependencies:
 
 Acceptance Checks:
 - Adaptive governor is reversible and bounded: `off|auto|force-low|force-medium|force-high`, defaults to `auto`, and never disables core entity/world rendering.
+- Muzzle flash reach bridges projectile offset and remains render-only (no spawn/trajectory changes), with flash hue matching projectile color (`yellow/blue/mint/pink`) in normal and reduced-motion modes.
 - No state transitions altered by rendering.
 - Lesson/death overlays remain legible with stable baseline/clipping.
 - Floor themes resolve consistently by floor id.

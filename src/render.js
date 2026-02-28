@@ -5918,16 +5918,29 @@
     }
   }
 
-  function drawMuzzleFlashes(accent, visualTheme = null) {
+  function drawMuzzleFlashes(accent, _visualTheme = null) {
     if (!Array.isArray(muzzleFlashes) || muzzleFlashes.length === 0) {
       return;
     }
 
     const reducedMotion = isReducedMotion();
-    const supportColor =
-      visualTheme && Array.isArray(visualTheme.support) && visualTheme.support.length > 0
-        ? visualTheme.support[0]
-        : TOKENS.mint;
+    const flashProfile = reducedMotion
+      ? {
+          bloomRadiusBase: 8,
+          bloomRadiusSeed: 4,
+          coneLengthBase: 11,
+          coneLengthLife: 9,
+          coneLengthSeed: 3,
+          reachBoost: 3
+        }
+      : {
+          bloomRadiusBase: 12,
+          bloomRadiusSeed: 4,
+          coneLengthBase: 17,
+          coneLengthLife: 9,
+          coneLengthSeed: 3,
+          reachBoost: 6
+        };
     const streakCount = reducedMotion ? 1 : 2;
 
     ctx.save();
@@ -5962,16 +5975,17 @@
       const seed = Number.isFinite(flash.intensitySeed) ? flash.intensitySeed : 0.5;
       const flashColor = typeof flash.color === "string" && flash.color ? flash.color : accent;
 
-      const coreRadius = (reducedMotion ? 2.1 : 2.8) + seed * 1.2;
-      const bloomRadius = (reducedMotion ? 7 : 10) + seed * 3.2;
-      const coneLength = (reducedMotion ? 9 : 13) + life * 6 + seed * 2;
+      const coreRadius = (reducedMotion ? 1.5 : 1.9) + seed * 0.6;
+      const bloomRadius = flashProfile.bloomRadiusBase + seed * flashProfile.bloomRadiusSeed;
+      const coneLength = flashProfile.coneLengthBase + life * flashProfile.coneLengthLife + seed * flashProfile.coneLengthSeed;
+      const tipLength = coneLength + flashProfile.reachBoost;
       const coneSpread = (reducedMotion ? 2.2 : 3.2) + seed * 1.1;
 
       const bloom = ctx.createRadialGradient(x, y, 0, x, y, bloomRadius);
-      bloom.addColorStop(0, rgba(TOKENS.white, clamp(0.72 + life * 0.22, 0.72, 1)));
-      bloom.addColorStop(0.32, rgba(flashColor, clamp(0.35 + life * 0.42, 0.2, 0.84)));
-      bloom.addColorStop(0.72, rgba(supportColor, clamp(0.18 + life * 0.28, 0.12, 0.58)));
-      bloom.addColorStop(1, rgba(supportColor, 0));
+      bloom.addColorStop(0, rgba(flashColor, clamp(0.78 + life * 0.16, 0.64, 0.98)));
+      bloom.addColorStop(0.28, rgba(flashColor, clamp(0.44 + life * 0.32, 0.3, 0.86)));
+      bloom.addColorStop(0.72, rgba(flashColor, clamp(0.16 + life * 0.24, 0.12, 0.52)));
+      bloom.addColorStop(1, rgba(flashColor, 0));
       ctx.fillStyle = bloom;
       ctx.beginPath();
       ctx.arc(x, y, bloomRadius, 0, Math.PI * 2);
@@ -5980,23 +5994,23 @@
       ctx.fillStyle = rgba(flashColor, clamp(0.44 + life * 0.36, 0.22, 0.9));
       ctx.beginPath();
       ctx.moveTo(x + px * coneSpread * 0.5, y + py * coneSpread * 0.5);
-      ctx.lineTo(x + dx * coneLength, y + dy * coneLength);
+      ctx.lineTo(x + dx * tipLength, y + dy * tipLength);
       ctx.lineTo(x - px * coneSpread * 0.5, y - py * coneSpread * 0.5);
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = rgba(TOKENS.white, clamp(0.78 + life * 0.2, 0.78, 1));
+      ctx.fillStyle = rgba(TOKENS.white, clamp(0.52 + life * 0.16, 0.48, 0.76));
       ctx.beginPath();
       ctx.ellipse(x, y, coreRadius, coreRadius * 0.7, Math.atan2(dy, dx), 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = rgba(supportColor, clamp(0.18 + life * 0.32, 0.1, 0.54));
+      ctx.strokeStyle = rgba(flashColor, clamp(0.22 + life * 0.28, 0.14, 0.62));
       ctx.lineCap = "round";
       ctx.lineWidth = reducedMotion ? 1.2 : 1.8;
       for (let streak = 0; streak < streakCount; streak += 1) {
         const offset = (streak === 0 ? 1 : -1) * (1.25 + seed * 1.15);
         const jitter = reducedMotion ? 0 : (streak === 0 ? 0.65 : -0.65) * life;
-        const tailLength = coneLength + 2 + jitter;
+        const tailLength = tipLength + 2 + jitter;
         ctx.beginPath();
         ctx.moveTo(x + px * offset, y + py * offset);
         ctx.lineTo(
