@@ -58,6 +58,9 @@
   function runUiBootstrapSmoke() {
     const tokens = AIPU && AIPU.constants ? AIPU.constants.TOKENS : null;
     const components = AIPU && AIPU.constants ? AIPU.constants.UI_COMPONENT_CLASS : null;
+    const requiredDomIds = AIPU && AIPU.domContract && Array.isArray(AIPU.domContract.requiredDomIds)
+      ? AIPU.domContract.requiredDomIds
+      : [];
     const tokenKeys = ["yellow", "blue", "mint", "pink", "ink", "white", "fog"];
     const missingTokens = [];
 
@@ -77,10 +80,23 @@
       }
     }
 
+    const missingDomElements = [];
+    for (let i = 0; i < requiredDomIds.length; i += 1) {
+      const id = requiredDomIds[i];
+      if (!id) {
+        continue;
+      }
+      if (typeof document === "undefined" || document.getElementById(id) === null) {
+        missingDomElements.push(id);
+      }
+    }
+
     return {
-      ok: missingTokens.length === 0 && missingClasses.length === 0,
+      ok: missingTokens.length === 0 && missingClasses.length === 0 && missingDomElements.length === 0,
       missingTokens,
-      missingClasses
+      missingClasses,
+      missingDomElements,
+      requiredDomIdsCount: requiredDomIds.length
     };
   }
 

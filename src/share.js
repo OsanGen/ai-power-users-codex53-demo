@@ -6,7 +6,12 @@
     gameFrame,
     canvas,
     shareModalEl,
+    shareTitleEl,
+    shareSummaryEl,
     shareFloorEl,
+    shareTextLabelEl,
+    shareDontAskTextEl,
+    shareModalNoteEl,
     shareTextEl,
     shareCardPreviewEl,
     shareCopyBtn,
@@ -19,11 +24,6 @@
   const N = AIPU.content && AIPU.content.N ? AIPU.content.N : null;
   const getNarrativeUiText =
     AIPU.content && typeof AIPU.content.getNarrativeUiText === "function" ? AIPU.content.getNarrativeUiText : null;
-  const shareTitleEl = document.getElementById("shareTitle");
-  const shareSummaryEl = shareModalEl ? shareModalEl.querySelector(".modal-summary") : null;
-  const shareTextLabelEl = document.getElementById("shareTextLabel");
-  const shareDontAskTextEl = document.getElementById("shareDontAskText");
-  const shareModalNoteEl = document.getElementById("shareModalNote");
 
   const CANONICAL_SHARE_URL = "";
 

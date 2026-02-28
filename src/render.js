@@ -147,6 +147,60 @@
     renderAccent: TOKENS.yellow,
     activeFloorId: 1
   };
+  const renderFrameSampleWindow = 64;
+  const renderFrameMetrics = {
+    samples: new Float64Array(renderFrameSampleWindow),
+    nextIndex: 0,
+    sampleCount: 0,
+    sampleSum: 0,
+    lastMs: 0,
+    avgMs: 0
+  };
+  const RENDER_PERF_QUERY_KEY = "renderPerf";
+  const RENDER_PERF_STORAGE_KEY = "AIPU_RENDER_PERF_MODE";
+  const RENDER_PERF_MODE_DEFAULT = "auto";
+  const RENDER_PERF_MODE_FORCE_TO_TIER = Object.freeze({
+    "force-low": "low",
+    "force-medium": "medium",
+    "force-high": "high"
+  });
+  const RENDER_PERF_TIERS = Object.freeze(["low", "medium", "high"]);
+  const RENDER_PERF_TIER_INDEX = Object.freeze({
+    low: 0,
+    medium: 1,
+    high: 2
+  });
+  const RENDER_PERF_AUTO = Object.freeze({
+    frameTargetMs: 1000 / 60,
+    framePressureScaleMs: 18,
+    degradeFrameMs: 18,
+    recoverFrameMs: 14.5,
+    degradeConsecutiveFrames: 7,
+    recoverConsecutiveFrames: 10,
+    minSwitchIntervalMs: 900,
+    dropGuardFrameMs: 24,
+    dynamicIntervalScale: Object.freeze({
+      low: 2.5,
+      medium: 1,
+      high: 0.85
+    }),
+    spawnScale: Object.freeze({
+      low: 0.55,
+      medium: 0.78,
+      high: 1
+    })
+  });
+  const renderPerfState = {
+    mode: RENDER_PERF_MODE_DEFAULT,
+    modeSource: "default",
+    baseQuality: "medium",
+    tier: "medium",
+    pressureScore: 0,
+    frameDropGuard: false,
+    highFrameStreak: 0,
+    lowFrameStreak: 0,
+    lastTierSwitchMs: 0
+  };
   const CHARACTER_ART_CACHE_BUST = "v=20260222-4";
   const glfxWorldFxState = {
     api: null,
@@ -1213,13 +1267,227 @@
     return true;
   }
 
+  function normalizeFxQuality(value) {
+    const quality = typeof value === "string" ? value.toLowerCase().trim() : "medium";
+    return FX_QUALITY_CAPS[quality] ? quality : "medium";
+  }
+
+  function getFxConfigQuality() {
+    return normalizeFxQuality(FX_CONFIG.quality);
+  }
+
+  function normalizeRenderPerfMode(value) {
+    const mode = typeof value === "string" ? value.toLowerCase().trim() : "";
+    if (!mode || mode === "off" || mode === "auto") {
+      return mode;
+    }
+    return RENDER_PERF_MODE_FORCE_TO_TIER[mode] ? mode : "";
+  }
+
+  function readRenderPerfModeFromQuery() {
+    if (typeof window !== "object" || !window || typeof window.location !== "object" || !window.location.search) {
+      return "";
+    }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      return normalizeRenderPerfMode(params.get(RENDER_PERF_QUERY_KEY));
+    } catch (error) {
+      void error;
+      return "";
+    }
+  }
+
+  function readRenderPerfModeFromStorage() {
+    if (typeof localStorage === "undefined") {
+      return "";
+    }
+    try {
+      return normalizeRenderPerfMode(localStorage.getItem(RENDER_PERF_STORAGE_KEY));
+    } catch (error) {
+      void error;
+      return "";
+    }
+  }
+
+  function resolveRenderPerfModeSetting() {
+    const fromQuery = readRenderPerfModeFromQuery();
+    if (fromQuery) {
+      return {
+        mode: fromQuery,
+        source: "query"
+      };
+    }
+    const fromStorage = readRenderPerfModeFromStorage();
+    if (fromStorage) {
+      return {
+        mode: fromStorage,
+        source: "localStorage"
+      };
+    }
+    return {
+      mode: RENDER_PERF_MODE_DEFAULT,
+      source: "default"
+    };
+  }
+
+  function getActiveRenderQuality() {
+    const forcedTier = RENDER_PERF_MODE_FORCE_TO_TIER[renderPerfState.mode];
+    if (renderPerfState.mode === "off") {
+      return renderPerfState.baseQuality || getFxConfigQuality();
+    }
+    if (forcedTier) {
+      return forcedTier;
+    }
+    if (!renderPerfState.tier || !RENDER_PERF_TIER_INDEX[renderPerfState.tier]) {
+      return getFxConfigQuality();
+    }
+    return renderPerfState.tier;
+  }
+
+  function syncRenderPerfState() {
+    const resolved = resolveRenderPerfModeSetting();
+    const baseQuality = getFxConfigQuality();
+    const modeChanged = renderPerfState.mode !== resolved.mode;
+    const now = nowMs();
+
+    renderPerfState.mode = resolved.mode;
+    renderPerfState.modeSource = resolved.source;
+    renderPerfState.baseQuality = baseQuality;
+
+    if (modeChanged || !renderPerfState.tier || !RENDER_PERF_TIER_INDEX[renderPerfState.tier]) {
+      renderPerfState.highFrameStreak = 0;
+      renderPerfState.lowFrameStreak = 0;
+      renderPerfState.pressureScore = 0;
+      renderPerfState.frameDropGuard = false;
+      renderPerfState.lastTierSwitchMs = now;
+      if (resolved.mode === "off") {
+        renderPerfState.tier = baseQuality;
+        return;
+      }
+      if (RENDER_PERF_MODE_FORCE_TO_TIER[resolved.mode]) {
+        renderPerfState.tier = RENDER_PERF_MODE_FORCE_TO_TIER[resolved.mode];
+        return;
+      }
+      renderPerfState.tier = baseQuality;
+      return;
+    }
+
+    if (resolved.mode === "off") {
+      renderPerfState.tier = baseQuality;
+      renderPerfState.highFrameStreak = 0;
+      renderPerfState.lowFrameStreak = 0;
+      renderPerfState.pressureScore = 0;
+      renderPerfState.frameDropGuard = false;
+      return;
+    }
+
+    if (RENDER_PERF_MODE_FORCE_TO_TIER[resolved.mode]) {
+      renderPerfState.tier = RENDER_PERF_MODE_FORCE_TO_TIER[resolved.mode];
+      renderPerfState.pressureScore = 0;
+      renderPerfState.frameDropGuard = false;
+      renderPerfState.highFrameStreak = 0;
+      renderPerfState.lowFrameStreak = 0;
+    }
+  }
+
+  function getTierIndex(value) {
+    return RENDER_PERF_TIER_INDEX[value] !== undefined ? RENDER_PERF_TIER_INDEX[value] : 1;
+  }
+
+  function setTierByIndex(index) {
+    const safeIndex = Math.max(0, Math.min(RENDER_PERF_TIERS.length - 1, Math.floor(index)));
+    renderPerfState.tier = RENDER_PERF_TIERS[safeIndex];
+  }
+
+  function updateRenderPerfGovernor(frameMs) {
+    syncRenderPerfState();
+    if (renderPerfState.mode === "off" || RENDER_PERF_MODE_FORCE_TO_TIER[renderPerfState.mode]) {
+      renderPerfState.pressureScore = 0;
+      renderPerfState.frameDropGuard = false;
+      renderPerfState.highFrameStreak = 0;
+      renderPerfState.lowFrameStreak = 0;
+      return;
+    }
+
+    const avgMs = renderFrameMetrics.sampleCount > 0
+      ? renderFrameMetrics.avgMs
+      : (Number.isFinite(frameMs) ? frameMs : 0);
+    if (!Number.isFinite(avgMs) || avgMs < 0) {
+      return;
+    }
+
+    const pressure = clamp((avgMs - RENDER_PERF_AUTO.frameTargetMs) / RENDER_PERF_AUTO.framePressureScaleMs, 0, 1);
+    renderPerfState.pressureScore = pressure;
+    renderPerfState.frameDropGuard = avgMs >= RENDER_PERF_AUTO.dropGuardFrameMs;
+
+    const now = nowMs();
+    const highPressure = avgMs >= RENDER_PERF_AUTO.degradeFrameMs;
+    const lowPressure = avgMs <= RENDER_PERF_AUTO.recoverFrameMs;
+
+    if (!renderPerfState.lastTierSwitchMs) {
+      renderPerfState.lastTierSwitchMs = now;
+    }
+
+    if (highPressure) {
+      renderPerfState.highFrameStreak += 1;
+      renderPerfState.lowFrameStreak = 0;
+    } else if (lowPressure) {
+      renderPerfState.lowFrameStreak += 1;
+      renderPerfState.highFrameStreak = 0;
+    } else {
+      renderPerfState.highFrameStreak = 0;
+      renderPerfState.lowFrameStreak = 0;
+    }
+
+    if (now - renderPerfState.lastTierSwitchMs < RENDER_PERF_AUTO.minSwitchIntervalMs) {
+      return;
+    }
+
+    const currentIndex = getTierIndex(renderPerfState.tier);
+    const maxIndex = getTierIndex(renderPerfState.baseQuality);
+
+    if (highPressure && renderPerfState.highFrameStreak >= RENDER_PERF_AUTO.degradeConsecutiveFrames && currentIndex > 0) {
+      setTierByIndex(currentIndex - 1);
+      renderPerfState.highFrameStreak = 0;
+      renderPerfState.lastTierSwitchMs = now;
+      return;
+    }
+
+    if (lowPressure && renderPerfState.lowFrameStreak >= RENDER_PERF_AUTO.recoverConsecutiveFrames && currentIndex < maxIndex) {
+      setTierByIndex(currentIndex + 1);
+      renderPerfState.lowFrameStreak = 0;
+      renderPerfState.lastTierSwitchMs = now;
+    }
+  }
+
+  function getDynamicLayerIntervalScale() {
+    return RENDER_PERF_AUTO.dynamicIntervalScale[getActiveRenderQuality()] || 1;
+  }
+
+  function getFxParticleSpawnScale() {
+    return RENDER_PERF_AUTO.spawnScale[getActiveRenderQuality()] || 1;
+  }
+
+  function getRenderPerfStateSnapshot() {
+    const frameAvgMs = Number.isFinite(renderFrameMetrics.avgMs) ? renderFrameMetrics.avgMs : 0;
+    return {
+      mode: renderPerfState.mode,
+      modeSource: renderPerfState.modeSource,
+      tier: getActiveRenderQuality(),
+      baseQuality: renderPerfState.baseQuality,
+      frameAvgMs,
+      framePressure: Number.isFinite(renderPerfState.pressureScore) ? renderPerfState.pressureScore : 0,
+      frameDropGuard: !!renderPerfState.frameDropGuard
+    };
+  }
+
   function getFxQualityCaps() {
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const quality = getActiveRenderQuality();
     return FX_QUALITY_CAPS[quality] || FX_QUALITY_CAPS.medium;
   }
 
   function getFxParticleCapacity() {
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const quality = getActiveRenderQuality();
     return FX_PARTICLE_CAPS[quality] || FX_PARTICLE_CAPS.medium;
   }
 
@@ -1291,7 +1559,7 @@
   }
 
   function applyGlfxWorldPass(visualTheme = null) {
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const quality = getActiveRenderQuality();
     const intensity = clamp(fxState.intensity || 0, 0, 1);
     const reduced = isReducedMotion();
     const reducedIntensity = reduced ? intensity * 0.09 : intensity;
@@ -1432,7 +1700,10 @@
       return;
     }
 
-    const count = 6 + Math.floor(Math.random() * 9);
+    const spawnScale = getFxParticleSpawnScale();
+    const minCount = Math.max(1, Math.floor(6 * spawnScale));
+    const maxCount = Math.max(minCount, Math.floor(15 * spawnScale));
+    const count = minCount + Math.floor(Math.random() * (maxCount - minCount + 1));
     const reducedScale = isReducedMotion() ? 0.4 : 1;
     const accentBoostChance = 0.18;
     for (let i = 0; i < count; i += 1) {
@@ -1478,7 +1749,10 @@
       color: TOKENS.ink
     });
 
-    const shardCount = 3 + Math.floor(Math.random() * 3);
+    const spawnScale = getFxParticleSpawnScale();
+    const minShardCount = Math.max(1, Math.floor(3 * spawnScale));
+    const maxShardCount = Math.max(minShardCount, Math.floor(6 * spawnScale));
+    const shardCount = minShardCount + Math.floor(Math.random() * (maxShardCount - minShardCount + 1));
     const reducedScale = isReducedMotion() ? 0.35 : 1;
     for (let i = 0; i < shardCount; i += 1) {
       const angle = (Math.PI * 2 * i) / shardCount + Math.random() * 0.6;
@@ -1730,14 +2004,9 @@
   }
 
   function getTrailSegmentCount() {
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
-    if (quality === "low") {
-      return 1;
-    }
-    if (quality === "high") {
-      return 3;
-    }
-    return 2;
+    const caps = getFxQualityCaps();
+    const factor = Number(caps.trailLength) || 1;
+    return Math.max(1, Math.min(3, Math.round(factor * 2)));
   }
 
   function getTrailKey(bullet, fallbackIndex) {
@@ -1866,7 +2135,7 @@
       return;
     }
 
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const quality = getActiveRenderQuality();
     if (quality === "low") {
       return;
     }
@@ -2031,7 +2300,7 @@
       return;
     }
 
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const quality = getActiveRenderQuality();
     if (quality !== "high" || isReducedMotion()) {
       return;
     }
@@ -2568,7 +2837,7 @@
     renderCacheState.lastDrawTime = now;
     renderCacheState.dynamicTimer += elapsed;
 
-    const interval = DYNAMIC_FX_FPS > 0 ? 1 / DYNAMIC_FX_FPS : 0;
+    const interval = DYNAMIC_FX_FPS > 0 ? (1 / DYNAMIC_FX_FPS) * getDynamicLayerIntervalScale() : 0;
     const shouldRebuild =
       renderCacheState.dynamicDirty || (dynamicActive && (interval === 0 || renderCacheState.dynamicTimer >= interval));
     if (!shouldRebuild) {
@@ -2589,90 +2858,96 @@
   }
 
   function draw() {
-    syncCollections();
-    ctx = mainCtx;
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalAlpha = 1;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-    ctx.setLineDash([]);
-    ctx.lineDashOffset = 0;
+    const frameStartMs = nowMs();
+    try {
+      syncCollections();
+      ctx = mainCtx;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
 
-    const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
-    const accent = accentColor(floor.accent);
-    const floorId = resolveFloorId(floor);
-    fxParticleMeta.renderAccent = accent;
-    fxParticleMeta.activeFloorId = Number.isFinite(floorId) ? floorId : 1;
-    const visualTheme = resolveFloorVisualTheme(floor, accent);
-    updateFxState();
-    const deathShake = game.state === GameState.DEATH_ANIM ? systems.getDeathShakeOffset() : null;
-    systems.syncOverlayRestartButton();
+      const floor = FLOORS[game.currentFloorIndex] || FLOORS[0];
+      const accent = accentColor(floor.accent);
+      const floorId = resolveFloorId(floor);
+      fxParticleMeta.renderAccent = accent;
+      fxParticleMeta.activeFloorId = Number.isFinite(floorId) ? floorId : 1;
+      const visualTheme = resolveFloorVisualTheme(floor, accent);
+      updateFxState();
+      const deathShake = game.state === GameState.DEATH_ANIM ? systems.getDeathShakeOffset() : null;
+      systems.syncOverlayRestartButton();
 
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-    if (game.state === GameState.TITLE) {
-      drawTitleCinematic();
-      return;
-    }
+      if (game.state === GameState.TITLE) {
+        drawTitleCinematic();
+        return;
+      }
 
-    if (game.state === GameState.UPGRADE_SELECT) {
-      drawBackdrop(accent, visualTheme);
-      drawUpgradeSelect(floor, accent);
-      return;
-    }
+      if (game.state === GameState.UPGRADE_SELECT) {
+        drawBackdrop(accent, visualTheme);
+        drawUpgradeSelect(floor, accent);
+        return;
+      }
 
-    if (game.state === GameState.BOMB_BRIEFING) {
-      drawBackdrop(accent, visualTheme);
-      drawBombBriefing(floor, accent);
-      return;
-    }
+      if (game.state === GameState.BOMB_BRIEFING) {
+        drawBackdrop(accent, visualTheme);
+        drawBombBriefing(floor, accent);
+        return;
+      }
 
-    if (game.state === GameState.LESSON_SLIDE) {
-      drawBackdrop(accent, visualTheme);
-      drawLessonSlideOverlay(floor, accent);
-      return;
-    }
+      if (game.state === GameState.LESSON_SLIDE) {
+        drawBackdrop(accent, visualTheme);
+        drawLessonSlideOverlay(floor, accent);
+        return;
+      }
 
-    if (game.state === GameState.DEATH_LESSON) {
-      drawBackdrop(accent, visualTheme);
-      drawDeathLessonOverlay(floor, accent);
-      return;
-    }
+      if (game.state === GameState.DEATH_LESSON) {
+        drawBackdrop(accent, visualTheme);
+        drawDeathLessonOverlay(floor, accent);
+        return;
+      }
 
-    if (deathShake) {
-      ctx.save();
-      ctx.translate(deathShake.x, deathShake.y);
-    }
+      if (deathShake) {
+        ctx.save();
+        ctx.translate(deathShake.x, deathShake.y);
+      }
 
-    const worldCameraApplied = applyCameraTransformBeforeWorld();
+      const worldCameraApplied = applyCameraTransformBeforeWorld();
 
-    drawEnvironment(floor, accent, visualTheme);
+      drawEnvironment(floor, accent, visualTheme);
 
-    drawPickups(accent);
-    drawEnemies(accent);
-    drawPlayer(accent, visualTheme);
-    drawMuzzleFlashes(accent, visualTheme);
-    drawBullets(accent);
-    drawParticles();
-    drawFxParticles();
-    applyChromaEdgeSplit(visualTheme);
+      drawPickups(accent);
+      drawEnemies(accent);
+      drawPlayer(accent, visualTheme);
+      drawMuzzleFlashes(accent, visualTheme);
+      drawBullets(accent);
+      drawParticles();
+      drawFxParticles();
+      applyChromaEdgeSplit(visualTheme);
 
-    restoreAfterWorld(worldCameraApplied);
-    applyGlfxWorldPass(visualTheme);
+      restoreAfterWorld(worldCameraApplied);
+      applyGlfxWorldPass(visualTheme);
 
-    drawHud(floor, accent);
-    drawStateOverlay(floor, accent);
+      drawHud(floor, accent);
+      drawStateOverlay(floor, accent);
 
-    if (deathShake) {
-      ctx.restore();
-    }
+      if (deathShake) {
+        ctx.restore();
+      }
 
-    if (game.state === GameState.DEATH_ANIM) {
-      drawDeathAnim();
-    }
+      if (game.state === GameState.DEATH_ANIM) {
+        drawDeathAnim();
+      }
 
-    if (game.bombFlashTimer > 0) {
-      drawBombFlash(accent);
+      if (game.bombFlashTimer > 0) {
+        drawBombFlash(accent);
+      }
+    } finally {
+      const frameMs = recordRenderFrameMs(frameStartMs);
+      updateRenderPerfGovernor(frameMs);
     }
   }
 
@@ -6648,15 +6923,18 @@
       return;
     }
 
-    const quality = typeof FX_CONFIG.quality === "string" ? FX_CONFIG.quality.toLowerCase() : "medium";
+    const renderPerf = getRenderPerfStateSnapshot();
+    const quality = renderPerf.tier;
     const cacheStats = renderCacheState && renderCacheState.stats ? renderCacheState.stats : null;
     const fxStatus = glfxWorldFxState && typeof glfxWorldFxState.lastStatus === "string" ? glfxWorldFxState.lastStatus : "idle";
     const particleCount = particles ? particles.length : 0;
     const fxParticleCount = fxParticles ? fxParticles.length : 0;
     const cacheHits = cacheStats ? cacheStats.hits : 0;
     const cacheMisses = cacheStats ? cacheStats.misses : 0;
+    const frameTiming = getRenderFrameDebugText();
+    const perfText = `perf ${renderPerf.mode} ${quality} ${renderPerf.frameDropGuard ? "dropguard" : ""}`;
     const debugText =
-      "dbg fx " + quality + " | glfx " + fxStatus + " | particles " + particleCount + "+" + fxParticleCount + " | cache " + cacheHits + "/" + cacheMisses;
+      "dbg fx " + quality + " | " + perfText + " | glfx " + fxStatus + " | particles " + particleCount + "+" + fxParticleCount + " | cache " + cacheHits + "/" + cacheMisses + frameTiming;
 
     const panelX = 70;
     const panelY = 98;
@@ -7595,6 +7873,81 @@
     return Math.round(numeric * power) / power;
   }
 
+  function nowMs() {
+    if (typeof performance === "object" && performance !== null && typeof performance.now === "function") {
+      return performance.now();
+    }
+    return Date.now();
+  }
+
+  function recordRenderFrameMs(startMs) {
+    if (!Number.isFinite(startMs)) {
+      return null;
+    }
+    const elapsedMs = nowMs() - startMs;
+    if (!Number.isFinite(elapsedMs) || elapsedMs < 0) {
+      return null;
+    }
+
+    const slot = renderFrameMetrics.samples[renderFrameMetrics.nextIndex];
+    renderFrameMetrics.sampleSum -= slot;
+
+    renderFrameMetrics.samples[renderFrameMetrics.nextIndex] = elapsedMs;
+    renderFrameMetrics.nextIndex = (renderFrameMetrics.nextIndex + 1) % renderFrameSampleWindow;
+    if (renderFrameMetrics.sampleCount < renderFrameSampleWindow) {
+      renderFrameMetrics.sampleCount += 1;
+    }
+    renderFrameMetrics.sampleSum += elapsedMs;
+    renderFrameMetrics.lastMs = elapsedMs;
+    renderFrameMetrics.avgMs = renderFrameMetrics.sampleSum / renderFrameMetrics.sampleCount;
+
+    return elapsedMs;
+  }
+
+  function getRenderFrameDebugText() {
+    if (renderFrameMetrics.sampleCount <= 0) {
+      return "";
+    }
+    return " | frame " + roundTo(renderFrameMetrics.lastMs, 1) + "ms | avg " + roundTo(renderFrameMetrics.avgMs, 1) + "ms";
+  }
+
+  function collectRenderSamples(collection, limit, mapFn) {
+    const safeCollection = Array.isArray(collection) ? collection : [];
+    const maxItems = Math.max(0, Number(limit) || 0);
+    const sample = [];
+    for (let i = 0; i < safeCollection.length && i < maxItems; i += 1) {
+      sample.push(mapFn(safeCollection[i]));
+    }
+    return sample;
+  }
+
+  function mapEnemyRenderSample(enemy) {
+    return {
+      type: normalizeEnemyType(enemy && enemy.type),
+      x: roundTo(enemy && enemy.x, 2),
+      y: roundTo(enemy && enemy.y, 2),
+      hp: roundTo(enemy && enemy.hp, 2),
+      radius: roundTo(enemy && enemy.radius, 2)
+    };
+  }
+
+  function mapBulletRenderSample(bullet) {
+    return {
+      x: roundTo(bullet && bullet.x, 2),
+      y: roundTo(bullet && bullet.y, 2),
+      vx: roundTo(bullet && bullet.vx, 2),
+      vy: roundTo(bullet && bullet.vy, 2)
+    };
+  }
+
+  function mapPickupRenderSample(pickup) {
+    return {
+      x: roundTo(pickup && pickup.x, 2),
+      y: roundTo(pickup && pickup.y, 2),
+      radius: roundTo(pickup && pickup.radius, 2)
+    };
+  }
+
   function getRenderCollectionsForText() {
     if (systems && typeof systems.getCollections === "function") {
       const resolved = systems.getCollections();
@@ -7660,49 +8013,10 @@
       && floorId <= WATER_WRAPPER_FLOOR_MAX
       && !debugWaterState;
 
-    const enemySample = [];
-    for (let i = 0; i < safeEnemies.length && i < maxItems; i += 1) {
-      const enemy = safeEnemies[i];
-      enemySample.push({
-        type: normalizeEnemyType(enemy && enemy.type),
-        x: roundTo(enemy && enemy.x, 2),
-        y: roundTo(enemy && enemy.y, 2),
-        hp: roundTo(enemy && enemy.hp, 2),
-        radius: roundTo(enemy && enemy.radius, 2)
-      });
-    }
-
-    const bulletSample = [];
-    for (let i = 0; i < safeBullets.length && i < maxItems; i += 1) {
-      const bullet = safeBullets[i];
-      bulletSample.push({
-        x: roundTo(bullet && bullet.x, 2),
-        y: roundTo(bullet && bullet.y, 2),
-        vx: roundTo(bullet && bullet.vx, 2),
-        vy: roundTo(bullet && bullet.vy, 2)
-      });
-    }
-
-    const enemyBulletSample = [];
-    for (let i = 0; i < safeEnemyBullets.length && i < maxItems; i += 1) {
-      const bullet = safeEnemyBullets[i];
-      enemyBulletSample.push({
-        x: roundTo(bullet && bullet.x, 2),
-        y: roundTo(bullet && bullet.y, 2),
-        vx: roundTo(bullet && bullet.vx, 2),
-        vy: roundTo(bullet && bullet.vy, 2)
-      });
-    }
-
-    const pickupSample = [];
-    for (let i = 0; i < safePickups.length && i < maxItems; i += 1) {
-      const pickup = safePickups[i];
-      pickupSample.push({
-        x: roundTo(pickup && pickup.x, 2),
-        y: roundTo(pickup && pickup.y, 2),
-        radius: roundTo(pickup && pickup.radius, 2)
-      });
-    }
+    const enemySample = collectRenderSamples(safeEnemies, maxItems, mapEnemyRenderSample);
+    const bulletSample = collectRenderSamples(safeBullets, maxItems, mapBulletRenderSample);
+    const enemyBulletSample = collectRenderSamples(safeEnemyBullets, maxItems, mapBulletRenderSample);
+    const pickupSample = collectRenderSamples(safePickups, maxItems, mapPickupRenderSample);
 
     let audioState = null;
     if (AIPU.audio && typeof AIPU.audio.getState === "function") {
@@ -7713,6 +8027,7 @@
         audioState = { error: "audio_state_unavailable" };
       }
     }
+    const renderPerfStateSnapshot = getRenderPerfStateSnapshot();
 
     return {
       schemaVersion: 1,
@@ -7748,6 +8063,7 @@
         activeWaves: { count: Array.isArray(collections.activeWaves) ? collections.activeWaves.length : 0 }
       },
       debug: {
+        renderPerf: renderPerfStateSnapshot,
         renderCache: getRenderCacheStats(),
         sprites: getSpriteLoadState(),
         visualState: {
@@ -7816,6 +8132,7 @@
     isTitleSequenceComplete,
     getSpriteLoadState,
     renderGameToText,
+    getRenderPerfState: getRenderPerfStateSnapshot,
     resetPlayerSpriteState
   };
 })();

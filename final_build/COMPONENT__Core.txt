@@ -15,6 +15,7 @@ Outputs:
 - Mutable singletons attached to `AIPU`:
   - `AIPU.dom`, `AIPU.ctx`, `AIPU.constants`, `AIPU.state`, `AIPU.input`, `AIPU.utils`.
 - `AIPU.constants.UI_COMPONENT_CLASS` containing canonical shell/component class names for shared UI surfaces (`app-shell`, `app-header`, `app-footer`, modal/buttons, status chips, etc.).
+- `AIPU.uiComponents.elementIds` now intentionally models only in-DOM element IDs that remain in markup; deprecated goal/restart IDs were removed to prevent contract drift.
 - Read-only QA namespace attached to `AIPU`:
   - `AIPU.qa.getModuleGraph()`
   - `AIPU.qa.getCollections(limit)`
@@ -41,6 +42,7 @@ State/Edges:
 - `hexToRgb` now returns black on malformed values instead of throwing.
 - `pointInRect` and `getMouseCanvasPosition` reject malformed geometry/events instead of throwing or producing invalid math.
 - `AIPU.qa` exposes snapshots only and does not mutate gameplay state.
+- Runtime DOM contract includes a single source of truth via `uiTokens.elementIds` and `uiComponents.requiredElementIds`; `AIPU.main` validates that every required ID resolves before interaction flow begins.
 
 Dependencies:
 - None external; pure bootstrap utilities consumed by other modules.

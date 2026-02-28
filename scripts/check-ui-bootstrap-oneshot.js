@@ -15,17 +15,19 @@ const targets = [
 async function assertBootstrapUrl(page, target) {
   await page.goto(target.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-  const payload = await page.evaluate(() => {
-    const payload = window.__AIPU_UI_BOOTSTRAP || {};
-    const missingTokens = Array.isArray(payload.missingTokens) ? payload.missingTokens : [];
-    const missingClasses = Array.isArray(payload.missingClasses) ? payload.missingClasses : [];
-    return {
-      ok: !!payload.ok,
-      missingTokens,
-      missingClasses,
-      keys: Object.keys(payload),
-    };
-  });
+      const payload = await page.evaluate(() => {
+        const payload = window.__AIPU_UI_BOOTSTRAP || {};
+        const missingTokens = Array.isArray(payload.missingTokens) ? payload.missingTokens : [];
+        const missingClasses = Array.isArray(payload.missingClasses) ? payload.missingClasses : [];
+        const missingDomElements = Array.isArray(payload.missingDomElements) ? payload.missingDomElements : [];
+        return {
+          ok: !!payload.ok,
+          missingTokens,
+          missingClasses,
+          missingDomElements,
+          keys: Object.keys(payload),
+        };
+      });
 
   if (!payload.ok) {
     throw new Error(`${target.label} bootstrap failed: payload.ok is false`);
@@ -36,6 +38,9 @@ async function assertBootstrapUrl(page, target) {
       `${target.label} bootstrap failed: missing tokens/classes ` +
       `${JSON.stringify(payload.missingTokens)} / ${JSON.stringify(payload.missingClasses)}`
     );
+  }
+  if (payload.missingDomElements.length) {
+    throw new Error(`${target.label} bootstrap failed: missing required dom ids ${JSON.stringify(payload.missingDomElements)}`);
   }
 
   return payload;

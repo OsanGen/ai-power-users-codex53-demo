@@ -5,19 +5,30 @@
   const {
     canvas,
     gameFrame,
+    appShellEl,
     overlayRestartBtn,
     textModalEl,
     lessonTextInputEl,
     lessonTextSaveBtn,
     lessonTextSampleBtn,
-    lessonTextCloseBtn
+    lessonTextCloseBtn,
+    appTitleEl,
+    appMoveHintTextEl,
+    appShootHintTextEl,
+    appFooterBombHintKeyEl,
+    appFooterBombHintActionEl,
+    appFooterMusicHintKeyEl,
+    appFooterMusicHintActionEl,
+    appFooterSfxHintKeyEl,
+    appFooterSfxHintActionEl,
+    textModalTitleEl,
+    textModalNoteEl,
+    lessonTextLabelEl,
+    appFooterMusicHintBtn,
+    appFooterSfxHintBtn,
+    appFooterMusicHintStateEl,
+    appFooterSfxHintStateEl
   } = AIPU.dom;
-  const appFooterMusicHintBtn = document.getElementById("appFooterMusicHintBtn");
-  const appFooterSfxHintBtn = document.getElementById("appFooterSfxHintBtn");
-  const appFooterMusicHintActionEl = document.getElementById("appFooterMusicHintAction");
-  const appFooterSfxHintActionEl = document.getElementById("appFooterSfxHintAction");
-  const appFooterMusicHintStateEl = document.getElementById("appFooterMusicHintState");
-  const appFooterSfxHintStateEl = document.getElementById("appFooterSfxHintState");
   const {
     TOKENS,
     GameState,
@@ -997,7 +1008,6 @@
   }
 
   function applyNarrativeStaticUiLabels() {
-    const appShellEl = document.getElementById("appShell");
     if (appShellEl) {
       appShellEl.setAttribute(
         "aria-label",
@@ -1005,17 +1015,14 @@
       );
     }
 
-    const appTitleEl = document.getElementById("appTitle");
     if (appTitleEl) {
       appTitleEl.textContent = formatUiText("appTitle", "Neural Nets: Learn the Loop");
     }
 
-    const appMoveHintTextEl = document.getElementById("appMoveHintText");
     if (appMoveHintTextEl) {
       appMoveHintTextEl.textContent = formatUiText("appMoveHintText", "WASD: MOVE");
     }
 
-    const appShootHintTextEl = document.getElementById("appShootHintText");
     if (appShootHintTextEl) {
       appShootHintTextEl.textContent = formatUiText("appShootHintText", "ARROWS: SHOOT");
     }
@@ -1028,17 +1035,14 @@
       overlayRestartBtn.textContent = formatUiText("overlayRestartButton", "Restart lesson");
     }
 
-    const appFooterBombHintKeyEl = document.getElementById("appFooterBombHintKey");
     if (appFooterBombHintKeyEl) {
       appFooterBombHintKeyEl.textContent = formatUiText("appFooterBombHintKey", "Spacebar");
     }
 
-    const appFooterBombHintActionEl = document.getElementById("appFooterBombHintAction");
     if (appFooterBombHintActionEl) {
       appFooterBombHintActionEl.textContent = formatUiText("appFooterBombHintAction", "Use bomb");
     }
 
-    const appFooterMusicHintKeyEl = document.getElementById("appFooterMusicHintKey");
     if (appFooterMusicHintKeyEl) {
       appFooterMusicHintKeyEl.textContent = formatUiText("appFooterMusicHintKey", "M");
     }
@@ -1047,7 +1051,6 @@
       appFooterMusicHintActionEl.textContent = formatUiText("appFooterMusicHintAction", "Mute music");
     }
 
-    const appFooterSfxHintKeyEl = document.getElementById("appFooterSfxHintKey");
     if (appFooterSfxHintKeyEl) {
       appFooterSfxHintKeyEl.textContent = formatUiText("appFooterSfxHintKey", "E");
     }
@@ -1056,17 +1059,14 @@
       appFooterSfxHintActionEl.textContent = formatUiText("appFooterSfxHintAction", "Mute sound effects");
     }
 
-    const textModalTitleEl = document.getElementById("textModalTitle");
     if (textModalTitleEl) {
       textModalTitleEl.textContent = formatUiText("textModalTitle", "Lesson source text");
     }
 
-    const textModalNoteEl = document.getElementById("textModalNote");
     if (textModalNoteEl) {
       textModalNoteEl.textContent = formatUiText("textModalNote", "Edit the source text used in lesson cards.");
     }
 
-    const lessonTextLabelEl = document.getElementById("lessonTextLabel");
     if (lessonTextLabelEl) {
       lessonTextLabelEl.textContent = formatUiText("textModalInputLabel", "Lesson source text");
     }

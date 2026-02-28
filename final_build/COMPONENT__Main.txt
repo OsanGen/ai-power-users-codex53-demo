@@ -50,6 +50,9 @@ Acceptance Checks:
   - `./scripts/check-ui-bootstrap.sh deployed`
   - `./scripts/check-ui-bootstrap.sh both` (staged then deployed in one invocation).
   - `node scripts/check-ui-bootstrap-oneshot.js` or `npm run qa:bootstrap:oneshot` (single pass, non-test runner, staged+deployed assertion).
+- Dependency contract checks should run via:
+  - `node scripts/check-dependency-contract.js`
+  - `npm run qa:deps-contract`
 - npm-compatible wrappers are available:
   - `npm run qa:bootstrap`
   - `npm run qa:bootstrap:deployed`

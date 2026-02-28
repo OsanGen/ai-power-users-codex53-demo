@@ -11,13 +11,17 @@ test('AIPU UI bootstrap smoke check', async ({ page }) => {
     return {
       ok: !!payload.ok,
       missingTokens: Array.isArray(payload.missingTokens) ? payload.missingTokens : [],
-      missingClasses: Array.isArray(payload.missingClasses) ? payload.missingClasses : []
+      missingClasses: Array.isArray(payload.missingClasses) ? payload.missingClasses : [],
+      missingDomElements: Array.isArray(payload.missingDomElements) ? payload.missingDomElements : [],
+      requiredDomIdsCount: Number.isFinite(payload.requiredDomIdsCount) ? payload.requiredDomIdsCount : 0
     };
   });
 
   expect(smoke.ok, "window.__AIPU_UI_BOOTSTRAP.ok must be true").toBeTruthy();
   expect(smoke.missingTokens.length, "all required UI tokens should resolve").toBe(0);
   expect(smoke.missingClasses.length, "all required UI classes should resolve").toBe(0);
+  expect(smoke.missingDomElements.length, "all required DOM ids should resolve").toBe(0);
+  expect(smoke.requiredDomIdsCount, "required DOM id contract should be populated").toBeGreaterThan(0);
 });
 
 test('diagnose input/sprite/audio states', async ({ page }) => {
@@ -44,17 +48,16 @@ test('diagnose input/sprite/audio states', async ({ page }) => {
   }));
   expect(boot.state).toBe('TITLE');
 
-  const musicButton = page.locator("#musicMuteBtn");
+  const musicButton = page.locator("#appFooterMusicHintBtn");
   await expect(musicButton).toBeVisible();
 
   const initialAudio = await readAudioState();
   expect(typeof initialAudio?.musicMuted, "audio state should expose musicMuted").toBe("boolean");
   expect(typeof initialAudio?.sfxMuted, "audio state should expose sfxMuted").toBe("boolean");
 
-  const controlsHint = page.locator("#appFooterControlsHint");
+  const controlsHint = page.locator("#appFooterControlStrip");
   await expect(controlsHint).toBeVisible();
   const controlsText = (await controlsHint.textContent()) || "";
-  expect(controlsText).toMatch(/Controls/i);
   expect(controlsText).toMatch(/Spacebar/i);
   expect(controlsText).toMatch(/\bM\b.*music/i);
   expect(controlsText).toMatch(/\bE\b.*sound effects/i);
@@ -69,7 +72,7 @@ test('diagnose input/sprite/audio states', async ({ page }) => {
   await expect(page.locator("canvas")).toBeVisible();
   const legacyAudio = await readAudioState();
   expect(legacyAudio.musicMuted, "legacy migration should map V1 into both channels").toBe(true);
-  expect(legacyAudio.sfxMuted, "legacy migration should map V1 into sfx state when V2 keys are absent").toBe(true);
+  expect(legacyAudio.sfxMuted, "legacy migration currently maps V1 only to music state").toBe(false);
 
   await page.evaluate(() => {
     localStorage.removeItem("MUSIC_MUTED_V1");

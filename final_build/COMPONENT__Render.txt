@@ -3,6 +3,7 @@ Render Component
 Purpose:
 - Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
+- Add adaptive render-performance governance in `draw()` with runtime modes (`off|auto|force-low|force-medium|force-high`), low-cost quality fallback for GLFX/distortion/trails/particles/trails, and dynamic cadence/pool scaling.
 - Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.
 - Add optional, modularized, render-only FX feedback (camera, bullets, particles, distortion) driven by `fxState` and `FX_CONFIG`.
 - Support directional player model swap and automatic enemy art routing:
@@ -113,13 +114,19 @@ Dependencies:
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
 Acceptance Checks:
+- Adaptive governor is reversible and bounded: `off|auto|force-low|force-medium|force-high`, defaults to `auto`, and never disables core entity/world rendering.
 - No state transitions altered by rendering.
 - Lesson/death overlays remain legible with stable baseline/clipping.
 - Floor themes resolve consistently by floor id.
+- Render performance adaptation:
+  - Adaptive governor remains reversible and non-breaking (`off` mode available).
+  - `renderPerf` telemetry is emitted from `drawDebugStatsLine` and `buildRenderGameTextState().debug.renderPerf`.
+  - `AIPU.render.getRenderPerfState()` reports active mode/tier/frame pressure snapshot for deterministic QA checks.
 - Prompt 12 Performance + debug
   - `drawDebugStatsLine` shows render-only FX diagnostics when `game.showDebugStats` is active.
   - Diagnostic text reports FX tier (`FX_CONFIG.quality`), particle count, and render cache hit/miss counters.
   - Removed hot-path `Set` allocations by reusing render-local sets in `updateFxState` and `pruneBulletTrails`.
+  - Added a rolling frame-time sample ring buffer when `game.showDebugStats` is enabled, exposing last/average frame timings inline in `drawDebugStatsLine` with zero gameplay impact.
 - UI overlays honor current floor count:
   - `drawStateOverlay` clear-state footer only shows "Transitioning..." when floor id is below `FLOORS.length`.
 - Run summary pill labels and spacing remain correctly anchored within the summary panel bounds.
@@ -147,8 +154,10 @@ Acceptance Checks:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
   - `AIPU.render.renderGameToText()` now also exposes `debug.audio` (when `AIPU.audio` is present) so floor music state can be validated from automation snapshots.
   - `AIPU.render.renderGameToText()` now also exposes `debug.playerSprite` mode/hold/facing internals for deterministic sprite routing and transition debugging.
-  - `buildRenderGameTextState()` uses `GameState.PLAYING` in state checks to keep deterministic snapshots stable in PLAYING without reference errors.
-  - `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
+- `buildRenderGameTextState()` uses `GameState.PLAYING` in state checks to keep deterministic snapshots stable in PLAYING without reference errors.
+- `buildRenderGameTextState()` now uses a shared `collectRenderSamples()` helper for entity sampling, eliminating duplicated loop logic while preserving debug payload shape.
+- `buildRenderGameTextState()` now maps `enemy`, `bullet`, and `pickup` payloads through dedicated render mappers (`mapEnemyRenderSample`, `mapBulletRenderSample`, `mapPickupRenderSample`) to keep debug sample schema deterministic and remove inline mapping churn in the hot path.
+- `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
 - Sprite cache busting for character art is now `v=20260222-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
 - Script cache-bust alignment and player-cache keys are now expected at `v=20260222-6` for this stability patch.
 - Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.

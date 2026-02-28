@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+node scripts/check-dependency-contract.js
+
 run_smoke_check() {
   local target="$1"
   echo "Running UI bootstrap smoke check against ${target}"

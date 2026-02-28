@@ -20,8 +20,61 @@
     return typeof value === "string" && value ? value : fallback;
   }
 
+  function resolveDomId(source, key, fallback) {
+    if (!source || typeof source !== "object") {
+      return fallback;
+    }
+    const value = source[key];
+    return typeof value === "string" && value ? value : fallback;
+  }
+
   const uiTokenSource = AIPU.uiTokens && AIPU.uiTokens.palette ? AIPU.uiTokens.palette : null;
   const uiClassSource = AIPU.uiComponents && AIPU.uiComponents.componentClasses ? AIPU.uiComponents.componentClasses : null;
+  const uiElementIdSource = AIPU.uiComponents && AIPU.uiComponents.elementIds ? AIPU.uiComponents.elementIds : null;
+  const REQUIRED_DOM_IDS = AIPU.uiComponents && Array.isArray(AIPU.uiComponents.requiredElementIds)
+    ? AIPU.uiComponents.requiredElementIds.slice()
+    : [
+        "appShell",
+        "appTitle",
+        "appFooterMusicHintBtn",
+        "appFooterMusicHintKey",
+        "appFooterMusicHintAction",
+        "appFooterMusicHintState",
+        "appFooterSfxHintBtn",
+        "appFooterSfxHintKey",
+        "appFooterSfxHintAction",
+        "appFooterSfxHintState",
+        "appFooterBombHintBtn",
+        "appFooterBombHintKey",
+        "appFooterBombHintAction",
+        "appFooterBombHintState",
+        "appFooterControlStrip",
+        "appPrimaryControlHints",
+        "gameFrame",
+        "game",
+        "textModal",
+        "textModalTitle",
+        "textModalNote",
+        "lessonTextLabel",
+        "lessonTextInput",
+        "lessonTextSaveBtn",
+        "lessonTextSampleBtn",
+        "lessonTextCloseBtn",
+        "shareModal",
+        "shareTitle",
+        "shareFloor",
+        "shareCardPreview",
+        "shareText",
+        "shareCopyBtn",
+        "shareLinkedInBtn",
+        "shareDownloadBtn",
+        "shareCloseBtn",
+        "shareDontAsk",
+        "shareTextLabel",
+        "shareDontAskText",
+        "shareModalNote",
+        "overlayRestartBtn"
+      ];
 
   const UI_COMPONENT_CLASS = Object.freeze({
     appShell: resolveUiToken(uiClassSource, "shell", "app-shell"),
@@ -39,23 +92,52 @@
   });
 
   const dom = {
-    canvas: getElementById("game"),
-    gameFrame: getElementById("gameFrame"),
-    textModalEl: getElementById("textModal"),
-    lessonTextInputEl: getElementById("lessonTextInput"),
-    lessonTextSaveBtn: getElementById("lessonTextSaveBtn"),
-    lessonTextSampleBtn: getElementById("lessonTextSampleBtn"),
-    lessonTextCloseBtn: getElementById("lessonTextCloseBtn"),
-    shareModalEl: getElementById("shareModal"),
-    shareFloorEl: getElementById("shareFloor"),
-    shareTextEl: getElementById("shareText"),
-    shareCardPreviewEl: getElementById("shareCardPreview"),
-    shareCopyBtn: getElementById("shareCopyBtn"),
-    shareLinkedInBtn: getElementById("shareLinkedInBtn"),
-    shareDownloadBtn: getElementById("shareDownloadBtn"),
-    shareCloseBtn: getElementById("shareCloseBtn"),
-    shareDontAskEl: getElementById("shareDontAsk"),
-    overlayRestartBtn: getElementById("overlayRestartBtn")
+    appShellEl: getElementById(resolveDomId(uiElementIdSource, "appShell", "appShell")),
+    appTitleEl: getElementById(resolveDomId(uiElementIdSource, "appTitle", "appTitle")),
+    appPrimaryControlHintsEl: getElementById(resolveDomId(uiElementIdSource, "appPrimaryControlHints", "appPrimaryControlHints")),
+    appMoveHintTextEl: getElementById(resolveDomId(uiElementIdSource, "appMoveHintText", "appMoveHintText")),
+    appShootHintTextEl: getElementById(resolveDomId(uiElementIdSource, "appShootHintText", "appShootHintText")),
+    appFooterControlStripEl: getElementById(resolveDomId(uiElementIdSource, "appFooterControlStrip", "appFooterControlStrip")),
+    appFooterBombHintBtn: getElementById(resolveDomId(uiElementIdSource, "appFooterBombHintBtn", "appFooterBombHintBtn")),
+    appFooterBombHintKeyEl: getElementById(resolveDomId(uiElementIdSource, "appFooterBombHintKey", "appFooterBombHintKey")),
+    appFooterBombHintActionEl: getElementById(resolveDomId(uiElementIdSource, "appFooterBombHintAction", "appFooterBombHintAction")),
+    appFooterBombHintStateEl: getElementById(resolveDomId(uiElementIdSource, "appFooterBombHintState", "appFooterBombHintState")),
+    appFooterMusicHintBtn: getElementById(resolveDomId(uiElementIdSource, "appFooterMusicHintBtn", "appFooterMusicHintBtn")),
+    appFooterMusicHintKeyEl: getElementById(resolveDomId(uiElementIdSource, "appFooterMusicHintKey", "appFooterMusicHintKey")),
+    appFooterMusicHintActionEl: getElementById(resolveDomId(uiElementIdSource, "appFooterMusicHintAction", "appFooterMusicHintAction")),
+    appFooterMusicHintStateEl: getElementById(resolveDomId(uiElementIdSource, "appFooterMusicHintState", "appFooterMusicHintState")),
+    appFooterSfxHintBtn: getElementById(resolveDomId(uiElementIdSource, "appFooterSfxHintBtn", "appFooterSfxHintBtn")),
+    appFooterSfxHintKeyEl: getElementById(resolveDomId(uiElementIdSource, "appFooterSfxHintKey", "appFooterSfxHintKey")),
+    appFooterSfxHintActionEl: getElementById(resolveDomId(uiElementIdSource, "appFooterSfxHintAction", "appFooterSfxHintAction")),
+    appFooterSfxHintStateEl: getElementById(resolveDomId(uiElementIdSource, "appFooterSfxHintState", "appFooterSfxHintState")),
+    canvas: getElementById(resolveDomId(uiElementIdSource, "gameCanvas", "game")),
+    gameFrame: getElementById(resolveDomId(uiElementIdSource, "gameFrame", "gameFrame")),
+    textModalEl: getElementById(resolveDomId(uiElementIdSource, "textModal", "textModal")),
+    textModalTitleEl: getElementById(resolveDomId(uiElementIdSource, "textModalTitle", "textModalTitle")),
+    textModalNoteEl: getElementById(resolveDomId(uiElementIdSource, "textModalNote", "textModalNote")),
+    lessonTextInputEl: getElementById(resolveDomId(uiElementIdSource, "lessonTextInput", "lessonTextInput")),
+    lessonTextLabelEl: getElementById(resolveDomId(uiElementIdSource, "lessonTextLabel", "lessonTextLabel")),
+    lessonTextSaveBtn: getElementById(resolveDomId(uiElementIdSource, "lessonTextSaveBtn", "lessonTextSaveBtn")),
+    lessonTextSampleBtn: getElementById(resolveDomId(uiElementIdSource, "lessonTextSampleBtn", "lessonTextSampleBtn")),
+    lessonTextCloseBtn: getElementById(resolveDomId(uiElementIdSource, "lessonTextCloseBtn", "lessonTextCloseBtn")),
+    shareModalEl: getElementById(resolveDomId(uiElementIdSource, "shareModal", "shareModal")),
+    shareTitleEl: getElementById(resolveDomId(uiElementIdSource, "shareTitle", "shareTitle")),
+    shareFloorEl: getElementById(resolveDomId(uiElementIdSource, "shareFloor", "shareFloor")),
+    shareSummaryEl: (() => {
+      const shareModal = getElementById(resolveDomId(uiElementIdSource, "shareModal", "shareModal"));
+      return shareModal && typeof shareModal.querySelector === "function" ? shareModal.querySelector(".modal-summary") : null;
+    })(),
+    shareTextEl: getElementById(resolveDomId(uiElementIdSource, "shareText", "shareText")),
+    shareCardPreviewEl: getElementById(resolveDomId(uiElementIdSource, "shareCardPreview", "shareCardPreview")),
+    shareCopyBtn: getElementById(resolveDomId(uiElementIdSource, "shareCopyBtn", "shareCopyBtn")),
+    shareLinkedInBtn: getElementById(resolveDomId(uiElementIdSource, "shareLinkedInBtn", "shareLinkedInBtn")),
+    shareDownloadBtn: getElementById(resolveDomId(uiElementIdSource, "shareDownloadBtn", "shareDownloadBtn")),
+    shareCloseBtn: getElementById(resolveDomId(uiElementIdSource, "shareCloseBtn", "shareCloseBtn")),
+    shareDontAskEl: getElementById(resolveDomId(uiElementIdSource, "shareDontAsk", "shareDontAsk")),
+    shareTextLabelEl: getElementById(resolveDomId(uiElementIdSource, "shareTextLabel", "shareTextLabel")),
+    shareDontAskTextEl: getElementById(resolveDomId(uiElementIdSource, "shareDontAskText", "shareDontAskText")),
+    shareModalNoteEl: getElementById(resolveDomId(uiElementIdSource, "shareModalNote", "shareModalNote")),
+    overlayRestartBtn: getElementById(resolveDomId(uiElementIdSource, "overlayRestartBtn", "overlayRestartBtn"))
   };
 
   const canvasWidth = toFinite(dom.canvas && dom.canvas.width, 1024);
@@ -508,6 +590,10 @@
   }
 
   AIPU.dom = dom;
+  AIPU.domContract = Object.freeze({
+    requiredDomIds: REQUIRED_DOM_IDS,
+    requiredDomCount: REQUIRED_DOM_IDS.length
+  });
   AIPU.ctx = ctx;
   AIPU.constants = constants;
   AIPU.state = state;
