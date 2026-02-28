@@ -926,11 +926,6 @@
       overlayRestartBtn.textContent = formatUiText("overlayRestartButton", "Restart lesson");
     }
 
-    const appFooterGoalEl = document.getElementById("appFooterGoal");
-    if (appFooterGoalEl) {
-      appFooterGoalEl.textContent = formatUiText("appFooterGoal", "Survive each timer and learn the loop.");
-    }
-
     const appFooterControlsHintEl = document.getElementById("appFooterControlsHint");
     if (appFooterControlsHintEl) {
       appFooterControlsHintEl.textContent = formatUiText(
