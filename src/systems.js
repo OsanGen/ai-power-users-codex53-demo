@@ -926,18 +926,6 @@
       overlayRestartBtn.textContent = formatUiText("overlayRestartButton", "Restart lesson");
     }
 
-    const appFooterControlsHintEl = document.getElementById("appFooterControlsHint");
-    if (appFooterControlsHintEl) {
-      appFooterControlsHintEl.textContent = formatUiText(
-        "appFooterControlsHint",
-        "Press Spacebar to use bomb • M to mute music • E to mute sound effects"
-      );
-      appFooterControlsHintEl.setAttribute(
-        "aria-label",
-        formatUiText("appFooterControlsAriaLabel", "Controls shortcuts")
-      );
-    }
-
     const appFooterBombHintKeyEl = document.getElementById("appFooterBombHintKey");
     if (appFooterBombHintKeyEl) {
       appFooterBombHintKeyEl.textContent = formatUiText("appFooterBombHintKey", "Spacebar");
