@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-02-28T14:52:09Z
+- UpdatedAt: 2026-02-28T15:01:41Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, f9c3730a381c0d86ea37e2b50fc1da6764802c4b
-- Dirty state: yes (untracked: node_modules/, output/, test-results/, scripts/check-dependency-contract.js; modified: final_build/COMPONENT__Core.txt, final_build/COMPONENT__Main.txt, final_build/COMPONENT__Render.txt, final_build/COMPONENT__Systems.txt, final_build/CURRENT_GAPS.txt, index.html, package.json, scripts/check-ui-bootstrap-oneshot.js, scripts/check-ui-bootstrap.sh, src/audio.js, src/core.js, src/main.js, src/render.js, src/share.js, src/systems.js, src/ui-tokens.js, wonderland-qa.spec.js)
+- Branch, HEAD commit hash: main, 96b64ffa22a1d8db6d4f6d9f8df3d9e2f3c7d6a1b
+- Dirty state: yes (untracked: node_modules/, output/, test-results/)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -40,14 +40,9 @@ WONDERLAND is a browser-first vanilla web game (canvas-based), centered on a flo
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` holds active gaps and `final_build/COMPONENT__*.txt` holds component specs.
 
 ## 7) Recent change log (rolling)
-- 2026-02-28 | Added adaptive render governor state machine in `src/render.js` with query/localStorage modes and hysteresis-based tier transitions | src/render.js
-- 2026-02-28 | Routed FX/particle/trail/dynamic rendering through adaptive `low|medium|high` quality tier helpers | src/render.js
-- 2026-02-28 | Added draw-loop frame-time collection and governor update feedback from per-frame elapsed timing | src/render.js
-- 2026-02-28 | Added `debug.renderPerf` to `window.render_game_to_text()` and exported `AIPU.render.getRenderPerfState()` for QA/tooling | src/render.js
-- 2026-02-28 | Consolidated particle/trail FX helpers with shared caps/scale gates and removed quality string duplication in render loops | src/render.js
-- 2026-02-28 | Added UI-element contract cleanup and shared selector hygiene across bootstrap and runtime handlers | src/ui-tokens.js, index.html, src/core.js, src/main.js, src/share.js, src/systems.js
-- 2026-02-28 | Added localStorage/URL bootstrap contract checks and QA bootstrap script hardening for `window.__AIPU_UI_BOOTSTRAP` | scripts/check-ui-bootstrap-oneshot.js, scripts/check-ui-bootstrap.sh, wonderland-qa.spec.js
-- 2026-02-28 | Added dependency-lock contract enforcement in QA bootstrap path | scripts/check-dependency-contract.js, scripts/check-ui-bootstrap.sh, package.json
+- 2026-02-28 | Commit 96b64ff: Added adaptive render governor state machine with query/localStorage modes, frame pressure hysteresis, quality-tier routing, and `debug.renderPerf` diagnostics | src/render.js
+- 2026-02-28 | Added QA bootstrap dependency contract enforcement and script updates for staged/deployed smoke checks | scripts/check-dependency-contract.js, scripts/check-ui-bootstrap.sh, scripts/check-ui-bootstrap-oneshot.js, package.json
+- 2026-02-28 | Added UI element contract cleanup and shared selector hygiene across runtime handlers | src/ui-tokens.js, index.html, src/core.js, src/main.js, src/share.js, src/systems.js
 - 2026-02-28 | Added audio muting migration/persistence hardening with independent music/SFX state and UI sync coverage hooks | src/audio.js, src/systems.js
 - 2026-02-27 | Added floor-water wrapper rendering and debug state output (`debug.visualState`) in render snapshots | src/render.js
 
@@ -57,7 +52,6 @@ WONDERLAND is a browser-first vanilla web game (canvas-based), centered on a flo
 - `cat package.json`
 - `cat package-lock.json`
 - `rg -n "getElementById|querySelector|id=\"" index.html src/core.js src/main.js src/share.js src/systems.js`
-- `cat final_build/CURRENT_GAPS.txt`
 - `cat final_build/CURRENT_GAPS.txt`
 - `cat final_build/BUILD_MAP.txt`
 - `node scripts/check-dependency-contract.js`
