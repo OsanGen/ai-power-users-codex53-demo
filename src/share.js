@@ -431,6 +431,12 @@
       const persistChoice = options.persistChoice !== false;
       const restoreFocus = options.restoreFocus !== false;
       const wasOpen = this.isOpen();
+      const activeElement = document.activeElement;
+      const activeInsideShareModal = !!(
+        activeElement &&
+        typeof shareModalEl.contains === "function" &&
+        shareModalEl.contains(activeElement)
+      );
 
       if (persistChoice && shareDontAskEl) {
         this._setDontAsk(!!shareDontAskEl.checked);
@@ -441,7 +447,11 @@
       this._setStatus("", 0);
       this._cardDataUrl = "";
 
-      if (wasOpen && restoreFocus) {
+      if (activeInsideShareModal && activeElement && typeof activeElement.blur === "function") {
+        activeElement.blur();
+      }
+
+      if (wasOpen && (restoreFocus || activeInsideShareModal)) {
         const focusTarget = gameFrame || canvas;
         if (focusTarget && typeof focusTarget.focus === "function") {
           focusTarget.focus();

@@ -441,6 +441,57 @@
     return isShareModalOpen() || isTextModalOpen();
   }
 
+  function isEditableElement(element) {
+    if (!element || typeof element !== "object") {
+      return false;
+    }
+    const tagName = typeof element.tagName === "string" ? element.tagName.toUpperCase() : "";
+    if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
+      return true;
+    }
+    return !!element.isContentEditable;
+  }
+
+  function isHiddenModalElement(modalEl) {
+    if (!modalEl) {
+      return false;
+    }
+    const isAriaHidden = modalEl.getAttribute && modalEl.getAttribute("aria-hidden") === "true";
+    const isClassHidden = !!(modalEl.classList && modalEl.classList.contains("hidden"));
+    return isAriaHidden || isClassHidden;
+  }
+
+  function recoverFocusFromHiddenModalEditable() {
+    const activeElement = document.activeElement;
+    if (!isEditableElement(activeElement)) {
+      return false;
+    }
+    const shareModalEl = AIPU.dom && AIPU.dom.shareModalEl ? AIPU.dom.shareModalEl : null;
+    const insideHiddenTextModal = !!(
+      textModalEl &&
+      typeof textModalEl.contains === "function" &&
+      textModalEl.contains(activeElement) &&
+      isHiddenModalElement(textModalEl)
+    );
+    const insideHiddenShareModal = !!(
+      shareModalEl &&
+      typeof shareModalEl.contains === "function" &&
+      shareModalEl.contains(activeElement) &&
+      isHiddenModalElement(shareModalEl)
+    );
+    if (!insideHiddenTextModal && !insideHiddenShareModal) {
+      return false;
+    }
+    if (typeof activeElement.blur === "function") {
+      activeElement.blur();
+    }
+    const focusTarget = gameFrame || canvas;
+    if (focusTarget && typeof focusTarget.focus === "function") {
+      focusTarget.focus();
+    }
+    return true;
+  }
+
   const SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
   const NUMPAD_SHOOT_KEYS = Object.freeze(["Numpad8", "Numpad2", "Numpad4", "Numpad6"]);
   const NUMPAD_TO_ARROW_SHOOT_KEYS = Object.freeze({
@@ -1005,6 +1056,8 @@
     if (isShareModalOpen()) {
       return;
     }
+
+    recoverFocusFromHiddenModalEditable();
 
     const key = typeof event.key === "string" ? event.key : "";
     const code = typeof event.code === "string" ? event.code : "";
