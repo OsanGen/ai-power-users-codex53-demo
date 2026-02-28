@@ -495,11 +495,30 @@
     if (typeof activeElement.blur === "function") {
       activeElement.blur();
     }
+    return focusGameInputTarget();
+  }
+
+  function focusGameInputTarget() {
     const focusTarget = gameFrame || canvas;
-    if (focusTarget && typeof focusTarget.focus === "function") {
-      focusTarget.focus();
+    if (!focusTarget || typeof focusTarget.focus !== "function") {
+      return false;
     }
+    focusTarget.focus();
     return true;
+  }
+
+  function recoverFocusFromEditableOutsideModal() {
+    if (isAnyModalOpen()) {
+      return false;
+    }
+    const activeElement = document.activeElement;
+    if (!isEditableElement(activeElement)) {
+      return false;
+    }
+    if (typeof activeElement.blur === "function") {
+      activeElement.blur();
+    }
+    return focusGameInputTarget();
   }
 
   const SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
@@ -694,6 +713,13 @@
     return "";
   }
 
+  function isMovementEvent(event) {
+    if (!event || typeof event !== "object") {
+      return false;
+    }
+    return !!resolveMovementCode(event.code, event.key);
+  }
+
   function resolveShootDirectionCode(eventCode, eventKey) {
     const code = typeof eventCode === "string" ? eventCode : "";
     if (code === "ArrowUp" || code === "ArrowDown" || code === "ArrowLeft" || code === "ArrowRight") {
@@ -740,6 +766,19 @@
 
   function getShootDirectionCode(event) {
     return resolveShootDirectionCode(event && event.code, event && event.key);
+  }
+
+  function shouldPreventDefaultForGameplayKey(event) {
+    const key = typeof event.key === "string" ? event.key : "";
+    return (
+      isSpaceKey(event) ||
+      isEnterKey(event) ||
+      isArrowKey(event) ||
+      key === "1" ||
+      key === "2" ||
+      key === "3" ||
+      isMovementEvent(event)
+    );
   }
 
   function getShootPressOrder() {
@@ -1070,6 +1109,7 @@
     }
 
     recoverFocusFromHiddenModalEditable();
+    recoverFocusFromEditableOutsideModal();
 
     const key = typeof event.key === "string" ? event.key : "";
     const code = typeof event.code === "string" ? event.code : "";
@@ -1099,18 +1139,7 @@
       return;
     }
 
-    if (
-      isSpaceKey(event) ||
-      isEnterKey(event) ||
-      isArrowKey(event) ||
-      key === "1" ||
-      key === "2" ||
-      key === "3" ||
-      lower === "w" ||
-      lower === "a" ||
-      lower === "s" ||
-      lower === "d"
-    ) {
+    if (shouldPreventDefaultForGameplayKey(event)) {
       event.preventDefault();
     }
 
@@ -1185,6 +1214,9 @@
   });
 
   window.addEventListener("keyup", (event) => {
+    if (shouldPreventDefaultForGameplayKey(event)) {
+      event.preventDefault();
+    }
     setInputKeyState(event, false);
     const shootCode = getShootDirectionCode(event);
     if (isShootDirectionCode(shootCode)) {
@@ -1205,6 +1237,10 @@
 
   canvas.style.touchAction = "none";
 
+  canvas.addEventListener("pointerdown", () => {
+    focusGameInputTarget();
+  });
+
   canvas.addEventListener("mousemove", (event) => {
     if (game.state !== GameState.UPGRADE_SELECT || isAnyModalOpen()) {
       return;
@@ -1218,6 +1254,7 @@
   });
 
   canvas.addEventListener("click", (event) => {
+    focusGameInputTarget();
     if (game.state !== GameState.UPGRADE_SELECT || isAnyModalOpen()) {
       return;
     }
