@@ -106,15 +106,16 @@
   const MUZZLE_FLASH_TTL_MIN = 0.06;
   const MUZZLE_FLASH_TTL_MAX = 0.12;
   const MUZZLE_FLASH_SOFT_CAP = 84;
+  const MUZZLE_ANCHOR_BASE_RADIUS = 14;
+  const MUZZLE_SOCKET_OFFSETS_AT_BASE_RADIUS = Object.freeze({
+    "1,0": Object.freeze({ x: 18, y: -7 }),
+    "-1,0": Object.freeze({ x: -16, y: -7 }),
+    "0,-1": Object.freeze({ x: 2, y: -17 }),
+    "0,1": Object.freeze({ x: 2, y: -4 })
+  });
   const LESSON_TEXT_SAMPLE =
     "Inputs are numbers like counts and signals. Weights scale each input, then gates combine them to produce one guess. A tiny input change can flip a prediction.";
   const COGSEC_BULLET_COLORS = [TOKENS.yellow, TOKENS.blue, TOKENS.mint, TOKENS.pink];
-  const MUZZLE_ANCHOR_PROFILE = Object.freeze({
-    "1,0": Object.freeze({ forwardScale: 1.24, lateralScale: -0.06, xBiasScale: 0.08, yBiasScale: -0.2 }),
-    "-1,0": Object.freeze({ forwardScale: 1.14, lateralScale: 0.06, xBiasScale: -0.08, yBiasScale: -0.2 }),
-    "0,-1": Object.freeze({ forwardScale: 1.08, lateralScale: 0, xBiasScale: 0.06, yBiasScale: -0.34 }),
-    "0,1": Object.freeze({ forwardScale: 0.98, lateralScale: 0, xBiasScale: 0.06, yBiasScale: -0.1 })
-  });
   const FALLBACK_ENEMY_DEFS = Object.freeze({
     dual: {
       hp: 1,
@@ -2494,27 +2495,22 @@
 
   function resolvePlayerMuzzleAnchor(dir) {
     const direction = resolveCardinalMuzzleDirection(dir);
-    const profile = MUZZLE_ANCHOR_PROFILE[direction.key] || MUZZLE_ANCHOR_PROFILE["1,0"];
-    const radius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
+    const offset = MUZZLE_SOCKET_OFFSETS_AT_BASE_RADIUS[direction.key] || MUZZLE_SOCKET_OFFSETS_AT_BASE_RADIUS["1,0"];
+    const radius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : MUZZLE_ANCHOR_BASE_RADIUS;
+    const scale = radius / MUZZLE_ANCHOR_BASE_RADIUS;
     const forwardX = direction.x;
     const forwardY = direction.y;
-    const sideX = -forwardY;
-    const sideY = forwardX;
 
     return {
-      x:
-        player.x +
-        forwardX * radius * profile.forwardScale +
-        sideX * radius * profile.lateralScale +
-        radius * profile.xBiasScale,
-      y:
-        player.y +
-        forwardY * radius * profile.forwardScale +
-        sideY * radius * profile.lateralScale +
-        radius * profile.yBiasScale,
+      x: player.x + (Number.isFinite(offset.x) ? offset.x * scale : 0),
+      y: player.y + (Number.isFinite(offset.y) ? offset.y * scale : 0),
       dx: forwardX,
       dy: forwardY
     };
+  }
+
+  function getMuzzleAnchorForDirection(dir) {
+    return resolvePlayerMuzzleAnchor(dir);
   }
 
   function pushMuzzleFlashEvent(x, y, dir, color) {
@@ -3438,6 +3434,7 @@
     resolveDirectionalBurstMode,
     getDirectionalBurstStatus,
     getAttackDisableState,
+    getMuzzleAnchorForDirection,
     resetCollections,
     getUpgradeCardIndexAt,
     startDeathAnim,

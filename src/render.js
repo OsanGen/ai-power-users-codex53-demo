@@ -278,6 +278,18 @@
     ArrowLeft: "left",
     ArrowRight: "right"
   });
+  const MUZZLE_SOCKET_DEBUG_DIRECTIONS = Object.freeze([
+    Object.freeze({ key: "1,0", x: 1, y: 0 }),
+    Object.freeze({ key: "-1,0", x: -1, y: 0 }),
+    Object.freeze({ key: "0,-1", x: 0, y: -1 }),
+    Object.freeze({ key: "0,1", x: 0, y: 1 })
+  ]);
+  const MUZZLE_SHOOT_DIRECTION_VECTORS = Object.freeze({
+    front: Object.freeze({ x: 0, y: 1 }),
+    back: Object.freeze({ x: 0, y: -1 }),
+    left: Object.freeze({ x: -1, y: 0 }),
+    right: Object.freeze({ x: 1, y: 0 })
+  });
   const PLAYER_FRAME_FALLBACKS = Object.freeze({
     front: Object.freeze(["front.png", "Front.png", "FRONT.png"]),
     back: Object.freeze(["back.png", "Back.png", "BACK.png"]),
@@ -2922,6 +2934,7 @@
       drawPickups(accent);
       drawEnemies(accent);
       drawPlayer(accent, visualTheme);
+      drawMuzzleSocketDebugMarkers();
       drawMuzzleFlashes(accent, visualTheme);
       drawBullets(accent);
       drawParticles();
@@ -6311,6 +6324,72 @@
     }
     if (isPlayerShootInputActive() && (!drewSprite || SHOW_AIM_LINE_WITH_SPRITE)) {
       drawPlayerAimLine();
+    }
+  }
+
+  function drawDebugCrossMarker(x, y, color, alpha, size = 3.5) {
+    const cx = Number(x);
+    const cy = Number(y);
+    if (!Number.isFinite(cx) || !Number.isFinite(cy)) {
+      return;
+    }
+
+    const halfSize = Math.max(1.8, size * 0.62);
+    const strokeWidth = size >= 3.8 ? 1.4 : 1;
+    ctx.save();
+    ctx.strokeStyle = rgba(color, clamp(alpha, 0, 1));
+    ctx.fillStyle = rgba(color, clamp(alpha * 0.42, 0, 1));
+    ctx.lineWidth = strokeWidth;
+
+    ctx.beginPath();
+    ctx.moveTo(cx - size, cy);
+    ctx.lineTo(cx + size, cy);
+    ctx.moveTo(cx, cy - size);
+    ctx.lineTo(cx, cy + size);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, halfSize, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawMuzzleSocketDebugMarkers() {
+    if (!game.showDebugStats) {
+      return;
+    }
+
+    if (!systems || typeof systems.getMuzzleAnchorForDirection !== "function") {
+      return;
+    }
+
+    const activeDirectionName = getActivePlayerShootDirection();
+    const activeDirectionVector = MUZZLE_SHOOT_DIRECTION_VECTORS[activeDirectionName];
+    const activeKey = activeDirectionVector ? `${activeDirectionVector.x},${activeDirectionVector.y}` : "";
+
+    for (let i = 0; i < MUZZLE_SOCKET_DEBUG_DIRECTIONS.length; i += 1) {
+      const socketDirection = MUZZLE_SOCKET_DEBUG_DIRECTIONS[i];
+      let socketAnchor = null;
+
+      try {
+        socketAnchor = systems.getMuzzleAnchorForDirection({ x: socketDirection.x, y: socketDirection.y });
+      } catch (error) {
+        void error;
+        socketAnchor = null;
+      }
+
+      if (!socketAnchor || !Number.isFinite(socketAnchor.x) || !Number.isFinite(socketAnchor.y)) {
+        continue;
+      }
+
+      const isActive = socketDirection.key === activeKey;
+      drawDebugCrossMarker(
+        socketAnchor.x,
+        socketAnchor.y,
+        isActive ? TOKENS.pink : TOKENS.ink,
+        isActive ? 0.84 : 0.2,
+        isActive ? 4.2 : 3
+      );
     }
   }
 

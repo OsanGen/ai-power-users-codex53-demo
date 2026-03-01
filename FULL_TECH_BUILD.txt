@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-02-28T22:19:19Z
+- UpdatedAt: 2026-03-01T01:49:49Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, c13a84c4c2de30d01e9fd36b242b538283ea47e4
-- Dirty state: yes (modified: src/render.js, final_build/CURRENT_GAPS.txt, final_build/COMPONENT__Render.txt; untracked: node_modules/, output/, test-results/)
+- Branch, HEAD commit hash: main, ac4f7c040ff69049dfcf0361bc8a95f5d4d086e0
+- Dirty state: yes (untracked: node_modules/, output/, test-results/)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -34,12 +34,13 @@ WONDERLAND is a browser-first vanilla web game (canvas-based), centered on a flo
 - Known risks: dependency manifest/lockfile mismatch, local script additions not reflected in lockfile checks, and static cache-bust rollout friction across deployed pages.
 
 ## 6) Current implementation status
-- What is implemented: unified runtime DOM contracts, deterministic bootstrap checks, dependency contract validation, render telemetry and adaptive render performance governor scaffold, render-mode debug exports, and extended `render_game_to_text` diagnostics.
+- What is implemented: unified runtime DOM contracts, deterministic bootstrap checks, dependency contract validation, render telemetry and adaptive render performance governor scaffold, render-mode debug exports, and extended `render_game_to_text` diagnostics. Muzzle flash projectile and socket alignment now uses per-direction radius-scaled gun sockets.
 - What is in progress: deterministic performance baseline + benchmark assertions for `debug.renderPerf` stability and low/high-tier switching behavior.
-- What is not started: formal rollout guard for `renderPerf` mode visibility/telemetry in long-running QA sequence and optional off-by-default perf script wiring in normal suite.
+- What is not started: formal rollout guard for `renderPerf` mode visibility/telemetry in long-running QA sequence and optional off-by-default perf script wiring in normal suite. No automated visual pass for debug marker validation has been added yet.
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` holds active gaps and `final_build/COMPONENT__*.txt` holds component specs.
 
 ## 7) Recent change log (rolling)
+- 2026-03-01 | Replaced coarse muzzle anchor math with direction-specific radius-scaled socket offsets and added `AIPU.systems.getMuzzleAnchorForDirection()` to keep bullet/muzzle origin aligned per cardinal direction; added debug-only render socket marker overlay for all sockets with active emphasis. | src/systems.js, src/render.js
 - 2026-02-28 | Increased muzzle flash reach and shifted muzzle flash rendering to projectile-color-dominant bloom/streak composition for clearer shot-to-bullet continuity | src/render.js
 - 2026-02-28 | Commit 96b64ff: Added adaptive render governor state machine with query/localStorage modes, frame pressure hysteresis, quality-tier routing, and `debug.renderPerf` diagnostics | src/render.js
 - 2026-02-28 | Added QA bootstrap dependency contract enforcement and script updates for staged/deployed smoke checks | scripts/check-dependency-contract.js, scripts/check-ui-bootstrap.sh, scripts/check-ui-bootstrap-oneshot.js, package.json

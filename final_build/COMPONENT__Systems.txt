@@ -37,6 +37,7 @@ Outputs:
   - `enterGameOver`, `requestRestart`, `startRun`, `startFloor`, `beginCurrentFloor`
   - `resolveDirectionalBurstMode`, `getDirectionalBurstStatus`
   - `getCollections`
+ - `getMuzzleAnchorForDirection` for resolving direction-specific gun socket world anchors used by render debug tooling and effects.
 - `applyPlayerDamage` returns a boolean hit-result and writes debug diagnostics when `game.showDebugStats` is enabled.
 - Internal pools are not exported but remain stable during state transitions.
 
@@ -91,6 +92,8 @@ State/Edges:
   - `updateSpawns()` sanitizes malformed wave metadata and numeric fields (timing, rates, speed multipliers, speed, size, damage, hp) before computation and entity creation.
   - `spawnEnemyFromWave()` ignores malformed wave objects and creates entities only from valid enemy definitions.
   - `updateSpawns()` enforces a regular-entity soft cap (`ENEMY_SPAWN_SOFT_CAP`) while allowing `dual` missiles to continue spawning during their wave windows up to a higher cap (`DUAL_SPAWN_SOFT_CAP`) so homing-missile visibility is preserved in dense combat frames.
+- Combat launch accuracy:
+  - Bullet spawn and muzzle flash origin both resolve through the same per-direction muzzle anchor contract in `spawnPlayerBullet()` and `pushMuzzleFlashEvent()`, replacing prior scale-based anchors with radius-scaled direction offsets so projectile and flash start from the same socket point.
 - Entity performance:
   - Uses reusable pools for bullets, enemy bullets, enemies, pickups, and particles.
   - Releases pooled objects on all collection exits (death, collisions, pickups, timeouts, and bomb clear).
@@ -116,6 +119,8 @@ Acceptance Checks:
 - No combat actions occur during lesson/briefing intro/clear overlays.
 - Resume from overlays returns to intended states without stale key-repeat artifacts.
 - Upgrades, checkpoint handling, and bomb briefing transitions remain deterministic per state.
+- Gun-socket determinism:
+  - Same direction request in gameplay and rendering resolves to the same muzzle anchor in `systems`, and render debug marker utilities can visualize the active socket in all four cardinal directions.
 - Death flow continues to DEATH_LESSON first and then GAME_OVER on explicit confirm input.
 - All pooled objects are fully reset before reuse; render-facing fields remain unchanged (`x`, `y`, `vx`, `vy`, `radius`, `hp`, `hp` etc.) and no gameplay tuning or UI copy changes.
 - Headless floor-start smoke check: forcing startRun(10) reaches UPGRADE_SELECT → LESSON_SLIDE → FLOOR_INTRO → PLAYING with no runtime transition errors.

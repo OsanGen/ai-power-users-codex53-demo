@@ -107,6 +107,7 @@ State/Edges:
 Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
+- `AIPU.systems.getMuzzleAnchorForDirection(dirVector)` (new debug path) for optional socket marker visualization and direction-specific anchor parity checks.
 - `AIPU.utils` for color/geometry/font helpers.
 - `index.html` script tags use cache-bust tokens (`audio.js?v=20260222-10`, `systems.js?v=20260222-10`, `render.js?v=20260222-10`, `main.js?v=20260222-10`) to force updated runtime bundle refresh.
 - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
@@ -147,10 +148,12 @@ Acceptance Checks:
   - Idle player facing no longer falls back to stale aim (`lastAimX/lastAimY`) when both movement and shooting inputs are inactive; facing persists for stable idle visuals and avoids intermittent direction jitter while standing still.
   - Homing missiles (`dual`) use a reinforced procedural visual fallback with darker, jittered trail geometry and pulse-coupled detail, so they remain visibly distinct and more threatening when sprites are missing.
   - Homing missile fallback was strengthened further with a staggered broken-fin silhouette, ember drift, and cracked line accents in `drawHomingMissileEnemyProcedural` to increase perceived threat without affecting movement/impact semantics.
-  - `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
+- `AIPU.render.getSpriteLoadState()` exposes sprite-load counters and missing-path diagnostics.
   - Sprite cache state invalidates when resolved candidate path sets change so stale path order/content can never pin a previous image after art rename or input-mode swap.
   - Malformed sprite candidates now advance through the same fallback chain as network/path load failures instead of terminating at the first invalid decode candidate.
   - Player sprite width clamp uses normalized safe radius (`playerRadius`) consistently for both min and max bounds.
+- Debug validation:
+  - When `game.showDebugStats` is true, render draws directional muzzle-socket cross markers from `AIPU.systems.getMuzzleAnchorForDirection()` for active shoot direction plus lower-alpha references for all cardinal sockets.
 - Deterministic automation compatibility:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
   - `AIPU.render.renderGameToText()` now also exposes `debug.audio` (when `AIPU.audio` is present) so floor music state can be validated from automation snapshots.
