@@ -72,6 +72,7 @@ State/Edges:
   - `player.attackDisableTimer` is reset in title transitions and floor/game state starts so lockout does not persist across run reset paths.
 - Burst system:
   - Tracks hold time while any directional shoot key is continuously held in PLAYING.
+  - Dual burst unlock now requires sustained rear-shot hold of 4 seconds (via `AIPU.constants.REAR_SHOT_TRIGGER_SECONDS`), while omni unlock remains at the existing `ALL_DIRECTION_SHOT_TRIGGER_SECONDS` threshold.
   - Hold time no longer resets when active shoot direction changes (`ArrowUp/Down/Left/Right` transitions), so dual/omni unlock depends on continuous shooting duration rather than fixed-direction hold.
   - Hold time now pauses/resets under forced shoot lockout (`player.attackDisableTimer > 0`) so disabled windows cannot silently charge dual/omni burst progress.
   - Homing-missile disable impacts now clear directional burst tracking immediately to prevent pre-impact charge carryover.
@@ -94,6 +95,7 @@ State/Edges:
   - `updateSpawns()` enforces a regular-entity soft cap (`ENEMY_SPAWN_SOFT_CAP`) while allowing `dual` missiles to continue spawning during their wave windows up to a higher cap (`DUAL_SPAWN_SOFT_CAP`) so homing-missile visibility is preserved in dense combat frames.
 - Combat launch accuracy:
   - Bullet spawn and muzzle flash origin both resolve through the same per-direction muzzle anchor contract in `spawnPlayerBullet()` and `pushMuzzleFlashEvent()`, replacing prior scale-based anchors with radius-scaled direction offsets so projectile and flash start from the same socket point.
+  - Up-direction socket is tuned to `{ x: -2, y: -24 }` at base radius to align flash and bullet origin with the upward barrel tip while preserving scaling for larger/smaller player radius.
 - Entity performance:
   - Uses reusable pools for bullets, enemy bullets, enemies, pickups, and particles.
   - Releases pooled objects on all collection exits (death, collisions, pickups, timeouts, and bomb clear).

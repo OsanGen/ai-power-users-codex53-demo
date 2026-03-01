@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-01T01:49:49Z
+- UpdatedAt: 2026-03-01T01:58:45Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, ac4f7c040ff69049dfcf0361bc8a95f5d4d086e0
+- Branch, HEAD commit hash: main, 21ee493281b85c9455be94bd3707ca198ab59ffe
 - Dirty state: yes (untracked: node_modules/, output/, test-results/)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -36,10 +36,12 @@ WONDERLAND is a browser-first vanilla web game (canvas-based), centered on a flo
 ## 6) Current implementation status
 - What is implemented: unified runtime DOM contracts, deterministic bootstrap checks, dependency contract validation, render telemetry and adaptive render performance governor scaffold, render-mode debug exports, and extended `render_game_to_text` diagnostics. Muzzle flash projectile and socket alignment now uses per-direction radius-scaled gun sockets.
 - What is in progress: deterministic performance baseline + benchmark assertions for `debug.renderPerf` stability and low/high-tier switching behavior.
-- What is not started: formal rollout guard for `renderPerf` mode visibility/telemetry in long-running QA sequence and optional off-by-default perf script wiring in normal suite. No automated visual pass for debug marker validation has been added yet.
+- What is not started: formal rollout guard for `renderPerf` mode visibility/telemetry in long-running QA sequence and optional off-by-default perf script wiring in normal suite. A visual verification pass for the up-socket flash-color fix is the next immediate acceptance step.
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` holds active gaps and `final_build/COMPONENT__*.txt` holds component specs.
 
 ## 7) Recent change log (rolling)
+- 2026-03-01 | Delayed directional burst dual unlock from 2s to 4s of continuous shooting by updating `REAR_SHOT_TRIGGER_SECONDS` in gameplay constants; omni unlock threshold remains unchanged. | src/core.js
+- 2026-03-01 | Tuned up socket calibration for upward shots to `{x:-2, y:-24}` at base radius and narrowed muzzle flash core-to-white blend so flash tint follows projectile colors (`yellow/blue/mint/pink`) while keeping gameplay behavior unchanged. | src/systems.js, src/render.js
 - 2026-03-01 | Replaced coarse muzzle anchor math with direction-specific radius-scaled socket offsets and added `AIPU.systems.getMuzzleAnchorForDirection()` to keep bullet/muzzle origin aligned per cardinal direction; added debug-only render socket marker overlay for all sockets with active emphasis. | src/systems.js, src/render.js
 - 2026-02-28 | Increased muzzle flash reach and shifted muzzle flash rendering to projectile-color-dominant bloom/streak composition for clearer shot-to-bullet continuity | src/render.js
 - 2026-02-28 | Commit 96b64ff: Added adaptive render governor state machine with query/localStorage modes, frame pressure hysteresis, quality-tier routing, and `debug.renderPerf` diagnostics | src/render.js
