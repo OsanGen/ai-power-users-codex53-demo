@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-02T16:27:08-05:00
+- UpdatedAt: 2026-03-02T16:45:31-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 9f0bc8c7992cb6626a5fd8930607f4c0f379130f
-- Dirty state: yes (`FULL_TECH_BUILD.txt`, `index.html`, `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt` modified in current turn; untracked: `node_modules/`, `output/`, `test-results/`)
+- Branch, HEAD commit hash: main, fc9b2ebee14c76d06f27a4d48c3045fd3be8de88
+- Dirty state: yes (`node_modules/`, `output/`, `test-results/`)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -52,7 +52,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - What is implemented:
   - Lesson Diagram V2 engine (`src/lesson-diagram-v2.js`) with semantic mode graphs (`network_basic`, `inputs_nodes`, `weights_knobs`, `sum_bias`, `activation_gate`, `layers_stack`, `loss_meter`, `backprop_arrows`, `generalize_explain`).
   - `drawLessonSlideDiagram` now delegates to V2 and falls back to legacy sketch on runtime/dependency failure.
-  - `render_game_to_text` now emits `debug.lessonDiagram` (`mode`, `layoutVersion`, `activeStage`, `fallbackUsed`).
+  - `render_game_to_text` now emits `debug.lessonDiagram` (`mode`, `layoutVersion`, `activeLayoutSource`, `activeRenderMode`, `activeStage`, `fallbackUsed`, `legacyFallbackUsed`).
+  - `src/lesson-diagram-v2.js` parser fault recovery and deterministic fallback-state handling now prevents first-frame legacy visualization flashes.
 - What is in progress:
   - Visual QA sweep for lesson overlays across floor modes and compact mobile widths.
   - Runtime verification of CDN dependency loading behavior in deployed builds.
@@ -62,6 +63,9 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - If DEV MODE is active, summarize/action from `final_build/CURRENT_GAPS.txt` as source of truth.
 
 ## 7) Recent change log (rolling)
+- 2026-03-02T16:45:31-05:00 | Fix lesson-diagram bootstrap regression in `src/lesson-diagram-v2.js`: restore parser validity, stabilize `canvas-fallback` diagnostics, and prevent per-frame failure-state churn for consistent first-frame behavior | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-02T16:45:31-05:00 | Bump `index.html` `lesson-diagram-v2.js` cache token to `v=20260302-5` to prevent legacy script reuse on stale clients after parser/fallback fix | `index.html`
+- 2026-03-02T16:28:06-05:00 | Confirmed `main` and `gh-pages` up-to-date on origin and reran deployed bootstrap smoke check successfully (`1 passed`) | `src/lesson-diagram-v2.js`, `index.html`
 - 2026-03-02T16:27:08-05:00 | Remove stale lesson-diagram layout source pinning so mode/size sessions re-evaluate `manual` vs `elk` each frame; this allows ELK-resolved layout to activate immediately after async compute | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-02T15:13:24-05:00 | Eliminate first-second lesson-diagram flash by pinning active layout source per mode/size (prevents async manual->ELK mid-view swap), plus extra right-padding/label anchor tuning | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-02T15:04:23-05:00 | Fix lesson-diagram V2 viewport anchoring and label crowding (`sum_bias`): centered fit normalization + deterministic incoming-label slotting; bump lesson diagram cache token | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`

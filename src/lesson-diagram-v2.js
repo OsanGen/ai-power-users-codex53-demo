@@ -50,6 +50,9 @@
       layoutVersion: "manual",
       activeStage: 0,
       fallbackUsed: true,
+      legacyFallbackUsed: false,
+      activeLayoutSource: "manual",
+      activeRenderMode: "none",
       pixiAvailable: false,
       elkAvailable: false,
       emitterAvailable: false,
@@ -59,7 +62,8 @@
       lastFailureAt: 0,
       failureCount: 0,
       schemaVersion: SCHEMA_VERSION
-    }
+    },
+    pixiWebglUnavailable: null
   };
 
   function clamp(value, min, max) {
@@ -98,6 +102,9 @@
       mode: typeof safe.mode === "string" ? safe.mode : state.debug.mode,
       layoutVersion: safe.layoutVersion || "manual",
       activeStage: Number.isFinite(safe.activeStage) ? safe.activeStage : 0,
+      activeLayoutSource: state.debug.activeLayoutSource,
+      activeRenderMode: safe.activeRenderMode || state.debug.activeRenderMode || "none",
+      legacyFallbackUsed: !!safe.legacyFallbackUsed,
       fallbackUsed: !!safe.fallbackUsed,
       pixiAvailable: !!safe.pixiAvailable,
       elkAvailable: !!safe.elkAvailable,
@@ -242,6 +249,11 @@
     const g = clamp(Math.round(rgb.g), 0, 255);
     const b = clamp(Math.round(rgb.b), 0, 255);
     return (r << 16) + (g << 8) + b;
+  }
+
+  function rgbToRgba(rgb, alpha) {
+    const safeRgb = rgb || { r: 0, g: 0, b: 0 };
+    return `rgba(${clamp(Math.round(safeRgb.r), 0, 255)}, ${clamp(Math.round(safeRgb.g), 0, 255)}, ${clamp(Math.round(safeRgb.b), 0, 255)}, ${clamp(alpha, 0, 1)})`;
   }
 
   function mixRgb(a, b, t) {
@@ -755,11 +767,105 @@
     invalidateCachedFrame();
   }
 
+  function isPixiRendererAvailable() {
+    const pixi = global.PIXI;
+    if (!pixi || typeof pixi !== "object") {
+      return false;
+    }
+
+    if (state.pixiWebglUnavailable === true) {
+      return false;
+    }
+
+    if (typeof pixi.utils !== "object" || typeof pixi.utils.isWebGLSupported !== "function") {
+      return true;
+    }
+
+    try {
+      const supported = !!pixi.utils.isWebGLSupported();
+      if (!supported) {
+        state.pixiWebglUnavailable = true;
+      }
+      return supported;
+    } catch (error) {
+      state.pixiWebglUnavailable = true;
+      return false;
+    }
+  }
+
   function ensureRenderer(width, height) {
     if (!global.PIXI || typeof global.PIXI !== "object") {
       return false;
     }
+
+    if (!isPixiRendererAvailable()) {
+      if (state.debug.activeRenderMode !== "canvas-fallback") {
+        setFailure(
+          "ensureRenderer",
+          "WebGL is unavailable; using deterministic 2D canvas diagram fallback"
+        );
+        state.debug.activeRenderMode = "canvas-fallback";
+      }
+      return false;
+    }
+
     const PIXI = global.PIXI;
+    const view = typeof document !== "undefined" ? document.createElement("canvas") : null;
+
+    function createRendererWithMode(mode) {
+      if (mode === "auto" && typeof PIXI.autoDetectRenderer === "function") {
+        return {
+          mode: "auto",
+          renderer: PIXI.autoDetectRenderer({
+            view,
+            width,
+            height,
+            antialias: true,
+            backgroundAlpha: 0
+          })
+        };
+      }
+      if (mode === "renderer-webgl" && typeof PIXI.Renderer === "function") {
+        return {
+          mode: "renderer-webgl",
+          renderer: new PIXI.Renderer({
+            view,
+            width,
+            height,
+            antialias: true,
+            backgroundAlpha: 0
+          })
+        };
+      }
+      if (mode === "renderer-canvas-forced" && typeof PIXI.Renderer === "function") {
+        return {
+          mode: "renderer-canvas-forced",
+          renderer: new PIXI.Renderer({
+            view,
+            width,
+            height,
+            antialias: true,
+            backgroundAlpha: 0,
+            forceCanvas: true
+          })
+        };
+      }
+      if (mode === "canvas" && typeof PIXI.CanvasRenderer === "function") {
+        return {
+          mode: "canvas",
+          renderer: new PIXI.CanvasRenderer({
+            view,
+            width,
+            height,
+            antialias: true,
+            backgroundAlpha: 0,
+            forceCanvas: true
+          })
+        };
+      }
+      return null;
+    }
+
     if (
       state.renderer &&
       state.stage &&
@@ -784,26 +890,37 @@
     }
 
     try {
-      const view = typeof document !== "undefined" ? document.createElement("canvas") : null;
       if (!view) {
         return false;
       }
-      const renderer = typeof PIXI.autoDetectRenderer === "function"
-        ? PIXI.autoDetectRenderer({
-            view,
-            width,
-            height,
-            antialias: true,
-            backgroundAlpha: 0
-          })
-        : new PIXI.Renderer({
-            view,
-            width,
-            height,
-            antialias: true,
-            backgroundAlpha: 0
-          });
+      const candidates = ["auto", "renderer-webgl", "renderer-canvas-forced"];
+      let renderer = null;
+      let created = null;
+      let lastError = null;
+      for (let i = 0; i < candidates.length; i += 1) {
+        const mode = candidates[i];
+        let current = null;
+        try {
+          current = createRendererWithMode(mode);
+        } catch (error) {
+          current = null;
+          lastError = error;
+        }
+        if (!current || !current.renderer || typeof current.renderer.render !== "function") {
+          continue;
+        }
+        renderer = current.renderer;
+        created = current.mode;
+        break;
+      }
+      if (!renderer) {
+        if (lastError) {
+          setFailure("ensureRenderer", lastError);
+        }
+        return false;
+      }
       if (!renderer || typeof renderer.render !== "function") {
+        state.debug.activeRenderMode = "none";
         return false;
       }
 
@@ -815,6 +932,7 @@
       state.view = view;
       state.width = width;
       state.height = height;
+      state.debug.activeRenderMode = created || "unknown";
       state.debug.pixiAvailable = true;
       clearFailure();
       return true;
@@ -1163,6 +1281,236 @@
     root.addChild(spark);
   }
 
+  function roundRectPath(context, x, y, width, height, radius) {
+    const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
+    if (typeof context.roundRect === "function") {
+      context.beginPath();
+      context.roundRect(x, y, width, height, safeRadius);
+      return;
+    }
+    const left = x;
+    const top = y;
+    const right = x + width;
+    const bottom = y + height;
+    const r = safeRadius;
+    context.beginPath();
+    context.moveTo(left + r, top);
+    context.lineTo(right - r, top);
+    context.quadraticCurveTo(right, top, right, top + r);
+    context.lineTo(right, bottom - r);
+    context.quadraticCurveTo(right, bottom, right - r, bottom);
+    context.lineTo(left + r, bottom);
+    context.quadraticCurveTo(left, bottom, left, bottom - r);
+    context.lineTo(left, top + r);
+    context.quadraticCurveTo(left, top, left + r, top);
+    context.closePath();
+  }
+
+  function drawCanvasArrow(context, from, to, color, alpha, width) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const dist = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const arrowLen = 11;
+    const spread = 4.6;
+    const tipX = to.x - ux * 12;
+    const tipY = to.y - uy * 12;
+    const leftX = tipX - ux * arrowLen - uy * spread;
+    const leftY = tipY - uy * arrowLen + ux * spread;
+    const rightX = tipX - ux * arrowLen + uy * spread;
+    const rightY = tipY - uy * arrowLen - ux * spread;
+    const strokeWidth = Math.max(1, Number(width) || 1.2);
+    const safeAlpha = clamp(alpha, 0, 1);
+
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.globalAlpha = safeAlpha;
+    context.lineWidth = strokeWidth;
+    context.beginPath();
+    context.moveTo(from.x, from.y);
+    context.lineTo(to.x, to.y);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(tipX, tipY);
+    context.lineTo(leftX, leftY);
+    context.lineTo(rightX, rightY);
+    context.closePath();
+    context.fill();
+    context.globalAlpha = 1;
+  }
+
+  function drawCanvasDiagram(context, rect, scene, positions, accent, stageIndex, reducedMotion, time) {
+    if (!context || !rect || !scene || !positions) {
+      return false;
+    }
+    const sceneSafe = scene;
+    const stageGroups = Array.isArray(sceneSafe.stages) ? sceneSafe.stages : [];
+    const activeNodeSet = new Set(stageGroups[stageIndex] || []);
+    const tokens = getTokens();
+    const accentInt = parseHexColor(accent || tokens.accent, 0xc084fc);
+    const inkInt = parseHexColor(tokens.ink, 0x1f2937);
+    const fogInt = parseHexColor(tokens.fog, 0xe2e8f0);
+    const panelX = Number(rect.x) || 0;
+    const panelY = Number(rect.y) || 0;
+    const panelW = Math.max(1, Number(rect.w) || 0);
+    const panelH = Math.max(1, Number(rect.h) || 0);
+    const safeTime = Number.isFinite(time) ? time : 0;
+
+    context.save();
+    context.beginPath();
+    context.rect(panelX, panelY, panelW, panelH);
+    context.clip();
+
+    context.fillStyle = rgbToRgba(toRgb("#" + fogInt.toString(16).padStart(6, "0")), 0.3);
+    roundRectPath(context, panelX + 8, panelY + 8, Math.max(24, panelW - 16), Math.max(24, panelH - 16), 14);
+    context.fill();
+
+    const incoming = Object.create(null);
+    const slotMap = Object.create(null);
+    const countMap = Object.create(null);
+    for (let i = 0; i < sceneSafe.edges.length; i += 1) {
+      const edge = sceneSafe.edges[i];
+      if (!edge.label) {
+        continue;
+      }
+      if (!incoming[edge.target]) {
+        incoming[edge.target] = [];
+      }
+      incoming[edge.target].push(edge);
+    }
+    const targetIds = Object.keys(incoming);
+    for (let i = 0; i < targetIds.length; i += 1) {
+      const targetId = targetIds[i];
+      const group = incoming[targetId];
+      group.sort((a, b) => {
+        const ay = positions[a.source] ? positions[a.source].y : 0;
+        const by = positions[b.source] ? positions[b.source].y : 0;
+        return ay - by;
+      });
+      countMap[targetId] = group.length;
+      for (let j = 0; j < group.length; j += 1) {
+        slotMap[group[j].id] = j;
+      }
+    }
+
+    for (let i = 0; i < sceneSafe.edges.length; i += 1) {
+      const edge = sceneSafe.edges[i];
+      const source = positions[edge.source];
+      const target = positions[edge.target];
+      if (!source || !target) {
+        continue;
+      }
+      const isActive = activeNodeSet.has(edge.target);
+      const alpha = isActive ? 0.88 : 0.36 + (Number(edge.emphasis) || 0.5) * 0.2;
+      const width = isActive ? 2.6 : 1.6;
+      const colorInt = isActive ? accentInt : inkInt;
+      const lineColor = rgbToRgba(toRgb("#" + colorInt.toString(16).padStart(6, "0")), alpha);
+      drawCanvasArrow(
+        context,
+        { x: panelX + source.x, y: panelY + source.y },
+        { x: panelX + target.x, y: panelY + target.y },
+        lineColor,
+        alpha,
+        width
+      );
+    }
+
+    for (let i = 0; i < sceneSafe.edges.length; i += 1) {
+      const edge = sceneSafe.edges[i];
+      if (!edge.label) {
+        continue;
+      }
+      const source = positions[edge.source];
+      const target = positions[edge.target];
+      if (!source || !target) {
+        continue;
+      }
+      const groupSize = countMap[edge.target] || 1;
+      const slot = slotMap[edge.id] || 0;
+      const crowded = groupSize > 1;
+      const t = crowded ? 0.45 : 0.4;
+      const dx = target.x - source.x;
+      const dy = target.y - source.y;
+      const length = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+      const nx = -dy / length;
+      const ny = dx / length;
+      const spread = crowded ? 11 : 0;
+      const slotOffset = crowded ? (slot - (groupSize - 1) * 0.5) * spread : 0;
+      const labelX = panelX + source.x + dx * t + nx * slotOffset;
+      const labelY = panelY + source.y + dy * t + ny * slotOffset - (crowded ? 0 : 10);
+      context.fillStyle = rgbToRgba(toRgb("#" + inkInt.toString(16).padStart(6, "0")), 1);
+      context.font = "600 11px Inter, sans-serif";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(edge.label, labelX, labelY);
+    }
+
+    for (let i = 0; i < sceneSafe.nodes.length; i += 1) {
+      const node = sceneSafe.nodes[i];
+      const pos = positions[node.id];
+      if (!pos) {
+        continue;
+      }
+      const style = getNodeStyle(node.kind);
+      const accentRgb = toRgb("#" + accentInt.toString(16).padStart(6, "0"));
+      const fogRgb = toRgb(tokens.fog);
+      const fillRgb = mixRgb(fogRgb, accentRgb, style.colorMix);
+      const fillColor = rgbToHexInt(fillRgb);
+      const strokeColor = parseHexColor(tokens.ink, 0x1f2937);
+      const radius = style.radius;
+      const x = panelX + pos.x;
+      const y = panelY + pos.y;
+
+      context.beginPath();
+      context.fillStyle = rgbToRgba(toRgb("#" + fillColor.toString(16).padStart(6, "0")), style.fillAlpha);
+      context.strokeStyle = rgbToRgba(toRgb("#" + strokeColor.toString(16).padStart(6, "0")), 0.9);
+      context.lineWidth = style.strokeWidth;
+      if (node.kind === "operator" || node.kind === "metric") {
+        roundRectPath(context, x - radius, y - radius, radius * 2, radius * 2, 6);
+      } else {
+        context.beginPath();
+        context.arc(x, y, radius, 0, Math.PI * 2);
+      }
+      context.fill();
+      context.stroke();
+
+      context.fillStyle = rgbToRgba(toRgb("#" + strokeColor.toString(16).padStart(6, "0")), 1);
+      context.font = `700 ${node.kind === "operator" ? 12 : 11}px Inter, sans-serif`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.fillText(node.label, x, y);
+    }
+
+    if (!reducedMotion) {
+      for (let i = 0; i < sceneSafe.edges.length; i += 1) {
+        const edge = sceneSafe.edges[i];
+        if (!activeNodeSet.has(edge.target)) {
+          continue;
+        }
+        const from = positions[edge.source];
+        const to = positions[edge.target];
+        if (!from || !to) {
+          continue;
+        }
+        const progress = ((safeTime * 0.75 + i * 0.17) % 1 + 1) % 1;
+        const x = panelX + from.x + (to.x - from.x) * progress;
+        const y = panelY + from.y + (to.y - from.y) * progress;
+        context.fillStyle = rgbToRgba(toRgb("#" + accentInt.toString(16).padStart(6, "0")), 0.32);
+        context.beginPath();
+        context.arc(x, y, 2.8, 0, Math.PI * 2);
+        context.fill();
+        context.fillStyle = rgbToRgba(toRgb("#ffffff"), 0.36);
+        context.beginPath();
+        context.arc(x, y, 5.6, 0, Math.PI * 2);
+        context.fill();
+      }
+    }
+
+    context.restore();
+    return true;
+  }
+
   function updateParticleEmitter(stageNodes, positions, accent, reducedMotion, deltaSec) {
     if (reducedMotion || !Array.isArray(stageNodes) || stageNodes.length <= 0) {
       if (state.emitter) {
@@ -1206,6 +1554,8 @@
         layoutVersion: "manual",
         activeStage: 0,
         fallbackUsed: true,
+        legacyFallbackUsed: true,
+        activeRenderMode: "none",
         pixiAvailable: !!global.PIXI,
         elkAvailable: !!getElkCtor(),
         emitterAvailable: !!state.emitter && !state.emitterFailed
@@ -1221,11 +1571,31 @@
     }
 
     if (!ensureRenderer(width, height)) {
+      const layoutEntry = getSceneLayout(resolvedMode, width, height);
+      const stageGroups = Array.isArray(layoutEntry.scene && layoutEntry.scene.stages) ? layoutEntry.scene.stages : [];
+      const stageIndex = resolveStage(layoutEntry.scene, time, !!reducedMotion);
+      const positions = layoutEntry.scene ? (layoutEntry.elkPositions ? layoutEntry.elkPositions : layoutEntry.manualPositions) : null;
+      if (positions && drawCanvasDiagram(ctx, safeRect, layoutEntry.scene, positions, accent, stageIndex, !!reducedMotion, Number(time) || 0)) {
+        state.debug = buildDebugState({
+          mode: resolvedMode,
+          layoutVersion: "manual",
+          activeStage: stageIndex,
+          legacyFallbackUsed: true,
+          fallbackUsed: true,
+          activeRenderMode: "canvas-fallback",
+          pixiAvailable: !!global.PIXI,
+          elkAvailable: !!getElkCtor(),
+          emitterAvailable: false
+        });
+        return true;
+      }
       if (drawCachedFrame(ctx, safeRect, layoutKey)) {
         state.debug = buildDebugState({
           mode: resolvedMode,
           layoutVersion: "manual",
           activeStage: 0,
+          activeRenderMode: "cached-frame",
+          legacyFallbackUsed: false,
           fallbackUsed: false,
           pixiAvailable: !!global.PIXI,
           elkAvailable: !!getElkCtor(),
@@ -1237,6 +1607,8 @@
         mode: resolvedMode,
         layoutVersion: "manual",
         activeStage: 0,
+        legacyFallbackUsed: true,
+        activeRenderMode: "canvas-fallback",
         fallbackUsed: true,
         pixiAvailable: !!global.PIXI,
         elkAvailable: !!getElkCtor(),
@@ -1261,7 +1633,9 @@
             mode: resolvedMode,
             layoutVersion: "manual",
             activeStage: 0,
+            legacyFallbackUsed: false,
             fallbackUsed: false,
+            activeRenderMode: state.debug.activeRenderMode,
             pixiAvailable: true,
             elkAvailable: !!getElkCtor(),
             emitterAvailable: !!state.emitter && !state.emitterFailed
@@ -1272,7 +1646,9 @@
           mode: resolvedMode,
           layoutVersion: "manual",
           activeStage: 0,
+          legacyFallbackUsed: true,
           fallbackUsed: true,
+          activeRenderMode: "canvas-fallback",
           pixiAvailable: true,
           elkAvailable: !!getElkCtor(),
           emitterAvailable: !!state.emitter && !state.emitterFailed
@@ -1289,6 +1665,8 @@
           mode: resolvedMode,
           layoutVersion: useElk ? "elk" : "manual",
           activeStage: 0,
+          legacyFallbackUsed: true,
+          activeRenderMode: state.debug.activeRenderMode,
           fallbackUsed: true,
           pixiAvailable: true,
           elkAvailable: !!getElkCtor(),
@@ -1307,6 +1685,8 @@
       state.debug = buildDebugState({
         mode: resolvedMode,
         layoutVersion: useElk ? "elk" : "manual",
+        activeRenderMode: state.debug.activeRenderMode,
+        legacyFallbackUsed: false,
         activeStage: stageIndex,
         fallbackUsed: false,
         pixiAvailable: true,
@@ -1321,6 +1701,8 @@
           mode: resolvedMode,
           layoutVersion: "manual",
           activeStage: 0,
+          activeRenderMode: state.debug.activeRenderMode,
+          legacyFallbackUsed: false,
           fallbackUsed: false,
           pixiAvailable: true,
           elkAvailable: !!getElkCtor(),
@@ -1332,6 +1714,8 @@
         mode: resolvedMode,
         layoutVersion: "manual",
         activeStage: 0,
+        activeRenderMode: "none",
+        legacyFallbackUsed: false,
         fallbackUsed: true,
         pixiAvailable: true,
         elkAvailable: !!getElkCtor(),
@@ -1358,6 +1742,9 @@
       mode: state.debug.mode,
       layoutVersion: state.debug.layoutVersion,
       activeStage: state.debug.activeStage,
+      activeLayoutSource: state.debug.activeLayoutSource,
+      activeRenderMode: state.debug.activeRenderMode,
+      legacyFallbackUsed: !!state.debug.legacyFallbackUsed,
       fallbackUsed: !!state.debug.fallbackUsed,
       pixiAvailable: !!state.debug.pixiAvailable,
       elkAvailable: !!state.debug.elkAvailable,
