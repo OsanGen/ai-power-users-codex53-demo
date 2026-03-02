@@ -24,6 +24,13 @@ System Architecture Map
   - Owns all canvas rendering, including environment and overlays.
   - Reads state and game/systems helpers to draw HUD, lesson, death lesson, title, and world.
   - Exposes text-state serializer via `AIPU.render.renderGameToText()`.
+  - Delegates lesson/death-lesson concept diagrams to `AIPU.lessonDiagramV2` when available and falls back to the legacy canvas sketch on dependency/runtime failures.
+
+- lesson-diagram-v2.js
+  - Owns the semantic lesson diagram engine for `visualMode` scenes.
+  - Builds data-driven graph specs per lesson mode and caches mode/size layouts.
+  - Uses PixiJS rendering + optional ELK layered layout + optional particle emitter polish.
+  - Exposes debug state (`mode`, `layoutVersion`, `activeStage`, `fallbackUsed`) consumed by `render_game_to_text`.
 
 - share.js
   - Owns share modal lifecycle and copy/image generation.

@@ -1,0 +1,54 @@
+Lesson Diagram V2 Component
+
+Purpose:
+- Replace legacy lesson slide doodles with a semantic, mode-specific neural diagram engine.
+- Render concept-accurate visuals for lesson/death-lesson cards with staged signal flow.
+- Keep diagram quality high while preserving runtime safety through hard fallback to legacy canvas rendering.
+
+Inputs:
+- `visualMode` string from narrative teach/death cards (`network_basic`, `inputs_nodes`, `weights_knobs`, `sum_bias`, `activation_gate`, `layers_stack`, `loss_meter`, `backprop_arrows`, `generalize_explain`).
+- Diagram target rect (`x`, `y`, `w`, `h`) and accent color from `src/render.js`.
+- Time (`game.globalTime`) and reduced-motion preference (`AIPU.input.prefersReducedMotion`) from runtime state.
+- Optional libraries loaded by `index.html`:
+  - PixiJS (`window.PIXI`)
+  - ELKjs (`window.ELK` or `window.elk.ELK`)
+  - pixi-particle-emitter (`PIXI.particles.Emitter` or equivalent global emitter constructor)
+
+Outputs / API:
+- `AIPU.lessonDiagramV2.init()`
+  - Returns availability metadata for optional dependencies and schema version.
+- `AIPU.lessonDiagramV2.renderTo(ctx, rect, mode, accent, time, reducedMotion)`
+  - Returns `true` if V2 render succeeds and is painted onto target canvas context.
+  - Returns `false` when unavailable/failed so caller can execute legacy fallback rendering.
+- `AIPU.lessonDiagramV2.getDebugState()`
+  - Returns deterministic diagnostics:
+    - `mode`
+    - `layoutVersion` (`manual` or `elk`)
+    - `activeStage`
+    - `fallbackUsed`
+    - dependency availability flags (`pixiAvailable`, `elkAvailable`, `emitterAvailable`)
+    - `schemaVersion`
+
+State / Edges:
+- Layout cache is keyed by `mode + size bucket` and reuses cached placements.
+- Manual layered layout is always available; ELK layout upgrades cache asynchronously when available.
+- If PixiJS is missing or renderer creation fails, `renderTo()` returns `false` and does not throw.
+- If ELK is missing/fails, manual layout continues with deterministic structure.
+- If particle emitter is missing/fails, spark fallback visuals are used and diagram remains functional.
+- Stage animation is deterministic by mode with reduced-motion forcing stage `0` and minimal motion.
+- Renderer resources are resized/reused for the current diagram surface and cleaned when invalidated.
+
+Dependencies:
+- Loaded in `index.html` before `src/render.js`:
+  - `https://cdn.jsdelivr.net/npm/elkjs@0.10.0/lib/elk.bundled.js`
+  - `https://cdn.jsdelivr.net/npm/pixi.js@7.4.3/dist/pixi.min.js`
+  - `https://cdn.jsdelivr.net/npm/@pixi/particle-emitter@5.0.8/dist/particle-emitter.min.js`
+- Consumed by `src/render.js` via `drawLessonSlideDiagram(...)`.
+
+Acceptance checks:
+- All nine `visualMode` scenes render topology-distinct diagrams (not simple recolors).
+- `sum_bias` scene explicitly shows weighted inputs, `+b`, `Σ`, pre-activation node, activation node, and output.
+- Diagram updates preserve existing lesson/death-lesson flow and input prompts (`Enter or Space` continue).
+- Reduced-motion mode renders readable static diagrams with no pulse-driven motion dependency.
+- When Pixi/ELK/emitter are unavailable, legacy `drawLessonSlideDiagramFallback()` path still draws with no runtime exceptions.
+- `AIPU.render.renderGameToText()` includes `debug.lessonDiagram` state during lessons for deterministic automation checks.

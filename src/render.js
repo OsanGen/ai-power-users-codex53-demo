@@ -3691,8 +3691,26 @@
 
   function drawLessonSlideDiagram(rect, accent, visualMode) {
     const reducedMotion = !!AIPU.input.prefersReducedMotion;
-    const pulse = reducedMotion ? 0 : Math.sin(game.globalTime * 2.2) * 0.5 + 0.5;
     const mode = typeof visualMode === "string" ? visualMode : "network_basic";
+    const now = Number.isFinite(game.globalTime) ? game.globalTime : 0;
+    const lessonDiagramV2 = AIPU.lessonDiagramV2;
+
+    if (lessonDiagramV2 && typeof lessonDiagramV2.renderTo === "function") {
+      try {
+        const rendered = lessonDiagramV2.renderTo(ctx, rect, mode, accent, now, reducedMotion);
+        if (rendered) {
+          return;
+        }
+      } catch (error) {
+        void error;
+      }
+    }
+
+    drawLessonSlideDiagramFallback(rect, accent, mode, reducedMotion, now);
+  }
+
+  function drawLessonSlideDiagramFallback(rect, accent, mode, reducedMotion, now) {
+    const pulse = reducedMotion ? 0 : Math.sin(now * 2.2) * 0.5 + 0.5;
     const highlightLayer =
       mode === "inputs_nodes" || mode === "weights_knobs"
         ? 0
@@ -3704,7 +3722,7 @@
     withClipRect(rect.x, rect.y, rect.w, rect.h, () => {
       const brainCx = rect.x + rect.w * 0.28;
       const brainCy = rect.y + rect.h * 0.45;
-      const brainOffset = reducedMotion ? 0 : Math.sin(game.globalTime * 1.8) * 2;
+      const brainOffset = reducedMotion ? 0 : Math.sin(now * 1.8) * 2;
 
       ctx.fillStyle = rgba(accent, 0.18);
       ctx.strokeStyle = TOKENS.ink;
@@ -8137,6 +8155,15 @@
       }
     }
     const renderPerfStateSnapshot = getRenderPerfStateSnapshot();
+    let lessonDiagramState = null;
+    if (AIPU.lessonDiagramV2 && typeof AIPU.lessonDiagramV2.getDebugState === "function") {
+      try {
+        lessonDiagramState = AIPU.lessonDiagramV2.getDebugState();
+      } catch (error) {
+        void error;
+        lessonDiagramState = { error: "lesson_diagram_state_unavailable" };
+      }
+    }
 
     return {
       schemaVersion: 1,
@@ -8203,6 +8230,7 @@
           activeDirection: playerSpriteModeState.activeDirection,
           holdFrames: playerSpriteModeState.holdFrames
         },
+        lessonDiagram: lessonDiagramState,
         audio: audioState
       }
     };

@@ -52,6 +52,9 @@ State/Edges:
 - Uses `ctx.textAlign`/`textBaseline` state carefully and resets at block exits.
 - Uses `withRectClip` for lesson/death text clipping and `withClipRect` for rounded-panel masking.
 - Keeps overlay text readable by top-aligned clipping paths with insets.
+- Lesson diagram path is now two-tiered:
+  - Primary path delegates to `AIPU.lessonDiagramV2.renderTo(...)` for semantic mode-specific graph visuals.
+  - Strict fallback path (`drawLessonSlideDiagramFallback`) preserves prior canvas sketch if Pixi/ELK/emitter dependencies are unavailable or fail at runtime.
 - Bomb briefing overlay layout now hardens three visual-risk areas without changing flow/state:
   - charge-chip labels interpolate both `{index}` and `{n}` placeholders to avoid raw token leakage;
   - SPACE action callout reserves explicit two-row geometry (key/use row + effect row) to prevent clipping;
@@ -108,8 +111,14 @@ Dependencies:
 - `AIPU.content` narrative helper methods for labels.
 - `AIPU.systems` collections and state helpers.
 - `AIPU.systems.getMuzzleAnchorForDirection(dirVector)` (new debug path) for optional socket marker visualization and direction-specific anchor parity checks.
+- `AIPU.lessonDiagramV2` for lesson/death-lesson concept diagram rendering and diagnostics handoff.
 - `AIPU.utils` for color/geometry/font helpers.
 - `index.html` script tags use cache-bust tokens (`audio.js?v=20260222-10`, `systems.js?v=20260222-10`, `render.js?v=20260222-10`, `main.js?v=20260222-10`) to force updated runtime bundle refresh.
+- `index.html` now includes optional diagram dependencies before render bootstrap:
+  - `elkjs`
+  - `pixi.js`
+  - `@pixi/particle-emitter`
+  - `src/lesson-diagram-v2.js`
 - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
@@ -158,6 +167,9 @@ Acceptance Checks:
   - `AIPU.render.renderGameToText()` emits concise JSON with coordinate-system note, mode/floor/player state, collection samples, and debug stats.
   - `AIPU.render.renderGameToText()` now also exposes `debug.audio` (when `AIPU.audio` is present) so floor music state can be validated from automation snapshots.
   - `AIPU.render.renderGameToText()` now also exposes `debug.playerSprite` mode/hold/facing internals for deterministic sprite routing and transition debugging.
+  - `AIPU.render.renderGameToText()` now also exposes `debug.lessonDiagram` (`mode`, `layoutVersion`, `activeStage`, `fallbackUsed`) for diagram-engine assertions.
+- Lesson visual semantics:
+  - Floor-4 `sum_bias` mode must surface explicit sum/bias/activation topology (`x` inputs + weighted edges -> `Σ` + `+b` -> pre-activation -> gate -> `y`) under V2 path.
 - `buildRenderGameTextState()` uses `GameState.PLAYING` in state checks to keep deterministic snapshots stable in PLAYING without reference errors.
 - `buildRenderGameTextState()` now uses a shared `collectRenderSamples()` helper for entity sampling, eliminating duplicated loop logic while preserving debug payload shape.
 - `buildRenderGameTextState()` now maps `enemy`, `bullet`, and `pickup` payloads through dedicated render mappers (`mapEnemyRenderSample`, `mapBulletRenderSample`, `mapPickupRenderSample`) to keep debug sample schema deterministic and remove inline mapping churn in the hot path.
