@@ -34,7 +34,7 @@ State / Edges:
 - Manual layered layout is always available; ELK layout upgrades cache asynchronously when available.
 - Layout normalization now fits node bounds (including node radii) and centers content inside the viewport, preventing top-left anchoring and excess dead space in tall diagram panels.
 - Edge-label placement now de-conflicts crowded incoming edges by grouping labels per target node and applying deterministic slot offsets; `sum_bias` incoming labels (`w1/w2/w3/bias`) no longer stack on top of each other near `Σ`.
-- Active view stability guard prevents visual hot-swap while a diagram is already on-screen: once a mode/size key is displayed, layout source (`manual` or `elk`) is pinned for that view session so async ELK completion cannot cause a first-second topology jump.
+- Active layout source is recomputed from availability each render pass: manual is used while async ELK computes, then switched to ELK as soon as `elkPositions` resolves for that same mode/size key to prevent stale manual topology lingering after async completion.
 - Additional viewport right padding and inward label anchors protect right-edge labels (`output` leg) from clipping in narrow or compact lesson cards.
 - If PixiJS is missing or renderer creation fails, `renderTo()` returns `false` and does not throw.
 - If ELK is missing/fails, manual layout continues with deterministic structure.
@@ -59,3 +59,4 @@ Acceptance checks:
 - Reduced-motion mode renders readable static diagrams with no pulse-driven motion dependency.
 - When Pixi/ELK/emitter are unavailable, legacy `drawLessonSlideDiagramFallback()` path still draws with no runtime exceptions.
 - `AIPU.render.renderGameToText()` includes `debug.lessonDiagram` state during lessons for deterministic automation checks.
+- Deployment check for this component requires that live `index.html` includes `./src/lesson-diagram-v2.js` and the matching `v=` token; otherwise `AIPU.lessonDiagramV2` is unavailable and the legacy fallback can appear.

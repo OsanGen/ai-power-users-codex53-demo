@@ -27,9 +27,15 @@
   const state = {
     renderer: null,
     stage: null,
+    diagramLayer: null,
+    particleLayer: null,
     view: null,
     width: 0,
     height: 0,
+    snapshotCanvas: null,
+    snapshotWidth: 0,
+    snapshotHeight: 0,
+    cachedLayoutKey: "",
     elk: null,
     elkEnabled: false,
     layoutCache: Object.create(null),
@@ -47,12 +53,146 @@
       pixiAvailable: false,
       elkAvailable: false,
       emitterAvailable: false,
+      cachedFrameAvailable: false,
+      lastFailure: null,
+      lastFailurePhase: null,
+      lastFailureAt: 0,
+      failureCount: 0,
       schemaVersion: SCHEMA_VERSION
     }
   };
 
   function clamp(value, min, max) {
     return Math.min(max, Math.max(min, value));
+  }
+
+  function normalizeFailure(error) {
+    if (!error) {
+      return "unknown";
+    }
+    if (typeof error === "string") {
+      return error;
+    }
+    const msg = typeof error.message === "string" ? error.message : "";
+    const name = typeof error.name === "string" ? error.name : "Error";
+    return msg ? `${name}: ${msg}` : String(error);
+  }
+
+  function setFailure(phase, error) {
+    state.debug.lastFailure = normalizeFailure(error);
+    state.debug.lastFailurePhase = phase;
+    state.debug.lastFailureAt = Date.now();
+    state.debug.failureCount = Number(state.debug.failureCount || 0) + 1;
+  }
+
+  function clearFailure() {
+    state.debug.lastFailure = null;
+    state.debug.lastFailurePhase = null;
+    state.debug.lastFailureAt = 0;
+    state.debug.failureCount = 0;
+  }
+
+  function buildDebugState(fields) {
+    const safe = fields || {};
+    return {
+      mode: typeof safe.mode === "string" ? safe.mode : state.debug.mode,
+      layoutVersion: safe.layoutVersion || "manual",
+      activeStage: Number.isFinite(safe.activeStage) ? safe.activeStage : 0,
+      fallbackUsed: !!safe.fallbackUsed,
+      pixiAvailable: !!safe.pixiAvailable,
+      elkAvailable: !!safe.elkAvailable,
+      emitterAvailable: !!safe.emitterAvailable,
+      cachedFrameAvailable: !!state.debug.cachedFrameAvailable,
+      lastFailure: state.debug.lastFailure,
+      lastFailurePhase: state.debug.lastFailurePhase,
+      lastFailureAt: Number.isFinite(state.debug.lastFailureAt) ? state.debug.lastFailureAt : 0,
+      failureCount: Number.isFinite(state.debug.failureCount) ? state.debug.failureCount : 0,
+      schemaVersion: SCHEMA_VERSION
+    };
+  }
+
+  function withSnapshotCanvas(width, height) {
+    if (!global.document || typeof global.document.createElement !== "function") {
+      return null;
+    }
+    let snapshot = state.snapshotCanvas;
+    const targetW = Math.max(1, Math.floor(width));
+    const targetH = Math.max(1, Math.floor(height));
+    if (!snapshot) {
+      snapshot = global.document.createElement("canvas");
+      state.snapshotCanvas = snapshot;
+    }
+    if (snapshot.width !== targetW || snapshot.height !== targetH) {
+      snapshot.width = targetW;
+      snapshot.height = targetH;
+      state.snapshotWidth = targetW;
+      state.snapshotHeight = targetH;
+    }
+    return snapshot;
+  }
+
+  function cachedFrameAvailableFor(layoutKey) {
+    return (
+      !!state.debug.cachedFrameAvailable &&
+      state.cachedLayoutKey === layoutKey &&
+      !!state.snapshotCanvas
+    );
+  }
+
+  function invalidateCachedFrame() {
+    state.debug.cachedFrameAvailable = false;
+    state.cachedLayoutKey = "";
+  }
+
+  function cacheCurrentFrame(width, height) {
+    if (!state.activeLayoutKey) {
+      return;
+    }
+    const snapshot = withSnapshotCanvas(width, height);
+    if (!snapshot || !state.view || !state.view.getContext) {
+      return;
+    }
+    const snapshotCtx = snapshot.getContext("2d");
+    if (!snapshotCtx) {
+      return;
+    }
+    const targetW = Math.max(1, Math.floor(width));
+    const targetH = Math.max(1, Math.floor(height));
+    snapshotCtx.clearRect(0, 0, targetW, targetH);
+    try {
+      snapshotCtx.drawImage(state.view, 0, 0, targetW, targetH);
+      state.debug.cachedFrameAvailable = true;
+      state.cachedLayoutKey = state.activeLayoutKey;
+      state.debug.failureCount = 0;
+    } catch (error) {
+      state.debug.cachedFrameAvailable = false;
+      setFailure("cacheFrame", error);
+    }
+  }
+
+  function drawCachedFrame(ctx, rect, layoutKey) {
+    if (!cachedFrameAvailableFor(layoutKey)) {
+      state.debug.cachedFrameAvailable = false;
+      return false;
+    }
+    const snapshot = state.snapshotCanvas;
+    if (!snapshot || !state.debug.cachedFrameAvailable) {
+      return false;
+    }
+    if (!ctx || typeof ctx.drawImage !== "function") {
+      return false;
+    }
+    if (rect.w <= 0 || rect.h <= 0) {
+      return false;
+    }
+    try {
+      ctx.drawImage(snapshot, rect.x, rect.y, rect.w, rect.h);
+      return true;
+    } catch (error) {
+      state.debug.cachedFrameAvailable = false;
+      setFailure("drawCachedFrame", error);
+      return false;
+    }
   }
 
   function getTokens() {
@@ -567,10 +707,10 @@
   }
 
   function clearPixiSurface() {
-    if (!state.stage) {
+    if (!state.diagramLayer) {
       return;
     }
-    const oldChildren = state.stage.removeChildren();
+    const oldChildren = state.diagramLayer.removeChildren();
     for (let i = 0; i < oldChildren.length; i += 1) {
       const child = oldChildren[i];
       if (child && typeof child.destroy === "function") {
@@ -581,24 +721,38 @@
 
   function destroyEmitter() {
     if (state.emitter && typeof state.emitter.destroy === "function") {
-      state.emitter.destroy();
+      try {
+        state.emitter.destroy();
+      } catch (error) {
+        void error;
+      }
     }
     state.emitter = null;
     state.emitterContainer = null;
     state.emitterFailed = false;
+    state.emitterRetryAfterMs = 0;
   }
 
   function destroyRenderer() {
     destroyEmitter();
-    clearPixiSurface();
     if (state.renderer && typeof state.renderer.destroy === "function") {
       state.renderer.destroy(true);
     }
+    if (state.stage && typeof state.stage.destroy === "function") {
+      state.stage.destroy({
+        children: true,
+        texture: false,
+        baseTexture: false
+      });
+    }
     state.renderer = null;
     state.stage = null;
+    state.diagramLayer = null;
+    state.particleLayer = null;
     state.view = null;
     state.width = 0;
     state.height = 0;
+    invalidateCachedFrame();
   }
 
   function ensureRenderer(width, height) {
@@ -606,7 +760,15 @@
       return false;
     }
     const PIXI = global.PIXI;
-    if (state.renderer && state.stage && state.view) {
+    if (
+      state.renderer &&
+      state.stage &&
+      state.diagramLayer &&
+      state.particleLayer &&
+      state.view &&
+      state.diagramLayer.parent === state.stage &&
+      state.particleLayer.parent === state.stage
+    ) {
       if (state.width !== width || state.height !== height) {
         state.width = width;
         state.height = height;
@@ -647,13 +809,17 @@
 
       state.renderer = renderer;
       state.stage = new PIXI.Container();
+      state.diagramLayer = new PIXI.Container();
+      state.particleLayer = new PIXI.Container();
+      state.stage.addChild(state.diagramLayer, state.particleLayer);
       state.view = view;
       state.width = width;
       state.height = height;
       state.debug.pixiAvailable = true;
+      clearFailure();
       return true;
     } catch (error) {
-      void error;
+      setFailure("ensureRenderer", error);
       destroyRenderer();
       state.debug.pixiAvailable = false;
       return false;
@@ -675,7 +841,10 @@
   }
 
   function ensureParticleEmitter(container, accent) {
-    if (!container || state.emitterFailed || !global.PIXI || !global.PIXI.Texture) {
+    if (!container || !global.PIXI || !global.PIXI.Texture) {
+      return null;
+    }
+    if (state.emitterFailed && Date.now() < state.emitterRetryAfterMs) {
       return null;
     }
     if (state.emitter && state.emitterContainer === container) {
@@ -724,11 +893,14 @@
       emitter.emit = true;
       state.emitter = emitter;
       state.emitterContainer = container;
+      state.emitterFailed = false;
+      state.emitterRetryAfterMs = 0;
       state.debug.emitterAvailable = true;
       return emitter;
     } catch (error) {
-      void error;
+      setFailure("ensureParticleEmitter", error);
       state.emitterFailed = true;
+      state.emitterRetryAfterMs = Date.now() + 700;
       state.debug.emitterAvailable = false;
       return null;
     }
@@ -999,10 +1171,10 @@
       return;
     }
     const pivot = positions[stageNodes[0]];
-    if (!pivot || !state.stage) {
+    if (!pivot || !state.particleLayer || !state.diagramLayer) {
       return;
     }
-    const emitter = ensureParticleEmitter(state.stage, accent);
+    const emitter = ensureParticleEmitter(state.particleLayer, accent);
     if (emitter && typeof emitter.update === "function") {
       emitter.emit = true;
       if (typeof emitter.updateOwnerPos === "function") {
@@ -1011,57 +1183,100 @@
         emitter.ownerPos.x = pivot.x;
         emitter.ownerPos.y = pivot.y;
       }
-      emitter.update(Math.max(0.001, deltaSec));
+      try {
+        emitter.update(Math.max(0.001, deltaSec));
+      } catch (error) {
+        setFailure("updateParticleEmitter", error);
+        destroyEmitter();
+        state.emitterFailed = true;
+        state.emitterRetryAfterMs = Date.now() + 700;
+        state.debug.emitterAvailable = false;
+        drawFallbackSparks(state.diagramLayer, positions, stageNodes, parseHexColor(accent, 0xc084fc), Math.max(0.001, deltaSec));
+      }
       return;
     }
-    drawFallbackSparks(state.stage, positions, stageNodes, parseHexColor(accent, 0xc084fc), deltaSec);
+    drawFallbackSparks(state.diagramLayer, positions, stageNodes, parseHexColor(accent, 0xc084fc), deltaSec);
   }
 
   function renderTo(ctx, rect, mode, accent, time, reducedMotion) {
     const safeRect = rect && typeof rect === "object" ? rect : null;
     if (!safeRect || safeRect.w <= 0 || safeRect.h <= 0 || !ctx || typeof ctx.drawImage !== "function") {
-      state.debug.fallbackUsed = true;
+      state.debug = buildDebugState({
+        mode: normalizeMode(mode),
+        layoutVersion: "manual",
+        activeStage: 0,
+        fallbackUsed: true,
+        pixiAvailable: !!global.PIXI,
+        elkAvailable: !!getElkCtor(),
+        emitterAvailable: !!state.emitter && !state.emitterFailed
+      });
       return false;
     }
     const width = Math.max(32, Math.floor(safeRect.w));
     const height = Math.max(32, Math.floor(safeRect.h));
     const resolvedMode = normalizeMode(mode);
+    const layoutKey = getLayoutKey(resolvedMode, width, height);
+    if (!cachedFrameAvailableFor(layoutKey)) {
+      invalidateCachedFrame();
+    }
 
     if (!ensureRenderer(width, height)) {
-      state.debug = {
+      if (drawCachedFrame(ctx, safeRect, layoutKey)) {
+        state.debug = buildDebugState({
+          mode: resolvedMode,
+          layoutVersion: "manual",
+          activeStage: 0,
+          fallbackUsed: false,
+          pixiAvailable: !!global.PIXI,
+          elkAvailable: !!getElkCtor(),
+          emitterAvailable: !!state.emitter && !state.emitterFailed
+        });
+        return true;
+      }
+      state.debug = buildDebugState({
         mode: resolvedMode,
         layoutVersion: "manual",
         activeStage: 0,
         fallbackUsed: true,
-        pixiAvailable: false,
+        pixiAvailable: !!global.PIXI,
         elkAvailable: !!getElkCtor(),
-        emitterAvailable: false,
-        schemaVersion: SCHEMA_VERSION
-      };
+        emitterAvailable: false
+      });
       return false;
     }
 
     try {
-      const layoutKey = getLayoutKey(resolvedMode, width, height);
       const layoutEntry = getSceneLayout(resolvedMode, width, height);
       const scene = layoutEntry.scene;
-      if (state.activeLayoutKey !== layoutKey) {
+      const resolvedLayoutSource = layoutEntry.elkPositions ? "elk" : "manual";
+      if (state.activeLayoutKey !== layoutKey || state.activeLayoutSource !== resolvedLayoutSource) {
         state.activeLayoutKey = layoutKey;
-        state.activeLayoutSource = layoutEntry.elkPositions ? "elk" : "manual";
+        state.activeLayoutSource = resolvedLayoutSource;
       }
       const useElk = state.activeLayoutSource === "elk" && !!layoutEntry.elkPositions;
       const positions = useElk ? layoutEntry.elkPositions : layoutEntry.manualPositions;
       if (!positions) {
-        state.debug = {
+        if (drawCachedFrame(ctx, safeRect, layoutKey)) {
+          state.debug = buildDebugState({
+            mode: resolvedMode,
+            layoutVersion: "manual",
+            activeStage: 0,
+            fallbackUsed: false,
+            pixiAvailable: true,
+            elkAvailable: !!getElkCtor(),
+            emitterAvailable: !!state.emitter && !state.emitterFailed
+          });
+          return true;
+        }
+        state.debug = buildDebugState({
           mode: resolvedMode,
           layoutVersion: "manual",
           activeStage: 0,
           fallbackUsed: true,
           pixiAvailable: true,
           elkAvailable: !!getElkCtor(),
-          emitterAvailable: !!state.emitter && !state.emitterFailed,
-          schemaVersion: SCHEMA_VERSION
-        };
+          emitterAvailable: !!state.emitter && !state.emitterFailed
+        });
         return false;
       }
       const stageIndex = resolveStage(scene, time, !!reducedMotion);
@@ -1069,35 +1284,59 @@
       const deltaSec = ACTIVE_STAGE_SECONDS / 60;
 
       clearPixiSurface();
-      drawSceneGraph(state.stage, scene, positions, accent || DEFAULT_TOKENS.accent, stageIndex, !!reducedMotion, Number(time) || 0);
+      if (!state.diagramLayer) {
+        state.debug = buildDebugState({
+          mode: resolvedMode,
+          layoutVersion: useElk ? "elk" : "manual",
+          activeStage: 0,
+          fallbackUsed: true,
+          pixiAvailable: true,
+          elkAvailable: !!getElkCtor(),
+          emitterAvailable: !!state.emitter && !state.emitterFailed
+        });
+        return false;
+      }
+      drawSceneGraph(state.diagramLayer, scene, positions, accent || DEFAULT_TOKENS.accent, stageIndex, !!reducedMotion, Number(time) || 0);
       updateParticleEmitter(stageNodes, positions, accent || DEFAULT_TOKENS.accent, !!reducedMotion, deltaSec);
 
       state.renderer.render(state.stage);
       ctx.drawImage(state.view, safeRect.x, safeRect.y, safeRect.w, safeRect.h);
+      cacheCurrentFrame(width, height);
+      clearFailure();
 
-      state.debug = {
+      state.debug = buildDebugState({
         mode: resolvedMode,
         layoutVersion: useElk ? "elk" : "manual",
         activeStage: stageIndex,
         fallbackUsed: false,
         pixiAvailable: true,
         elkAvailable: !!getElkCtor(),
-        emitterAvailable: !!state.emitter && !state.emitterFailed,
-        schemaVersion: SCHEMA_VERSION
-      };
+        emitterAvailable: !!state.emitter && !state.emitterFailed
+      });
       return true;
     } catch (error) {
-      void error;
-      state.debug = {
+      setFailure("renderTo", error);
+      if (drawCachedFrame(ctx, safeRect, layoutKey)) {
+        state.debug = buildDebugState({
+          mode: resolvedMode,
+          layoutVersion: "manual",
+          activeStage: 0,
+          fallbackUsed: false,
+          pixiAvailable: true,
+          elkAvailable: !!getElkCtor(),
+          emitterAvailable: !!state.emitter && !state.emitterFailed
+        });
+        return true;
+      }
+      state.debug = buildDebugState({
         mode: resolvedMode,
         layoutVersion: "manual",
         activeStage: 0,
         fallbackUsed: true,
         pixiAvailable: true,
         elkAvailable: !!getElkCtor(),
-        emitterAvailable: false,
-        schemaVersion: SCHEMA_VERSION
-      };
+        emitterAvailable: false
+      });
       return false;
     }
   }
@@ -1123,6 +1362,11 @@
       pixiAvailable: !!state.debug.pixiAvailable,
       elkAvailable: !!state.debug.elkAvailable,
       emitterAvailable: !!state.debug.emitterAvailable,
+      cachedFrameAvailable: !!state.debug.cachedFrameAvailable,
+      lastFailure: state.debug.lastFailure,
+      lastFailurePhase: state.debug.lastFailurePhase,
+      lastFailureAt: Number.isFinite(state.debug.lastFailureAt) ? state.debug.lastFailureAt : 0,
+      failureCount: Number.isFinite(state.debug.failureCount) ? state.debug.failureCount : 0,
       schemaVersion: SCHEMA_VERSION
     };
   }

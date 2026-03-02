@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-02T15:04:23-05:00
+- UpdatedAt: 2026-03-02T16:27:08-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, b8bc1ed
-- Dirty state: yes (`FULL_TECH_BUILD.txt` modified in current turn; untracked: `node_modules/`, `output/`, `test-results/`)
+- Branch, HEAD commit hash: main, 9f0bc8c7992cb6626a5fd8930607f4c0f379130f
+- Dirty state: yes (`FULL_TECH_BUILD.txt`, `index.html`, `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt` modified in current turn; untracked: `node_modules/`, `output/`, `test-results/`)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -62,6 +62,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - If DEV MODE is active, summarize/action from `final_build/CURRENT_GAPS.txt` as source of truth.
 
 ## 7) Recent change log (rolling)
+- 2026-03-02T16:27:08-05:00 | Remove stale lesson-diagram layout source pinning so mode/size sessions re-evaluate `manual` vs `elk` each frame; this allows ELK-resolved layout to activate immediately after async compute | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-02T15:13:24-05:00 | Eliminate first-second lesson-diagram flash by pinning active layout source per mode/size (prevents async manual->ELK mid-view swap), plus extra right-padding/label anchor tuning | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-02T15:04:23-05:00 | Fix lesson-diagram V2 viewport anchoring and label crowding (`sum_bias`): centered fit normalization + deterministic incoming-label slotting; bump lesson diagram cache token | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-02T13:22:59-05:00 | Implement Lesson Diagram V2 (Pixi/ELK optional path), wire CDN dependencies, add fallback delegation and debug payload | `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/BUILD_MAP.txt`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-01 | Finalize FULL_TECH_BUILD snapshot metadata after latest deploy and status validation | `FULL_TECH_BUILD.txt`
