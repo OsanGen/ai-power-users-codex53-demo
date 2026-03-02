@@ -324,6 +324,61 @@
     return style.radius;
   }
 
+  function fitPositionsToViewport(scene, inputPositions, width, height) {
+    const safeWidth = Math.max(32, Number(width) || 32);
+    const safeHeight = Math.max(32, Number(height) || 32);
+    const safeInsetX = LAYOUT_MARGIN + 8;
+    const safeInsetY = LAYOUT_MARGIN + 8;
+    const availW = Math.max(1, safeWidth - safeInsetX * 2);
+    const availH = Math.max(1, safeHeight - safeInsetY * 2);
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < scene.nodes.length; i += 1) {
+      const node = scene.nodes[i];
+      const pos = inputPositions[node.id];
+      if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+        continue;
+      }
+      const r = getNodeRadius(node) + 3;
+      minX = Math.min(minX, pos.x - r);
+      minY = Math.min(minY, pos.y - r);
+      maxX = Math.max(maxX, pos.x + r);
+      maxY = Math.max(maxY, pos.y + r);
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return inputPositions;
+    }
+
+    const spanX = Math.max(1, maxX - minX);
+    const spanY = Math.max(1, maxY - minY);
+    const scale = Math.min(availW / spanX, availH / spanY);
+    const usedW = spanX * scale;
+    const usedH = spanY * scale;
+    const extraX = (availW - usedW) * 0.5;
+    const extraY = (availH - usedH) * 0.5;
+    const baseX = safeInsetX + extraX;
+    const baseY = safeInsetY + extraY;
+
+    const output = Object.create(null);
+    for (let i = 0; i < scene.nodes.length; i += 1) {
+      const node = scene.nodes[i];
+      const pos = inputPositions[node.id];
+      if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) {
+        continue;
+      }
+      output[node.id] = {
+        x: baseX + (pos.x - minX) * scale,
+        y: baseY + (pos.y - minY) * scale
+      };
+    }
+    return output;
+  }
+
   function buildManualLayout(scene, width, height) {
     const tiers = Object.create(null);
     for (let i = 0; i < scene.nodes.length; i += 1) {
@@ -357,7 +412,7 @@
         positions[n.id] = { x, y };
       }
     }
-    return positions;
+    return fitPositionsToViewport(scene, positions, width, height);
   }
 
   function getElkCtor() {
@@ -436,10 +491,6 @@
       }
     }
 
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
     const rawCenters = Object.create(null);
 
     for (let i = 0; i < scene.nodes.length; i += 1) {
@@ -454,30 +505,8 @@
         return null;
       }
       rawCenters[node.id] = { x: cx, y: cy };
-      minX = Math.min(minX, cx);
-      minY = Math.min(minY, cy);
-      maxX = Math.max(maxX, cx);
-      maxY = Math.max(maxY, cy);
     }
-
-    const spanX = Math.max(1, maxX - minX);
-    const spanY = Math.max(1, maxY - minY);
-    const targetW = Math.max(1, width - LAYOUT_MARGIN * 2);
-    const targetH = Math.max(1, height - LAYOUT_MARGIN * 2);
-    const scale = Math.min(targetW / spanX, targetH / spanY);
-    const offsetX = LAYOUT_MARGIN;
-    const offsetY = LAYOUT_MARGIN;
-
-    const positions = Object.create(null);
-    for (let i = 0; i < scene.nodes.length; i += 1) {
-      const node = scene.nodes[i];
-      const center = rawCenters[node.id];
-      positions[node.id] = {
-        x: offsetX + (center.x - minX) * scale,
-        y: offsetY + (center.y - minY) * scale
-      };
-    }
-    return positions;
+    return fitPositionsToViewport(scene, rawCenters, width, height);
   }
 
   function getLayoutKey(mode, width, height) {
@@ -740,6 +769,34 @@
     if (!global.PIXI || !global.PIXI.Text || !global.PIXI.TextStyle) {
       return;
     }
+    const incoming = Object.create(null);
+    for (let i = 0; i < scene.edges.length; i += 1) {
+      const edge = scene.edges[i];
+      if (!edge.label) {
+        continue;
+      }
+      if (!incoming[edge.target]) {
+        incoming[edge.target] = [];
+      }
+      incoming[edge.target].push(edge);
+    }
+    const slotMap = Object.create(null);
+    const countMap = Object.create(null);
+    const targetIds = Object.keys(incoming);
+    for (let i = 0; i < targetIds.length; i += 1) {
+      const targetId = targetIds[i];
+      const group = incoming[targetId];
+      group.sort((a, b) => {
+        const ay = positions[a.source] ? positions[a.source].y : 0;
+        const by = positions[b.source] ? positions[b.source].y : 0;
+        return ay - by;
+      });
+      countMap[targetId] = group.length;
+      for (let j = 0; j < group.length; j += 1) {
+        slotMap[group[j].id] = j;
+      }
+    }
+
     for (let i = 0; i < scene.edges.length; i += 1) {
       const edge = scene.edges[i];
       if (!edge.label) {
@@ -750,8 +807,18 @@
       if (!source || !target) {
         continue;
       }
-      const tx = source.x + (target.x - source.x) * 0.48;
-      const ty = source.y + (target.y - source.y) * 0.48 - 8 + ((i % 2) * 2 - 1) * 6;
+      const groupSize = countMap[edge.target] || 1;
+      const slot = slotMap[edge.id] || 0;
+      const crowded = groupSize > 1;
+      const t = crowded ? 0.3 : 0.52;
+      const dx = target.x - source.x;
+      const dy = target.y - source.y;
+      const baseX = source.x + dx * t;
+      const baseY = source.y + dy * t;
+      const spread = crowded ? 12 : 0;
+      const slotOffset = crowded ? (slot - (groupSize - 1) * 0.5) * spread : 0;
+      const tx = baseX;
+      const ty = baseY + slotOffset - (crowded ? 0 : 11);
       const text = new global.PIXI.Text(
         edge.label,
         new global.PIXI.TextStyle({

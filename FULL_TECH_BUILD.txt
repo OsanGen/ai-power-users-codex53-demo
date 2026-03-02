@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-02T13:22:59-05:00
+- UpdatedAt: 2026-03-02T15:04:23-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, cb70ce4
-- Dirty state: yes (`FULL_TECH_BUILD.txt`, `final_build/BUILD_MAP.txt`, `final_build/COMPONENT__Render.txt`, `final_build/CURRENT_GAPS.txt`, `index.html`, `src/render.js`; untracked: `final_build/COMPONENT__LessonDiagramV2.txt`, `src/lesson-diagram-v2.js`, `node_modules/`, `output/`, `test-results/`)
+- Branch, HEAD commit hash: main, b8bc1ed
+- Dirty state: yes (`FULL_TECH_BUILD.txt` modified in current turn; untracked: `node_modules/`, `output/`, `test-results/`)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -62,6 +62,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - If DEV MODE is active, summarize/action from `final_build/CURRENT_GAPS.txt` as source of truth.
 
 ## 7) Recent change log (rolling)
+- 2026-03-02T15:04:23-05:00 | Fix lesson-diagram V2 viewport anchoring and label crowding (`sum_bias`): centered fit normalization + deterministic incoming-label slotting; bump lesson diagram cache token | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-02T13:22:59-05:00 | Implement Lesson Diagram V2 (Pixi/ELK optional path), wire CDN dependencies, add fallback delegation and debug payload | `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/BUILD_MAP.txt`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-01 | Finalize FULL_TECH_BUILD snapshot metadata after latest deploy and status validation | `FULL_TECH_BUILD.txt`
 - 2026-03-01 | Refresh FULL_TECH_BUILD metadata with latest commit hash/state after maintenance pass | `FULL_TECH_BUILD.txt`
