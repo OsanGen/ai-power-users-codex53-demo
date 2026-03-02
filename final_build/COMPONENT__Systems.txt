@@ -55,6 +55,7 @@ State/Edges:
   - Stops writing raw/non-canonical key strings into `AIPU.input.keys` during input capture, which prevents unexpected overlap between gameplay systems.
   - Removes legacy alias writes (e.g., trailing-letter keys) so arrow input cannot mutate unrelated key slots.
   - `lastShootKey` is reset on global input clear and refreshed on any canonical shoot-key release (`event.code` or `event.key` fallback) to avoid stale direction carrying over when keys are released.
+  - Gameplay-key listeners now sanitize at capture phase for keydown/keypress plus beforeinput/textInput and immediately reclaim focus to avoid typed characters (`WASD`, arrows, `1/2/3`, space, enter) being appended in unexpected editable DOM during active gameplay.
 - State gates:
   - BOMB_BRIEFING, LESSON_SLIDE, DEATH_LESSON, UPGRADE_SELECT, FLOOR_INTRO, and FLOOR_CLEAR are non-combat overlay/input-break states for shooting.
   - `updatePlayerShooting` exits early unless `game.state === PLAYING`.
@@ -132,6 +133,7 @@ Acceptance Checks:
 - `updateSpawns()` ignores malformed wave objects; malformed numeric fields in `activeWaves` entries do not throw or stall.
 - Calling `triggerBomb()` while `game.bombChargesPerFloor` is `0` never mutates enemies or charge state, and floor-locked floors below `BOMB_UNLOCK_FLOOR` reject activation even if charges are stale.
 - Calling `triggerBomb()` on a floor lower than `BOMB_UNLOCK_FLOOR` never clears enemies or applies bomb effects, even if cached charge counters are non-zero.
+- Calling `toTitle()` or restarting while focused outside `#gameFrame` while playing must leave gameplay keys from creating visible text in editable fields; typed gameplay keys must remain gameplay-only inputs.
 - Floor 1 upgrade flow no longer enters `BOMB_BRIEFING`; first bomb briefing appears at `BOMB_UNLOCK_FLOOR` (floor 2) and keeps unlock messaging aligned with real bomb availability.
 - Homing-missile collision path keeps `applyPlayerDamage` from being called on `dual` impacts, yet always emits contact feedback and forces `attackDisableTimer` to the configured lockout duration.
 - Dual-wave spawn pressure remains active when standard enemy count is saturated, so entering high-traffic states no longer suppresses `dual` wave spawns.

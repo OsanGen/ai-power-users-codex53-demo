@@ -110,7 +110,7 @@
   const MUZZLE_SOCKET_OFFSETS_AT_BASE_RADIUS = Object.freeze({
     "1,0": Object.freeze({ x: 18, y: -7 }),
     "-1,0": Object.freeze({ x: -16, y: -7 }),
-    "0,-1": Object.freeze({ x: 2, y: -17 }),
+    "0,-1": Object.freeze({ x: -2, y: -24 }),
     "0,1": Object.freeze({ x: 2, y: -4 })
   });
   const LESSON_TEXT_SAMPLE =
@@ -533,6 +533,100 @@
     return focusGameInputTarget();
   }
 
+  function sanitizePotentialEditableGameInput(event) {
+    if (isTextModalOpen() || isShareModalOpen()) {
+      return false;
+    }
+
+    if (!event || typeof event !== "object") {
+      return false;
+    }
+
+    if (event.ctrlKey || event.metaKey || event.altKey) {
+      return false;
+    }
+
+    const isGameplayKey = shouldPreventDefaultForGameplayKey(event);
+    const isGameplayTextInput = isGameplayInputInsertionEvent(event);
+    if (!isGameplayKey && !isGameplayTextInput) {
+      return false;
+    }
+
+    if (event.cancelable) {
+      event.preventDefault();
+    }
+    const activeElement = document.activeElement;
+    if (!isEditableElement(activeElement)) {
+      return true;
+    }
+
+    if (typeof activeElement.blur === "function") {
+      activeElement.blur();
+    }
+    if (typeof event.stopImmediatePropagation === "function") {
+      event.stopImmediatePropagation();
+    } else if (typeof event.stopPropagation === "function") {
+      event.stopPropagation();
+    }
+    return focusGameInputTarget();
+  }
+
+  document.addEventListener("keydown", sanitizePotentialEditableGameInput, true);
+  document.addEventListener("keypress", sanitizePotentialEditableGameInput, true);
+  document.addEventListener("beforeinput", sanitizePotentialGameplayInsert, true);
+  document.addEventListener("textInput", sanitizePotentialGameplayInsert, true);
+
+  function sanitizePotentialGameplayInsert(event) {
+    sanitizePotentialEditableGameInput(event);
+  }
+
+  function isGameplayInputInsertionEvent(event) {
+    if (!event || typeof event !== "object") {
+      return false;
+    }
+    if (!isEditableElement(document.activeElement)) {
+      return false;
+    }
+    const inputType = typeof event.inputType === "string" ? event.inputType : "";
+    if (inputType === "insertParagraph" || inputType === "insertLineBreak") {
+      return true;
+    }
+    if (inputType !== "insertText" && inputType !== "insertCompositionText") {
+      return false;
+    }
+    const text = typeof event.data === "string" ? event.data : "";
+    if (text.length !== 1) {
+      return false;
+    }
+    if (text === "1" || text === "2" || text === "3") {
+      return true;
+    }
+    if (text === " " || text === "\n" || text === "\r") {
+      return true;
+    }
+    return resolveMovementCode("", text) !== "";
+  }
+
+  function enforceGameplayInputFocus() {
+    const activeElement = document.activeElement;
+    if (isTextModalOpen() || isShareModalOpen()) {
+      return false;
+    }
+
+    if (!isEditableElement(activeElement)) {
+      return false;
+    }
+
+    if (typeof activeElement.blur === "function") {
+      activeElement.blur();
+    }
+    return focusGameInputTarget();
+  }
+
+  document.addEventListener("focusin", () => {
+    enforceGameplayInputFocus();
+  });
+
   const SHOOT_KEYS = Object.freeze(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
   const NUMPAD_SHOOT_KEYS = Object.freeze(["Numpad8", "Numpad2", "Numpad4", "Numpad6"]);
   const NUMPAD_TO_ARROW_SHOOT_KEYS = Object.freeze({
@@ -943,6 +1037,10 @@
     setLessonTextValue(game.lessonSourceText || "", { commit: false });
     textModalEl.classList.remove("hidden");
     textModalEl.setAttribute("aria-hidden", "false");
+    if (lessonTextInputEl) {
+      lessonTextInputEl.disabled = false;
+      lessonTextInputEl.tabIndex = 0;
+    }
     if (lessonTextInputEl && typeof lessonTextInputEl.focus === "function") {
       lessonTextInputEl.focus();
       lessonTextInputEl.setSelectionRange(lessonTextInputEl.value.length, lessonTextInputEl.value.length);
@@ -961,6 +1059,11 @@
     }
     textModalEl.classList.add("hidden");
     textModalEl.setAttribute("aria-hidden", "true");
+    if (lessonTextInputEl) {
+      lessonTextInputEl.blur();
+      lessonTextInputEl.disabled = true;
+      lessonTextInputEl.tabIndex = -1;
+    }
     clearInputState();
     const focusTarget = gameFrame || canvas;
     if (focusTarget && typeof focusTarget.focus === "function") {
@@ -981,6 +1084,10 @@
     if (lessonTextSampleBtn) {
       lessonTextSampleBtn.addEventListener("click", () => {
         setLessonTextValue(LESSON_TEXT_SAMPLE, { commit: false });
+        if (lessonTextInputEl) {
+          lessonTextInputEl.disabled = false;
+          lessonTextInputEl.tabIndex = 0;
+        }
         if (lessonTextInputEl && typeof lessonTextInputEl.focus === "function") {
           lessonTextInputEl.focus();
           lessonTextInputEl.setSelectionRange(0, 0);
@@ -1005,6 +1112,10 @@
           closeTextModal({ save: false });
         }
       });
+    }
+    if (lessonTextInputEl) {
+      lessonTextInputEl.disabled = true;
+      lessonTextInputEl.tabIndex = -1;
     }
   }
 

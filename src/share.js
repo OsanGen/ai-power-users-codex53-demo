@@ -416,6 +416,10 @@
       this.setData(data || {});
       shareModalEl.classList.remove("hidden");
       shareModalEl.setAttribute("aria-hidden", "false");
+      if (shareTextEl) {
+        shareTextEl.disabled = false;
+        shareTextEl.tabIndex = 0;
+      }
 
       const focusTarget = shareCopyBtn || shareLinkedInBtn || shareCloseBtn || shareTextEl;
       if (focusTarget && typeof focusTarget.focus === "function") {
@@ -446,6 +450,11 @@
       shareModalEl.setAttribute("aria-hidden", "true");
       this._setStatus("", 0);
       this._cardDataUrl = "";
+      if (shareTextEl) {
+        shareTextEl.blur();
+        shareTextEl.disabled = true;
+        shareTextEl.tabIndex = -1;
+      }
 
       if (activeInsideShareModal && activeElement && typeof activeElement.blur === "function") {
         activeElement.blur();
@@ -621,6 +630,11 @@
         shareCloseBtn.addEventListener("click", () => {
           this.close();
         });
+      }
+
+      if (shareTextEl) {
+        shareTextEl.disabled = true;
+        shareTextEl.tabIndex = -1;
       }
 
       if (shareDontAskEl) {

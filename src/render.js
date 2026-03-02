@@ -5931,6 +5931,22 @@
     }
   }
 
+  function resolveMuzzleFlashColor(rawColor, accentValue) {
+    if (typeof rawColor === "string") {
+      const colorText = rawColor.trim();
+      if (colorText) {
+        if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(colorText)) {
+          return colorText;
+        }
+        const lowered = colorText.toLowerCase();
+        if (lowered === "yellow" || lowered === "blue" || lowered === "mint" || lowered === "pink") {
+          return accentColor(lowered);
+        }
+      }
+    }
+    return accentValue;
+  }
+
   function drawMuzzleFlashes(accent, _visualTheme = null) {
     if (!Array.isArray(muzzleFlashes) || muzzleFlashes.length === 0) {
       return;
@@ -5986,9 +6002,9 @@
       const px = -dy;
       const py = dx;
       const seed = Number.isFinite(flash.intensitySeed) ? flash.intensitySeed : 0.5;
-      const flashColor = typeof flash.color === "string" && flash.color ? flash.color : accent;
+      const flashColor = resolveMuzzleFlashColor(flash.color, accent);
 
-      const coreRadius = (reducedMotion ? 1.5 : 1.9) + seed * 0.6;
+      const coreRadius = (reducedMotion ? 1.2 : 1.4) + seed * 0.35;
       const bloomRadius = flashProfile.bloomRadiusBase + seed * flashProfile.bloomRadiusSeed;
       const coneLength = flashProfile.coneLengthBase + life * flashProfile.coneLengthLife + seed * flashProfile.coneLengthSeed;
       const tipLength = coneLength + flashProfile.reachBoost;
@@ -6012,7 +6028,7 @@
       ctx.closePath();
       ctx.fill();
 
-      ctx.fillStyle = rgba(TOKENS.white, clamp(0.52 + life * 0.16, 0.48, 0.76));
+      ctx.fillStyle = rgba(flashColor, clamp(0.1 + life * 0.12, 0.08, 0.2));
       ctx.beginPath();
       ctx.ellipse(x, y, coreRadius, coreRadius * 0.7, Math.atan2(dy, dx), 0, Math.PI * 2);
       ctx.fill();

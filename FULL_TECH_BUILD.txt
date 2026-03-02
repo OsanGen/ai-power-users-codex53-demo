@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-01T01:59:29Z
+- UpdatedAt: 2026-03-01T19:46:47-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 7bddb27
+- Branch, HEAD commit hash: main, e9a0a5c
 - Dirty state: yes (untracked: node_modules/, output/, test-results/)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -40,6 +40,7 @@ WONDERLAND is a browser-first vanilla web game (canvas-based), centered on a flo
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` holds active gaps and `final_build/COMPONENT__*.txt` holds component specs.
 
 ## 7) Recent change log (rolling)
+- 2026-03-01 | Hardened gameplay input sanitization against accidental in-game text insertion by blocking WASD/arrow/1-3/space/enter key paths at keydown/keypress and beforeinput/textInput while gameplay is active. | src/systems.js, final_build/CURRENT_GAPS.txt, final_build/COMPONENT__Systems.txt
 - 2026-03-01 | Delayed directional burst dual unlock from 2s to 4s of continuous shooting by updating `REAR_SHOT_TRIGGER_SECONDS` in gameplay constants; omni unlock threshold remains unchanged. | src/core.js
 - 2026-03-01 | Tuned up socket calibration for upward shots to `{x:-2, y:-24}` at base radius and narrowed muzzle flash core-to-white blend so flash tint follows projectile colors (`yellow/blue/mint/pink`) while keeping gameplay behavior unchanged. | src/systems.js, src/render.js
 - 2026-03-01 | Replaced coarse muzzle anchor math with direction-specific radius-scaled socket offsets and added `AIPU.systems.getMuzzleAnchorForDirection()` to keep bullet/muzzle origin aligned per cardinal direction; added debug-only render socket marker overlay for all sockets with active emphasis. | src/systems.js, src/render.js
