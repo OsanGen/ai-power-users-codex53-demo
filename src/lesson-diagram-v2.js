@@ -12,7 +12,144 @@
     ink: "#1f2937",
     white: "#f8fafc",
     fog: "#e2e8f0",
+    yellow: "#f4d66d",
+    blue: "#89b6ff",
+    mint: "#90dec9",
+    pink: "#f4accd",
     accent: "#c084fc"
+  };
+  const FONT_FAMILY = "Inter, sans-serif";
+
+  const TEXT_PRESETS = {
+    nodePrimary: {
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: "0.2px",
+      color: "ink",
+      bgChip: true,
+      bgTone: "fog",
+      chipPaddingX: 8,
+      chipPaddingY: 3.8,
+      chipRadius: 12,
+      maxWidth: 112,
+      alignment: "center",
+      purpose: "nodePrimary"
+    },
+    nodeSecondary: {
+      fontSize: 10.5,
+      fontWeight: "600",
+      letterSpacing: "0.15px",
+      color: "ink",
+      bgChip: true,
+      bgTone: "fog",
+      chipPaddingX: 7,
+      chipPaddingY: 3.2,
+      chipRadius: 10,
+      maxWidth: 94,
+      alignment: "center",
+      purpose: "nodeSecondary"
+    },
+    edgeChip: {
+      fontSize: 10,
+      fontWeight: "600",
+      letterSpacing: "0.08px",
+      color: "ink",
+      bgChip: true,
+      bgTone: "fog",
+      chipPaddingX: 6.5,
+      chipPaddingY: 2.6,
+      chipRadius: 9,
+      maxWidth: 68,
+      alignment: "center",
+      purpose: "edgeChip"
+    },
+    edgeTiny: {
+      fontSize: 9,
+      fontWeight: "600",
+      letterSpacing: "0.02px",
+      color: "ink",
+      bgChip: true,
+      bgTone: "fog",
+      chipPaddingX: 6,
+      chipPaddingY: 2.4,
+      chipRadius: 8,
+      maxWidth: 56,
+      alignment: "center",
+      purpose: "edgeTiny"
+    },
+    heading: {
+      fontSize: 13,
+      fontWeight: "600",
+      letterSpacing: "0.2px",
+      color: "ink",
+      bgChip: true,
+      bgTone: "fog",
+      chipPaddingX: 10,
+      chipPaddingY: 4.6,
+      chipRadius: 12,
+      maxWidth: 150,
+      alignment: "center",
+      purpose: "heading"
+    },
+    caption: {
+      fontSize: 13,
+      fontWeight: "500",
+      letterSpacing: "0.02px",
+      color: "ink",
+      bgChip: true,
+      bgTone: "fog",
+      chipPaddingX: 11,
+      chipPaddingY: 4.8,
+      chipRadius: 12,
+      maxWidth: 190,
+      alignment: "left",
+      purpose: "caption"
+    }
+  };
+
+  const SCENE_TEXT_PRESETS = {
+    network_basic: {
+      nodePrimary: { tone: "ink", bgTone: "fog" },
+      edgeChip: { maxWidth: 60, fontSize: 10 }
+    },
+    inputs_nodes: {
+      nodePrimary: { tone: "ink", maxWidth: 76 },
+      nodeSecondary: { tone: "inkSoft" },
+      edgeChip: { maxWidth: 62, fontSize: 9.8, chipPaddingY: 2.2 }
+    },
+    weights_knobs: {
+      edgeChip: { tone: "blue", chipPaddingX: 6, maxWidth: 62 }
+    },
+    sum_bias: {
+      nodePrimary: { tone: "ink", bgTone: "fog" },
+      nodeSecondary: { fontSize: 10.2, maxWidth: 72 },
+      edgeChip: { maxWidth: 52, fontSize: 9.6, chipPaddingY: 2.2, tone: "ink" }
+    },
+    activation_gate: {
+      heading: { tone: "ink", maxWidth: 120 },
+      nodeSecondary: { tone: "ink", maxWidth: 70 },
+      edgeChip: { fontSize: 9.6, maxWidth: 64, tone: "ink" }
+    },
+    layers_stack: {
+      caption: { tone: "ink", maxWidth: 110, fontSize: 12 },
+      heading: { tone: "ink", fontSize: 12.4, maxWidth: 86 },
+      nodePrimary: { fontSize: 11, tone: "ink" }
+    },
+    loss_meter: {
+      heading: { tone: "ink", fontSize: 13.4, chipPaddingY: 5 },
+      nodeSecondary: { tone: "fog", maxWidth: 80 },
+      nodePrimary: { tone: "ink", fontSize: 11 },
+      edgeTiny: { tone: "ink", maxWidth: 48, fontSize: 8.6 }
+    },
+    backprop_arrows: {
+      edgeChip: { maxWidth: 62, tone: "blue", fontSize: 9.4 },
+      nodeSecondary: { tone: "ink", maxWidth: 70 }
+    },
+    generalize_explain: {
+      caption: { tone: "ink", maxWidth: 176, fontSize: 12.2 },
+      nodePrimary: { tone: "ink", fontSize: 10.6 },
+      nodeSecondary: { tone: "inkMuted", fontSize: 10, maxWidth: 88 }
+    }
   };
 
   const NODE_STYLE = {
@@ -204,10 +341,18 @@
 
   function getTokens() {
     const base = AIPU.constants && AIPU.constants.TOKENS ? AIPU.constants.TOKENS : null;
+    const palette = base && typeof base.palette === "object" ? base.palette : base;
     return {
-      ink: (base && base.ink) || DEFAULT_TOKENS.ink,
-      white: (base && base.white) || DEFAULT_TOKENS.white,
-      fog: (base && base.fog) || DEFAULT_TOKENS.fog
+      ink: (palette && palette.ink) || DEFAULT_TOKENS.ink,
+      inkSoft: (palette && (palette.inkSoft || palette.soft)) || "#2f3647",
+      inkMuted: (palette && palette.inkMuted) || "#546078",
+      white: (palette && palette.white) || DEFAULT_TOKENS.white,
+      fog: (palette && palette.fog) || DEFAULT_TOKENS.fog,
+      yellow: (palette && palette.yellow) || DEFAULT_TOKENS.yellow,
+      blue: (palette && palette.blue) || DEFAULT_TOKENS.blue,
+      mint: (palette && palette.mint) || DEFAULT_TOKENS.mint,
+      pink: (palette && palette.pink) || DEFAULT_TOKENS.pink,
+      accent: (palette && (palette.accent || palette.pink || DEFAULT_TOKENS.accent)) || DEFAULT_TOKENS.accent
     };
   }
 
@@ -269,12 +414,287 @@
     return NODE_STYLE[kind] || NODE_STYLE.hidden;
   }
 
-  function createNode(id, label, kind, tier) {
-    return { id, label, kind, tier };
+  function createNode(id, label, kind, tier, labelTone, labelLayout, labelPurpose, labelMaxWidth) {
+    return {
+      id,
+      label,
+      kind,
+      tier,
+      labelTone,
+      labelLayout,
+      labelPurpose,
+      labelMaxWidth
+    };
   }
 
-  function createEdge(id, source, target, label, emphasis = 0.5) {
-    return { id, source, target, label, emphasis };
+  function createEdge(id, source, target, label, emphasis = 0.5, labelTone, labelLayout, labelPurpose, labelMaxWidth) {
+    return {
+      id,
+      source,
+      target,
+      label,
+      emphasis,
+      labelTone,
+      labelLayout,
+      labelPurpose,
+      labelMaxWidth
+    };
+  }
+
+  function buildTextSpec(sceneMode, purpose, source = null) {
+    const normalizedPurpose = TEXT_PRESETS[purpose] ? purpose : "nodeSecondary";
+    const base = TEXT_PRESETS[normalizedPurpose];
+    const sceneOverrides = SCENE_TEXT_PRESETS[sceneMode] || {};
+    const scenePurposeOverrides = sceneOverrides[normalizedPurpose] || {};
+    const sourceOverrides = source && typeof source === "object" ? source : null;
+    const toneOverride = sourceOverrides && (sourceOverrides.labelTone || sourceOverrides.tone);
+
+    const merged = Object.assign({}, base, scenePurposeOverrides, sourceOverrides || {});
+    const colorTone = toneOverride || merged.color || "ink";
+    return Object.assign({}, merged, {
+      purpose: merged.purpose || normalizedPurpose,
+      color: colorTone,
+      fontFamily: FONT_FAMILY
+    });
+  }
+
+  function clampColor(color) {
+    return parseHexColor(color, 0x1f2937);
+  }
+
+  function normalizeToneColor(tone, tokens) {
+    const fallback = tokens.ink || DEFAULT_TOKENS.ink;
+    if (tone === "inkSoft") {
+      return tokens.inkSoft || fallback;
+    }
+    if (tone === "inkMuted") {
+      return tokens.inkMuted || fallback;
+    }
+    if (tone === "white") {
+      return tokens.white || "#ffffff";
+    }
+    if (tone === "yellow" || tone === "blue" || tone === "mint" || tone === "pink" || tone === "fog" || tone === "accent") {
+      return tokens[tone] || fallback;
+    }
+    return parseHexColor(tone, clampColor(fallback));
+  }
+
+  function normalizeTextTone(textTone, specTone, tokens) {
+    return normalizeToneColor(textTone || specTone || "ink", tokens);
+  }
+
+  function buildEdgeLabelMeta(scene, positions) {
+    const incoming = Object.create(null);
+    const slotMap = Object.create(null);
+    const countMap = Object.create(null);
+    for (let i = 0; i < scene.edges.length; i += 1) {
+      const edge = scene.edges[i];
+      if (!edge.label) {
+        continue;
+      }
+      if (!incoming[edge.target]) {
+        incoming[edge.target] = [];
+      }
+      incoming[edge.target].push(edge);
+    }
+    const targetIds = Object.keys(incoming);
+    for (let i = 0; i < targetIds.length; i += 1) {
+      const targetId = targetIds[i];
+      const group = incoming[targetId];
+      group.sort((a, b) => {
+        const ay = positions[a.source] ? positions[a.source].y : 0;
+        const by = positions[b.source] ? positions[b.source].y : 0;
+        return ay - by;
+      });
+      countMap[targetId] = group.length;
+      for (let j = 0; j < group.length; j += 1) {
+        slotMap[group[j].id] = j;
+      }
+    }
+    return { incoming, slotMap, countMap };
+  }
+
+  function resolveEdgeLabelPosition(edge, source, target, groupSize, slot, mode) {
+    const dx = target.x - source.x;
+    const dy = target.y - source.y;
+    const length = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+    const nx = -dy / length;
+    const ny = dx / length;
+    const directionSign = dx >= 0 ? 1 : -1;
+    const crowdCount = Math.max(1, groupSize);
+    const isCrowded = crowdCount > 1;
+    const baseT = isCrowded ? 0.45 : 0.39;
+    const sideScale =
+      edge.labelLayout === "forwardLane" ? directionSign * 1 : edge.labelLayout === "feedbackLane" ? -directionSign * 1 : 1;
+    const slotOffset = isCrowded ? (slot - (crowdCount - 1) * 0.5) * 12 : 0;
+    const laneOffset =
+      edge.labelLayout === "forwardLane"
+        ? -11 * sideScale
+        : edge.labelLayout === "feedbackLane"
+          ? 11 * sideScale
+          : mode === "activation_gate" && edge.labelPurpose === "edgeChip"
+            ? 4
+            : (mode === "inputs_nodes" ? -10 : -9);
+    return {
+      x: source.x + dx * baseT + nx * slotOffset,
+      y: source.y + dy * baseT + ny * slotOffset + laneOffset,
+      anchorY: "middle"
+    };
+  }
+
+  function splitLabelTextToLines(text, measureFn, maxWidth) {
+    const safeText = String(text == null ? "" : text);
+    if (!safeText.trim()) {
+      return [""];
+    }
+    const parts = safeText.split(/\s+/);
+    const lines = [];
+    let current = "";
+    for (let i = 0; i < parts.length; i += 1) {
+      const token = parts[i];
+      const attempt = current ? `${current} ${token}` : token;
+      if (measureFn(attempt) <= maxWidth) {
+        current = attempt;
+      } else if (!current) {
+        lines.push(token);
+      } else {
+        lines.push(current);
+        current = token;
+      }
+    }
+    if (current) {
+      lines.push(current);
+    }
+    return lines.length > 0 ? lines : [safeText];
+  }
+
+  function renderLabelCard(context, text, x, y, spec, tokens, mode, options) {
+    if (!context || !spec || !tokens) {
+      return;
+    }
+    const safeText = String(text == null ? "" : text);
+    const safeSpec = spec || {};
+    const textColor = normalizeTextTone(safeSpec.color, safeSpec.color, tokens);
+    const chipFill = normalizeTextTone(safeSpec.bgTone || "fog", "fog", tokens);
+    const chipStroke = clampColor(normalizeTextTone("ink", "ink", tokens));
+    const fontSize = Math.max(8, Math.min(16, Number(safeSpec.fontSize) || 10));
+    const fontWeight = safeSpec.fontWeight || "600";
+    const maxWidth = Math.max(44, Number(safeSpec.maxWidth) || 90);
+    const paddingX = Number(safeSpec.chipPaddingX) || 7;
+    const paddingY = Number(safeSpec.chipPaddingY) || 3;
+    const radius = Number(safeSpec.chipRadius) || 10;
+    const lineHeight = fontSize * 1.2;
+    const letterSpacing = safeSpec.letterSpacing || "0px";
+    const alignment = safeSpec.alignment || "center";
+    const oldFont = context.font;
+
+    context.font = `${fontWeight} ${fontSize}px ${FONT_FAMILY}`;
+    context.textBaseline = "middle";
+    context.textAlign = alignment === "left" ? "left" : "center";
+
+    const measure = (line) => context.measureText(line).width + (line.length - 1) * 0;
+    const rawMaxWidth = Math.max(24, maxWidth - paddingX * 2);
+    const lines = splitLabelTextToLines(safeText, measure, rawMaxWidth);
+    let widest = 0;
+    for (let i = 0; i < lines.length; i += 1) {
+      widest = Math.max(widest, context.measureText(lines[i]).width);
+    }
+
+    const chipWidth = Math.max(rawMaxWidth, widest) + paddingX * 2;
+    const chipHeight = lines.length * lineHeight + paddingY * 2;
+    let chipX = x;
+    let chipY = y - chipHeight * 0.5;
+    if (alignment === "left") {
+      chipX -= paddingX;
+    } else {
+      chipX -= chipWidth * 0.5;
+    }
+    if (safeSpec.bgChip !== false) {
+      context.fillStyle = rgbToRgba(toRgb("#" + chipFill.toString(16).padStart(6, "0")), 0.95);
+      context.strokeStyle = rgbToRgba(toRgb("#" + chipStroke.toString(16).padStart(6, "0")), 0.84);
+      context.lineWidth = 1;
+      roundRectPath(context, chipX, chipY, chipWidth, chipHeight, radius);
+      context.fill();
+      context.stroke();
+    }
+    context.fillStyle = rgbToRgba(toRgb("#" + textColor.toString(16).padStart(6, "0")), 1);
+    const baselineTop = chipY + paddingY + lineHeight * 0.55;
+    const lineGap = lineHeight;
+    for (let i = 0; i < lines.length; i += 1) {
+      const lineX = alignment === "left" ? chipX + paddingX : x;
+      const lineY = baselineTop + i * lineGap;
+      context.fillText(lines[i], lineX, lineY);
+    }
+    context.font = oldFont;
+  }
+
+  function renderPixiLabelCard(root, text, x, y, spec, tokens) {
+    if (!global.PIXI || !global.PIXI.Graphics || !global.PIXI.Text || !global.PIXI.TextStyle) {
+      return;
+    }
+    const safeText = String(text == null ? "" : text);
+    const safeSpec = spec || {};
+    const fontSize = Math.max(8, Math.min(16, Number(safeSpec.fontSize) || 10));
+    const maxWidth = Math.max(40, Number(safeSpec.maxWidth) || 100);
+    const textColor = normalizeTextTone(safeSpec.color, safeSpec.color, tokens);
+    const chipFill = normalizeTextTone(safeSpec.bgTone || "fog", "fog", tokens);
+    const chipStroke = normalizeTextTone("ink", "ink", tokens);
+    const style = new global.PIXI.TextStyle({
+      fontFamily: FONT_FAMILY,
+      fontSize,
+      fontWeight: safeSpec.fontWeight || "600",
+      fill: "#" + textColor.toString(16).padStart(6, "0"),
+      align: safeSpec.alignment === "left" ? "left" : "center",
+      lineHeight: fontSize * 1.2,
+      breakWords: true,
+      wordWrap: true,
+      wordWrapWidth: maxWidth
+    });
+    const letterSpacing = Number.parseFloat(String(safeSpec.letterSpacing || "0"));
+    style.letterSpacing = Number.isFinite(letterSpacing) ? letterSpacing : 0;
+
+    const label = new global.PIXI.Text(safeText, style);
+    label.anchor.set(safeSpec.alignment === "left" ? 0 : 0.5, 0.5);
+    const textWidth = Math.max(20, label.width);
+    const textHeight = Math.max(fontSize + 2, label.height);
+    const paddingX = Number(safeSpec.chipPaddingX) || 7;
+    const paddingY = Number(safeSpec.chipPaddingY) || 3;
+    const radius = Number(safeSpec.chipRadius) || 10;
+    const chipWidth = Math.max(maxWidth * 0.25, textWidth + paddingX * 2);
+    const chipHeight = textHeight + paddingY * 2;
+    if (safeSpec.bgChip !== false) {
+      const chip = new global.PIXI.Graphics();
+      const chipX = safeSpec.alignment === "left" ? x : x - chipWidth / 2;
+      const chipY = y - chipHeight / 2;
+      chip.beginFill(chipFill, 0.95);
+      chip.drawRoundedRect(chipX, chipY, chipWidth, chipHeight, radius);
+      chip.lineStyle(1, chipStroke, 0.78);
+      chip.drawRoundedRect(chipX, chipY, chipWidth, chipHeight, radius);
+      chip.endFill();
+      root.addChild(chip);
+      label.x = safeSpec.alignment === "left" ? chipX + paddingX : x;
+    } else {
+      label.x = x;
+    }
+    label.y = y;
+    root.addChild(label);
+  }
+
+  function getLabelTone(mode, tone, fallbackTone) {
+    return String(tone || fallbackTone || "ink");
+  }
+
+  function resolveNodeLabelPlacement(node, position, mode, spec) {
+    const radius = spec && spec.radius ? Number(spec.radius) : 14;
+    const layout = String(node.labelLayout || (mode === "network_basic" ? "nodePill" : "nodeCenter")).trim();
+    const x = position.x;
+    if (layout === "nodePill" || layout === "nodeHeader" || mode === "network_basic" || mode === "layers_stack") {
+      return { x, y: position.y - radius - 15, anchor: 0.5 };
+    }
+    if (layout === "nodeTopHeader") {
+      return { x, y: position.y - radius - 18, anchor: 0.5 };
+    }
+    return { x, y: position.y, anchor: 0.5 };
   }
 
   function buildSceneSpec(mode) {
@@ -284,19 +704,19 @@
         return {
           mode: resolved,
           nodes: [
-            createNode("sensor_1", "pixel", "input", 0),
-            createNode("sensor_2", "click", "input", 0),
-            createNode("sensor_3", "time", "input", 0),
-            createNode("embed", "encode", "hidden", 1),
-            createNode("feature", "feature", "hidden", 2),
-            createNode("out", "guess", "output", 3)
+            createNode("sensor_1", "pixel", "input", 0, "ink", "nodeTopHeader"),
+            createNode("sensor_2", "click", "input", 0, "ink", "nodeTopHeader"),
+            createNode("sensor_3", "time", "input", 0, "ink", "nodeTopHeader"),
+            createNode("embed", "encode", "hidden", 1, "ink", "nodePill"),
+            createNode("feature", "feature", "hidden", 2, "ink", "nodePill"),
+            createNode("out", "guess", "output", 3, "ink", "nodeTopHeader")
           ],
           edges: [
-            createEdge("e_s1", "sensor_1", "embed", "x1", 0.6),
-            createEdge("e_s2", "sensor_2", "embed", "x2", 0.6),
-            createEdge("e_s3", "sensor_3", "embed", "x3", 0.6),
+            createEdge("e_s1", "sensor_1", "embed", "x1", 0.6, "blue", "edgeChip", "edgeChip"),
+            createEdge("e_s2", "sensor_2", "embed", "x2", 0.6, "blue", "edgeChip", "edgeChip"),
+            createEdge("e_s3", "sensor_3", "embed", "x3", 0.6, "blue", "edgeChip", "edgeChip"),
             createEdge("e_s4", "embed", "feature", "", 0.7),
-            createEdge("e_s5", "feature", "out", "y", 0.75)
+            createEdge("e_s5", "feature", "out", "y", 0.75, "blue", "edgeChip", "edgeChip")
           ],
           stages: [["sensor_1", "sensor_2", "sensor_3"], ["embed"], ["feature"], ["out"]]
         };
@@ -311,9 +731,9 @@
             createNode("y", "output", "output", 2)
           ],
           edges: [
-            createEdge("w1", "x1", "z", "w1=0.9", 0.8),
-            createEdge("w2", "x2", "z", "w2=0.2", 0.5),
-            createEdge("w3", "x3", "z", "w3=0.6", 0.7),
+            createEdge("w1", "x1", "z", "0.9", 0.8, "blue", "edgeLane"),
+            createEdge("w2", "x2", "z", "0.2", 0.5, "blue", "edgeLane"),
+            createEdge("w3", "x3", "z", "0.6", 0.7, "blue", "edgeLane"),
             createEdge("w4", "z", "y", "", 0.85)
           ],
           stages: [["x1", "x2", "x3"], ["z"], ["y"]]
@@ -335,10 +755,10 @@
             createEdge("sb1", "x1", "sigma", "w1", 0.75),
             createEdge("sb2", "x2", "sigma", "w2", 0.6),
             createEdge("sb3", "x3", "sigma", "w3", 0.68),
-            createEdge("sb4", "b", "sigma", "bias", 0.9),
-            createEdge("sb5", "sigma", "z", "pre-act", 0.85),
+            createEdge("sb4", "b", "sigma", "+ b", 0.9, "fog", "edgeChip", "edgeChip"),
+            createEdge("sb5", "sigma", "z", "Σ", 0.85, "ink", "edgeChip", "edgeTiny"),
             createEdge("sb6", "z", "f", "gate", 0.86),
-            createEdge("sb7", "f", "y", "output", 0.88)
+            createEdge("sb7", "f", "y", "output", 0.88, "ink", "edgeChip")
           ],
           stages: [["x1", "x2", "x3", "b"], ["sigma"], ["z"], ["f"], ["y"]]
         };
@@ -355,8 +775,13 @@
           edges: [
             createEdge("ag1", "x", "sum", "", 0.6),
             createEdge("ag2", "sum", "gate", "", 0.7),
-            createEdge("ag3", "gate", "active", "z>0", 0.85),
-            createEdge("ag4", "gate", "off", "z<=0", 0.5)
+            createEdge("ag3", "gate", "active", "active", 0.85, "blue", "forwardLane", "edgeChip"),
+            createEdge("ag4", "gate", "off", "blocked", 0.5, "blue", "feedbackLane", "edgeChip")
+          ],
+          captions: [
+            { text: "ReLU gate", tone: "ink", purpose: "heading", layout: "top", maxWidth: 104 },
+            { text: "▶ forward", tone: "blue", purpose: "caption", layout: "rightTop", maxWidth: 80 },
+            { text: "◀ feedback", tone: "ink", purpose: "caption", layout: "rightBottom", maxWidth: 84 }
           ],
           stages: [["x"], ["sum"], ["gate"], ["active", "off"]]
         };
@@ -385,6 +810,12 @@
             createEdge("ls9", "h3", "o1", "", 0.78),
             createEdge("ls10", "h4", "o2", "", 0.78)
           ],
+          captions: [
+            { text: "Input", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 0, maxWidth: 60 },
+            { text: "Hidden", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 1, maxWidth: 60 },
+            { text: "Hidden", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 2, maxWidth: 60 },
+            { text: "Output", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 3, maxWidth: 60 }
+          ],
           stages: [["i1", "i2"], ["h1", "h2"], ["h3", "h4"], ["o1", "o2"]]
         };
       case "loss_meter":
@@ -394,14 +825,14 @@
             createNode("pred", "y^", "output", 0),
             createNode("truth", "y", "input", 0),
             createNode("diff", "|y^-y|", "operator", 1),
-            createNode("loss", "Loss", "metric", 2),
+            createNode("loss", "Loss", "metric", 2, "ink", "nodeTopHeader", "heading"),
             createNode("goal", "minimize", "output", 3)
           ],
           edges: [
             createEdge("lm1", "pred", "diff", "", 0.72),
             createEdge("lm2", "truth", "diff", "", 0.72),
-            createEdge("lm3", "diff", "loss", "", 0.9),
-            createEdge("lm4", "loss", "goal", "", 0.85)
+            createEdge("lm3", "diff", "loss", "error", 0.9, "ink", "forwardLane", "edgeChip"),
+            createEdge("lm4", "loss", "goal", "", 0.85, "ink", "forwardLane", "edgeChip")
           ],
           stages: [["pred", "truth"], ["diff"], ["loss"], ["goal"]]
         };
@@ -417,11 +848,15 @@
             createNode("grad1", "∂L/∂w1", "operator", 1)
           ],
           edges: [
-            createEdge("bp1", "x", "h", "forward", 0.62),
-            createEdge("bp2", "h", "yhat", "forward", 0.66),
-            createEdge("bp3", "yhat", "loss", "forward", 0.78),
-            createEdge("bp4", "loss", "grad2", "backward", 0.92),
-            createEdge("bp5", "grad2", "grad1", "backward", 0.9)
+            createEdge("bp1", "x", "h", "forward", 0.62, "blue", "forwardLane", "edgeChip"),
+            createEdge("bp2", "h", "yhat", "forward", 0.66, "blue", "forwardLane", "edgeChip"),
+            createEdge("bp3", "yhat", "loss", "forward", 0.78, "blue", "forwardLane", "edgeChip"),
+            createEdge("bp4", "loss", "grad2", "feedback", 0.92, "ink", "feedbackLane", "edgeChip"),
+            createEdge("bp5", "grad2", "grad1", "feedback", 0.9, "ink", "feedbackLane", "edgeChip")
+          ],
+          captions: [
+            { text: "forward", tone: "blue", purpose: "heading", layout: "top", maxWidth: 74 },
+            { text: "feedback", tone: "ink", purpose: "heading", layout: "bottom", maxWidth: 80 }
           ],
           stages: [["x", "h", "yhat"], ["loss"], ["grad2"], ["grad1"]]
         };
@@ -437,12 +872,16 @@
             createNode("ship", "ship", "output", 3)
           ],
           edges: [
-            createEdge("ge1", "train", "model", "", 0.7),
-            createEdge("ge2", "test", "model", "", 0.63),
+            createEdge("ge1", "train", "model", "train", 0.7, "ink", "edgeChip"),
+            createEdge("ge2", "test", "model", "test", 0.63, "ink", "edgeChip"),
             createEdge("ge3", "model", "score", "", 0.8),
             createEdge("ge4", "model", "explain", "", 0.8),
-            createEdge("ge5", "score", "ship", "", 0.85),
-            createEdge("ge6", "explain", "ship", "", 0.85)
+            createEdge("ge5", "score", "ship", "", 0.85, "blue", "forwardLane", "edgeChip"),
+            createEdge("ge6", "explain", "ship", "", 0.85, "blue", "feedbackLane", "edgeChip")
+          ],
+          captions: [
+            { text: "🟢 train set", tone: "ink", purpose: "caption", layout: "leftTop", maxWidth: 130 },
+            { text: "🟡 test set", tone: "ink", purpose: "caption", layout: "leftBottom", maxWidth: 130 }
           ],
           stages: [["train", "test"], ["model"], ["score", "explain"], ["ship"]]
         };
@@ -1058,37 +1497,11 @@
     return Math.floor(Math.max(0, safeTime) / ACTIVE_STAGE_SECONDS) % safeStages.length;
   }
 
-  function addEdgeLabels(root, scene, positions, lineColor) {
+  function addEdgeLabels(root, scene, positions, mode, tokens) {
     if (!global.PIXI || !global.PIXI.Text || !global.PIXI.TextStyle) {
       return;
     }
-    const incoming = Object.create(null);
-    for (let i = 0; i < scene.edges.length; i += 1) {
-      const edge = scene.edges[i];
-      if (!edge.label) {
-        continue;
-      }
-      if (!incoming[edge.target]) {
-        incoming[edge.target] = [];
-      }
-      incoming[edge.target].push(edge);
-    }
-    const slotMap = Object.create(null);
-    const countMap = Object.create(null);
-    const targetIds = Object.keys(incoming);
-    for (let i = 0; i < targetIds.length; i += 1) {
-      const targetId = targetIds[i];
-      const group = incoming[targetId];
-      group.sort((a, b) => {
-        const ay = positions[a.source] ? positions[a.source].y : 0;
-        const by = positions[b.source] ? positions[b.source].y : 0;
-        return ay - by;
-      });
-      countMap[targetId] = group.length;
-      for (let j = 0; j < group.length; j += 1) {
-        slotMap[group[j].id] = j;
-      }
-    }
+    const { countMap, slotMap } = buildEdgeLabelMeta(scene, positions);
 
     for (let i = 0; i < scene.edges.length; i += 1) {
       const edge = scene.edges[i];
@@ -1102,32 +1515,15 @@
       }
       const groupSize = countMap[edge.target] || 1;
       const slot = slotMap[edge.id] || 0;
-      const crowded = groupSize > 1;
-      const t = crowded ? 0.45 : 0.4;
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const baseX = source.x + dx * t;
-      const baseY = source.y + dy * t;
-      const length = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
-      const nx = -dy / length;
-      const ny = dx / length;
-      const spread = crowded ? 11 : 0;
-      const slotOffset = crowded ? (slot - (groupSize - 1) * 0.5) * spread : 0;
-      const tx = baseX + nx * slotOffset;
-      const ty = baseY + ny * slotOffset - (crowded ? 0 : 10);
-      const text = new global.PIXI.Text(
-        edge.label,
-        new global.PIXI.TextStyle({
-          fill: lineColor,
-          fontFamily: "Inter, sans-serif",
-          fontSize: 11,
-          fontWeight: "600"
-        })
-      );
-      text.anchor.set(0.5, 0.5);
-      text.x = tx;
-      text.y = ty;
-      root.addChild(text);
+      const placement = resolveEdgeLabelPosition(edge, source, target, groupSize, slot, mode);
+      const purpose = edge.labelPurpose || (groupSize > 1 ? "edgeChip" : "edgeTiny");
+      const spec = buildTextSpec(mode, purpose, {
+        labelTone: edge.labelTone,
+        labelPurpose: edge.labelPurpose,
+        labelLayout: edge.labelLayout,
+        maxWidth: edge.labelMaxWidth
+      });
+      renderPixiLabelCard(root, edge.label, placement.x, placement.y, spec, tokens);
     }
   }
 
@@ -1162,7 +1558,7 @@
     root.addChild(pulseGraphics);
   }
 
-  function drawNode(root, node, position, accentInt, tokens) {
+  function drawNode(root, node, position, accentInt, tokens, sceneMode) {
     if (!global.PIXI || !global.PIXI.Graphics || !global.PIXI.Text || !global.PIXI.TextStyle) {
       return;
     }
@@ -1173,12 +1569,6 @@
     const fillColor = rgbToHexInt(fillRgb);
     const strokeColor = parseHexColor(tokens.ink, 0x1f2937);
     const radius = style.radius;
-
-    const glow = new global.PIXI.Graphics();
-    glow.beginFill(accentInt, 0.1);
-    glow.drawCircle(position.x, position.y, radius + 8);
-    glow.endFill();
-    root.addChild(glow);
 
     const shape = new global.PIXI.Graphics();
     shape.lineStyle(style.strokeWidth, strokeColor, 0.9);
@@ -1191,19 +1581,11 @@
     shape.endFill();
     root.addChild(shape);
 
-    const text = new global.PIXI.Text(
-      node.label,
-      new global.PIXI.TextStyle({
-        fill: parseHexColor(tokens.ink, 0x1f2937),
-        fontFamily: "Inter, sans-serif",
-        fontSize: node.kind === "operator" ? 12 : 11,
-        fontWeight: "700"
-      })
-    );
-    text.anchor.set(0.5, 0.5);
-    text.x = position.x;
-    text.y = position.y;
-    root.addChild(text);
+    if (node.label) {
+      const spec = buildTextSpec(sceneMode, node.labelPurpose || "nodePrimary", node);
+      const labelPlacement = resolveNodeLabelPlacement(node, position, sceneMode, { radius, mode: sceneMode });
+      renderPixiLabelCard(root, node.label, labelPlacement.x, labelPlacement.y, spec, tokens);
+    }
   }
 
   function drawSceneGraph(root, scene, positions, accent, stageIndex, reducedMotion, time) {
@@ -1242,7 +1624,8 @@
     }
     root.addChild(edgeGraphics);
 
-    addEdgeLabels(root, scene, positions, inkInt);
+    drawLayerCaptions(root, scene, positions, "pixi", tokens);
+    addEdgeLabels(root, scene, positions, scene.mode, tokens);
 
     for (let i = 0; i < scene.nodes.length; i += 1) {
       const node = scene.nodes[i];
@@ -1250,10 +1633,101 @@
       if (!pos) {
         continue;
       }
-      drawNode(root, node, pos, accentInt, tokens);
+      drawNode(root, node, pos, accentInt, tokens, scene.mode);
     }
 
     drawPulses(root, scene, positions, stageIndex, accentInt, reducedMotion, Number.isFinite(time) ? time : 0);
+  }
+
+  function drawLayerCaptions(root, scene, positions, mode, tokens) {
+    const captions = Array.isArray(scene.captions) ? scene.captions : [];
+    if (!captions.length || !tokens) {
+      return;
+    }
+    const safeMode = normalizeMode(mode || "");
+    const sceneMode = scene && scene.mode ? scene.mode : safeMode;
+    if (!global.PIXI || !global.PIXI.Graphics || !global.PIXI.Text || !global.PIXI.TextStyle || !positions) {
+      return;
+    }
+    for (let i = 0; i < captions.length; i += 1) {
+      const caption = captions[i];
+      if (!caption || !caption.text) {
+        continue;
+      }
+      if (caption.layout === "layerMarker") {
+        const tier = Number(caption.tier);
+        if (!Number.isFinite(tier)) {
+          continue;
+        }
+        const nodesInTier = scene.nodes.filter((node) => Number(node.tier) === tier);
+        if (!nodesInTier.length) {
+          continue;
+        }
+        let sumX = 0;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let count = 0;
+        for (let n = 0; n < nodesInTier.length; n += 1) {
+          const nId = nodesInTier[n].id;
+          const pos = positions[nId];
+          if (!pos) {
+            continue;
+          }
+          sumX += pos.x;
+          const nodeStyle = getNodeStyle(nodesInTier[n].kind);
+          const nodeRadius = nodeStyle ? nodeStyle.radius : 14;
+          minY = Math.min(minY, pos.y - nodeRadius - 6);
+          maxY = Math.max(maxY, pos.y + nodeRadius + 6);
+          count += 1;
+        }
+        if (!count) {
+          continue;
+        }
+        const avgX = sumX / count;
+        const spec = buildTextSpec(sceneMode, caption.purpose || "heading", caption);
+        const markerWidth = Math.max(48, spec.chipPaddingX * 2 + 26);
+        const markerHeight = Math.max(44, (maxY - minY) + 20);
+        const markerX = avgX - markerWidth * 0.5;
+        const markerY = minY - 12;
+        const marker = new global.PIXI.Graphics();
+        marker.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), 0.28);
+        marker.drawRoundedRect(markerX, markerY, markerWidth, markerHeight, 20);
+        marker.lineStyle(1, parseHexColor(tokens.ink, 0x1f2937), 0.65);
+        marker.drawRoundedRect(markerX, markerY, markerWidth, markerHeight, 20);
+        marker.endFill();
+        root.addChild(marker);
+        renderPixiLabelCard(root, caption.text, avgX, markerY + markerHeight * 0.45, spec, tokens);
+        continue;
+      }
+      const spec = buildTextSpec(sceneMode, caption.purpose || "caption", caption);
+      let x = 0;
+      let y = 0;
+      const sceneW = state.width;
+      const sceneH = state.height;
+      if (caption.layout === "top") {
+        x = sceneW * 0.5;
+        y = 16;
+      } else if (caption.layout === "rightTop") {
+        x = sceneW * 0.82;
+        y = Math.max(22, 10 + i * 30);
+      } else if (caption.layout === "rightBottom") {
+        x = sceneW * 0.84;
+        y = sceneH - 38 - i * 16;
+      } else if (caption.layout === "leftTop") {
+        x = 18;
+        y = 16 + i * 32;
+      } else if (caption.layout === "leftBottom") {
+        x = 18;
+        y = sceneH - 28 - i * 28;
+      } else if (caption.layout === "bottom") {
+        x = sceneW * 0.5;
+        y = sceneH - 28;
+      } else {
+        x = 18;
+        y = 16;
+      }
+      renderPixiLabelCard(root, caption.text, x, y, spec, tokens);
+    }
   }
 
   function drawFallbackSparks(root, positions, stageNodes, accentInt, time) {
@@ -1366,33 +1840,7 @@
     roundRectPath(context, panelX + 8, panelY + 8, Math.max(24, panelW - 16), Math.max(24, panelH - 16), 14);
     context.fill();
 
-    const incoming = Object.create(null);
-    const slotMap = Object.create(null);
-    const countMap = Object.create(null);
-    for (let i = 0; i < sceneSafe.edges.length; i += 1) {
-      const edge = sceneSafe.edges[i];
-      if (!edge.label) {
-        continue;
-      }
-      if (!incoming[edge.target]) {
-        incoming[edge.target] = [];
-      }
-      incoming[edge.target].push(edge);
-    }
-    const targetIds = Object.keys(incoming);
-    for (let i = 0; i < targetIds.length; i += 1) {
-      const targetId = targetIds[i];
-      const group = incoming[targetId];
-      group.sort((a, b) => {
-        const ay = positions[a.source] ? positions[a.source].y : 0;
-        const by = positions[b.source] ? positions[b.source].y : 0;
-        return ay - by;
-      });
-      countMap[targetId] = group.length;
-      for (let j = 0; j < group.length; j += 1) {
-        slotMap[group[j].id] = j;
-      }
-    }
+    const { countMap, slotMap } = buildEdgeLabelMeta(sceneSafe, positions);
 
     for (let i = 0; i < sceneSafe.edges.length; i += 1) {
       const edge = sceneSafe.edges[i];
@@ -1428,23 +1876,14 @@
       }
       const groupSize = countMap[edge.target] || 1;
       const slot = slotMap[edge.id] || 0;
-      const crowded = groupSize > 1;
-      const t = crowded ? 0.45 : 0.4;
-      const dx = target.x - source.x;
-      const dy = target.y - source.y;
-      const length = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
-      const nx = -dy / length;
-      const ny = dx / length;
-      const spread = crowded ? 11 : 0;
-      const slotOffset = crowded ? (slot - (groupSize - 1) * 0.5) * spread : 0;
-      const labelX = panelX + source.x + dx * t + nx * slotOffset;
-      const labelY = panelY + source.y + dy * t + ny * slotOffset - (crowded ? 0 : 10);
-      context.fillStyle = rgbToRgba(toRgb("#" + inkInt.toString(16).padStart(6, "0")), 1);
-      context.font = "600 11px Inter, sans-serif";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillText(edge.label, labelX, labelY);
+      const placement = resolveEdgeLabelPosition(edge, source, target, groupSize, slot, scene.mode || "network_basic");
+      const spec = buildTextSpec(sceneSafe.mode, edge.labelPurpose || (groupSize > 1 ? "edgeChip" : "edgeTiny"), edge);
+      const labelX = panelX + placement.x;
+      const labelY = panelY + placement.y;
+      renderLabelCard(context, edge.label, labelX, labelY, spec, tokens, sceneSafe.mode);
     }
+
+    drawCanvasLayerCaptions(context, rect, sceneSafe, positions, tokens, sceneSafe.mode);
 
     for (let i = 0; i < sceneSafe.nodes.length; i += 1) {
       const node = sceneSafe.nodes[i];
@@ -1475,11 +1914,9 @@
       context.fill();
       context.stroke();
 
-      context.fillStyle = rgbToRgba(toRgb("#" + strokeColor.toString(16).padStart(6, "0")), 1);
-      context.font = `700 ${node.kind === "operator" ? 12 : 11}px Inter, sans-serif`;
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.fillText(node.label, x, y);
+      const spec = buildTextSpec(sceneSafe.mode, node.labelPurpose || "nodePrimary", node);
+      const labelPlacement = resolveNodeLabelPlacement(node, { x, y }, sceneSafe.mode || "network_basic", { radius });
+      renderLabelCard(context, node.label, labelPlacement.x, labelPlacement.y, spec, tokens, sceneSafe.mode);
     }
 
     if (!reducedMotion) {
@@ -1509,6 +1946,100 @@
 
     context.restore();
     return true;
+  }
+
+  function drawCanvasLayerCaptions(context, rect, scene, positions, tokens, mode) {
+    const safeMode = normalizeMode(mode || "network_basic");
+    const captions = Array.isArray(scene.captions) ? scene.captions : [];
+    if (!captions.length) {
+      return;
+    }
+    const safeRect = rect || { x: 0, y: 0, w: 0, h: 0 };
+    const panelX = Number(safeRect.x) || 0;
+    const panelY = Number(safeRect.y) || 0;
+    const panelW = Math.max(1, Number(safeRect.w) || 0);
+    const panelH = Math.max(1, Number(safeRect.h) || 0);
+    for (let i = 0; i < captions.length; i += 1) {
+      const caption = captions[i];
+      if (!caption || !caption.text) {
+        continue;
+      }
+      if (caption.layout === "layerMarker") {
+        const tier = Number(caption.tier);
+        if (!Number.isFinite(tier)) {
+          continue;
+        }
+        const layerNodes = scene.nodes.filter((node) => Number(node.tier) === tier);
+        let sumX = 0;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        let count = 0;
+        for (let n = 0; n < layerNodes.length; n += 1) {
+          const pos = positions[layerNodes[n].id];
+          if (!pos) {
+            continue;
+          }
+          const style = getNodeStyle(layerNodes[n].kind);
+          const radius = style ? style.radius : 14;
+          sumX += pos.x;
+          minY = Math.min(minY, pos.y - radius - 4);
+          maxY = Math.max(maxY, pos.y + radius + 4);
+          count += 1;
+        }
+        if (!count) {
+          continue;
+        }
+        const avgX = sumX / count;
+        const spec = buildTextSpec(safeMode, caption.purpose || "heading", caption);
+        const markerW = Math.max(44, spec.chipPaddingX * 2 + 20);
+        const markerH = Math.max(42, maxY - minY + 18);
+        const markerX = panelX + avgX - markerW * 0.5;
+        const markerY = panelY + minY - 12;
+        context.fillStyle = rgbToRgba(toRgb("#" + (tokens.fog || "#e2e8f0").replace("#", "")), 0.28);
+        context.strokeStyle = rgbToRgba(toRgb("#" + (tokens.ink || "#1f2937").replace("#", "")), 0.65);
+        context.lineWidth = 1;
+        roundRectPath(context, markerX, markerY, markerW, markerH, 20);
+        context.fill();
+        context.stroke();
+        renderLabelCard(
+          context,
+          caption.text,
+          panelX + avgX,
+          markerY + markerH * 0.45,
+          spec,
+          tokens,
+          safeMode
+        );
+        continue;
+      }
+
+      const spec = buildTextSpec(safeMode, caption.purpose || "caption", caption);
+      let x = 0;
+      let y = 0;
+      if (caption.layout === "top") {
+        x = panelX + panelW * 0.5;
+        y = panelY + 16;
+      } else if (caption.layout === "rightTop") {
+        x = panelX + panelW * 0.84;
+        y = panelY + 20 + i * 28;
+      } else if (caption.layout === "rightBottom") {
+        x = panelX + panelW * 0.84;
+        y = panelY + panelH - 36 - i * 16;
+      } else if (caption.layout === "leftTop") {
+        x = panelX + 18;
+        y = panelY + 16 + i * 28;
+      } else if (caption.layout === "leftBottom") {
+        x = panelX + 18;
+        y = panelY + panelH - 30 - i * 26;
+      } else if (caption.layout === "bottom") {
+        x = panelX + panelW * 0.5;
+        y = panelY + panelH - 24;
+      } else {
+        x = panelX + 18;
+        y = panelY + 16;
+      }
+      renderLabelCard(context, caption.text, x, y, spec, tokens, safeMode);
+    }
   }
 
   function updateParticleEmitter(stageNodes, positions, accent, reducedMotion, deltaSec) {

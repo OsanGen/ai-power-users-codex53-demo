@@ -4,6 +4,7 @@ Purpose:
 - Replace legacy lesson slide doodles with a semantic, mode-specific neural diagram engine.
 - Render concept-accurate visuals for lesson/death-lesson cards with staged signal flow.
 - Keep diagram quality high while preserving runtime safety through hard fallback to legacy canvas rendering.
+- Execute a typography-first polish pass for all neural diagram modes without changing graph topology or learning logic, so the text system remains the controllable visual boundary for OSAN-brand compliance.
 
 Inputs:
 - `visualMode` string from narrative teach/death cards (`network_basic`, `inputs_nodes`, `weights_knobs`, `sum_bias`, `activation_gate`, `layers_stack`, `loss_meter`, `backprop_arrows`, `generalize_explain`).
@@ -33,6 +34,14 @@ Outputs / API:
     - last-failure details (`lastFailure`, `lastFailurePhase`, `lastFailureAt`, `failureCount`)
     - `schemaVersion`
 
+- `Text-system contract (lesson-diagram-v2 only, render-facing only)`
+  - `textPresets` and `SCENE_TEXT_PRESETS` define size/weight/contrast behavior for:
+    - `nodePrimary`, `nodeSecondary`, `edgeChip`, `edgeTiny`, `heading`, `caption`
+  - New node and edge metadata fields are optional and render-only:
+    - `labelTone`, `labelLayout`, `labelPurpose`, `labelMaxWidth`
+  - All label rendering now routes through `buildTextSpec()` -> `resolve*LabelPlacement()` -> `render*LabelCard()`.
+  - No graph data model semantics were changed; only presentation metadata was added.
+
 State / Edges:
 - Layout cache is keyed by `mode + size bucket` and reuses cached placements.
 - Manual layered layout is always available; ELK layout upgrades cache asynchronously when available.
@@ -60,6 +69,8 @@ Acceptance checks:
 - Graph content remains centered vertically/horizontally within the lesson diagram card; no large lower dead-zone caused by top anchoring.
 - No visible “old layout then new layout” flash should occur while remaining on the same lesson card view.
 - Diagram updates preserve existing lesson/death-lesson flow and input prompts (`Enter or Space` continue).
+- `loss_meter`, `backprop_arrows`, and `generalize_explain` text labels stay under the established visual-noise budget and do not exceed readable density in dense scenes.
+- `activation_gate`, `inputs_nodes`, and `weights_knobs` use compact lane-based edge text placement to avoid overlap at edge midpoints.
 - Reduced-motion mode renders readable static diagrams with no pulse-driven motion dependency.
 - When Pixi/ELK/emitter are unavailable, legacy `drawLessonSlideDiagramFallback()` path still draws with no runtime exceptions.
 - `AIPU.render.renderGameToText()` includes `debug.lessonDiagram` state during lessons for deterministic automation checks.
