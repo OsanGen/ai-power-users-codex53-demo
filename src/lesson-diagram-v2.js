@@ -34,6 +34,8 @@
     elkEnabled: false,
     layoutCache: Object.create(null),
     layoutPending: Object.create(null),
+    activeLayoutKey: "",
+    activeLayoutSource: "manual",
     emitter: null,
     emitterContainer: null,
     emitterFailed: false,
@@ -327,10 +329,12 @@
   function fitPositionsToViewport(scene, inputPositions, width, height) {
     const safeWidth = Math.max(32, Number(width) || 32);
     const safeHeight = Math.max(32, Number(height) || 32);
-    const safeInsetX = LAYOUT_MARGIN + 8;
-    const safeInsetY = LAYOUT_MARGIN + 8;
-    const availW = Math.max(1, safeWidth - safeInsetX * 2);
-    const availH = Math.max(1, safeHeight - safeInsetY * 2);
+    const padLeft = LAYOUT_MARGIN + 24;
+    const padRight = LAYOUT_MARGIN + 56;
+    const padTop = LAYOUT_MARGIN + 16;
+    const padBottom = LAYOUT_MARGIN + 24;
+    const availW = Math.max(1, safeWidth - padLeft - padRight);
+    const availH = Math.max(1, safeHeight - padTop - padBottom);
 
     let minX = Infinity;
     let minY = Infinity;
@@ -361,8 +365,8 @@
     const usedH = spanY * scale;
     const extraX = (availW - usedW) * 0.5;
     const extraY = (availH - usedH) * 0.5;
-    const baseX = safeInsetX + extraX;
-    const baseY = safeInsetY + extraY;
+    const baseX = padLeft + extraX;
+    const baseY = padTop + extraY;
 
     const output = Object.create(null);
     for (let i = 0; i < scene.nodes.length; i += 1) {
@@ -531,11 +535,11 @@
         if (!normalized) {
           return;
         }
-        state.layoutCache[key] = {
-          scene,
-          positions: normalized,
-          source: "elk"
-        };
+        const entry = state.layoutCache[key];
+        if (!entry || !entry.scene || entry.scene.mode !== scene.mode) {
+          return;
+        }
+        entry.elkPositions = normalized;
       })
       .catch((error) => {
         void error;
@@ -550,17 +554,16 @@
     const key = getLayoutKey(mode, width, height);
     const cached = state.layoutCache[key];
     if (cached && cached.scene.mode === scene.mode) {
+      requestElkLayout(scene.mode, width, height);
       return cached;
     }
-    const manual = buildManualLayout(scene, bucketSize(width), bucketSize(height));
-    const entry = {
+    state.layoutCache[key] = {
       scene,
-      positions: manual,
-      source: "manual"
+      manualPositions: buildManualLayout(scene, bucketSize(width), bucketSize(height)),
+      elkPositions: null
     };
-    state.layoutCache[key] = entry;
     requestElkLayout(scene.mode, width, height);
-    return entry;
+    return state.layoutCache[key];
   }
 
   function clearPixiSurface() {
@@ -810,15 +813,18 @@
       const groupSize = countMap[edge.target] || 1;
       const slot = slotMap[edge.id] || 0;
       const crowded = groupSize > 1;
-      const t = crowded ? 0.3 : 0.52;
+      const t = crowded ? 0.45 : 0.4;
       const dx = target.x - source.x;
       const dy = target.y - source.y;
       const baseX = source.x + dx * t;
       const baseY = source.y + dy * t;
-      const spread = crowded ? 12 : 0;
+      const length = Math.max(0.001, Math.sqrt(dx * dx + dy * dy));
+      const nx = -dy / length;
+      const ny = dx / length;
+      const spread = crowded ? 11 : 0;
       const slotOffset = crowded ? (slot - (groupSize - 1) * 0.5) * spread : 0;
-      const tx = baseX;
-      const ty = baseY + slotOffset - (crowded ? 0 : 11);
+      const tx = baseX + nx * slotOffset;
+      const ty = baseY + ny * slotOffset - (crowded ? 0 : 10);
       const text = new global.PIXI.Text(
         edge.label,
         new global.PIXI.TextStyle({
@@ -1036,9 +1042,28 @@
     }
 
     try {
+      const layoutKey = getLayoutKey(resolvedMode, width, height);
       const layoutEntry = getSceneLayout(resolvedMode, width, height);
       const scene = layoutEntry.scene;
-      const positions = layoutEntry.positions;
+      if (state.activeLayoutKey !== layoutKey) {
+        state.activeLayoutKey = layoutKey;
+        state.activeLayoutSource = layoutEntry.elkPositions ? "elk" : "manual";
+      }
+      const useElk = state.activeLayoutSource === "elk" && !!layoutEntry.elkPositions;
+      const positions = useElk ? layoutEntry.elkPositions : layoutEntry.manualPositions;
+      if (!positions) {
+        state.debug = {
+          mode: resolvedMode,
+          layoutVersion: "manual",
+          activeStage: 0,
+          fallbackUsed: true,
+          pixiAvailable: true,
+          elkAvailable: !!getElkCtor(),
+          emitterAvailable: !!state.emitter && !state.emitterFailed,
+          schemaVersion: SCHEMA_VERSION
+        };
+        return false;
+      }
       const stageIndex = resolveStage(scene, time, !!reducedMotion);
       const stageNodes = Array.isArray(scene.stages) ? scene.stages[stageIndex] || [] : [];
       const deltaSec = ACTIVE_STAGE_SECONDS / 60;
@@ -1052,7 +1077,7 @@
 
       state.debug = {
         mode: resolvedMode,
-        layoutVersion: layoutEntry.source,
+        layoutVersion: useElk ? "elk" : "manual",
         activeStage: stageIndex,
         fallbackUsed: false,
         pixiAvailable: true,
