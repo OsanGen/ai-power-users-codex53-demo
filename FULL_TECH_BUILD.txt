@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T09:09:22-05:00
+- UpdatedAt: 2026-03-03T09:13:52-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 3300a4a
+- Branch, HEAD commit hash: main, d0af7b0
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and temporary capture artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -52,7 +52,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
   - Shared label typography system in `src/lesson-diagram-v2.js` (scene presets + `buildTextSpec`, optional label metadata, shared node/edge/caption render helpers).
   - Per-mode layout text polish for all neural modes, including `network_basic`/`inputs_nodes` checkpoint and remaining scene overrides.
   - Deterministic screenshot sweep generated for all lesson modes via temporary capture script.
-  - `drawLessonSlideDiagram` delegates V2 diagrams with fallback to legacy canvas when runtime dependencies fail.
+  - `drawLessonSlideDiagram` delegates V2 diagrams with a V2-style deterministic canvas fallback when runtime dependencies fail.
   - `render_game_to_text` includes lesson diagram debug payload.
 - What is in progress:
   - None blocked; visual pass completed with renderable captures; optional manual pixel review still pending when direct image viewer tooling is unavailable in session.
@@ -62,6 +62,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` is the source of in-flight status.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T09:13:52-05:00 | Replaced `drawLessonSlideDiagramFallback` legacy brain sketch with a V2-style labeled network fallback so runtime failures no longer visually regress to the old diagram language | `src/render.js`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:09:22-05:00 | Force-refresh lesson-diagram runtime assets by bumping `index.html` cache tokens for `src/lesson-diagram-v2.js` and `src/render.js` to prevent stale legacy diagram rendering in cached clients | `index.html`, `FULL_TECH_BUILD.txt`
 - 2026-03-02T17:40:11-05:00 | Deployed latest `main` changes to live GitHub Pages branch `gh-pages`; live head is now `ae5d7ed` | `FULL_TECH_BUILD.txt`, `src/lesson-diagram-v2.js`, `index.html`
 - 2026-03-02T17:23:58-05:00 | Implemented scene-agnostic diagram text preset system and per-mode label polish in `src/lesson-diagram-v2.js` with node/edge/caption rendering pipeline updates for all neural modes; reran per-mode capture sweep for validation | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `output/lesson-diagram-*.png`, `tmp-capture-diagram-modes.cjs`
