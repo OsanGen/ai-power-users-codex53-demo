@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T09:17:28-05:00
+- UpdatedAt: 2026-03-03T09:57:02-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, a62c040
+- Branch, HEAD commit hash: main, caa9073
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and temporary capture artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -62,6 +62,12 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` is the source of in-flight status.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T09:57:02-05:00 | Fixed burst hint timing mismatch by binding dual/omni hint copy to runtime constants (`REAR_SHOT_TRIGGER_SECONDS`, `ALL_DIRECTION_SHOT_TRIGGER_SECONDS`) and converting narrative copy to `{seconds}` templates | `src/render.js`, `narrative.js`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T09:26:37-05:00 | Deployment push request executed; `origin/main` and `origin/gh-pages` already matched local `main` at `127791d` (no additional publish delta) | `FULL_TECH_BUILD.txt`
+- 2026-03-03T09:25:48-05:00 | Implemented source-level run-summary copy fix by removing `{count}` placeholders from narrative stat labels and deployed commit `127791d` to `main` and `gh-pages` | `narrative.js`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T09:24:42-05:00 | Bumped `index.html` render asset token to `v=20260303-2` and deployed commit `0547d15` so death-screen stat chip typography polish is cache-busted for clients on stale `render.js` | `index.html`, `src/render.js`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T09:22:37-05:00 | Polished death-screen run-summary stat chips to remove `{count}` label clutter and use a cleaner label-left/value-right metric layout; deployed commit `d133ef9` to `main` and `gh-pages` | `src/render.js`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T09:18:40-05:00 | Verified deploy push request: `main` and `gh-pages` are both up to date on origin at `9bb7a9b` (no new delta to publish) | `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:17:28-05:00 | Verified live lesson slide render on deployed site now uses V2-style fallback network visual (old brain sketch removed) via Playwright capture | `src/render.js`, `tmp-live-lesson-slide-after-fix.png`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:17:06-05:00 | Pushed fallback-hardening and cache-bust commits to `origin/main` and synced `origin/gh-pages` to the same head (`a62c040`) for live rollout | `src/render.js`, `index.html`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:13:52-05:00 | Replaced `drawLessonSlideDiagramFallback` legacy brain sketch with a V2-style labeled network fallback so runtime failures no longer visually regress to the old diagram language | `src/render.js`, `FULL_TECH_BUILD.txt`
