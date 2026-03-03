@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T13:13:19-05:00
+- UpdatedAt: 2026-03-03T13:16:56-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 977a447
+- Branch, HEAD commit hash: main, cd7702b
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -80,6 +80,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T13:16:56-05:00 | Deployed top HUD compact v3 commit `cd7702b` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T13:13:19-05:00 | Implemented top HUD compact v3 with tighter single-row geometry, shield micro-badge, compact status copy keys, event-driven burst/upgrade/music toasts, and initial-load toast suppression; bumped `narrative.js` + `render.js` cache tokens | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:38:52-05:00 | Deployed HUD polish v2 commit `977a447` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:36:49-05:00 | Implemented HUD polish v2 (contextual side-card priority, compact status copy, timer-led accent governance, compact upgrades card, rear-hint restyle) and bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
