@@ -139,11 +139,6 @@
   const HUD_BURST_TOAST_MS = 2400;
   const HUD_UPGRADE_TOAST_MS = 2600;
   const HUD_TOAST_ROW_Y = 90;
-  const HUD_DOCK_MARGIN_X = 70;
-  const HUD_DOCK_HEIGHT = 48;
-  const HUD_DOCK_OFFSET_Y = 8;
-  const HUD_DOCK_INSET_X = 8;
-  const HUD_DOCK_CARD_Y_PAD = 3;
   const hudTransientState = {
     musicSignature: "",
     musicToastUntil: 0,
@@ -6891,41 +6886,32 @@
     };
   }
 
-  function resolveHudToastDockLayout() {
-    const railX = HUD_DOCK_MARGIN_X;
-    const railW = WIDTH - railX * 2;
-    const minDockY = Math.max(120, HUD_TOAST_ROW_Y + 92);
-    const preferredY = Math.floor(WORLD.y + WORLD.h + HUD_DOCK_OFFSET_Y);
-    const railY = clamp(preferredY, minDockY, HEIGHT - HUD_DOCK_HEIGHT - 8);
-    const railH = HUD_DOCK_HEIGHT;
-    const rowY = railY + HUD_DOCK_CARD_Y_PAD;
-    const leftX = railX + HUD_DOCK_INSET_X;
+  function resolveTopHudToastLayout(hudLayout) {
+    const rowX = hudLayout.hudX;
+    const rowW = hudLayout.hudW;
+    const panelH = 42;
+    const minY = hudLayout.hudY + hudLayout.hudH + 4;
+    const maxY = WORLD.y - panelH - 8;
+    const rowY = clamp(HUD_TOAST_ROW_Y, minY, maxY);
+    const leftW = 216;
     const rightW = 220;
-    const rightX = railX + railW - HUD_DOCK_INSET_X - rightW;
-    const centerX = railX + railW * 0.5;
+    const laneGap = 12;
+    const leftX = rowX;
+    const rightX = rowX + rowW - rightW;
+    const centerX = leftX + leftW + laneGap;
+    const centerW = Math.max(220, rightX - centerX - laneGap);
     return {
-      railX,
-      railY,
-      railW,
-      railH,
+      rowX,
       rowY,
+      rowW,
+      panelH,
       leftX,
+      leftW,
       rightX,
       rightW,
-      centerX
+      centerX,
+      centerW
     };
-  }
-
-  function drawHudToastDock() {
-    const dock = resolveHudToastDockLayout();
-    ctx.fillStyle = rgba(TOKENS.white, 0.82);
-    fillRoundRect(dock.railX, dock.railY, dock.railW, dock.railH, 12);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 1.6;
-    strokeRoundRect(dock.railX, dock.railY, dock.railW, dock.railH, 12);
-    ctx.fillStyle = rgba(TOKENS.ink, 0.035);
-    fillRoundRect(dock.railX + 10, dock.railY + 6, Math.max(16, dock.railW - 20), 2, 999);
-    return dock;
   }
 
   function drawHud(floor, accent) {
@@ -7057,12 +7043,12 @@
     ctx.fillStyle = rgba(accent, 0.84);
     fillRoundRect(timerMeterX + 2, timerMeterY + 2, Math.max(0, (timerMeterW - 4) * ratio), timerMeterH - 4, 999);
 
-    const dockLayout = drawHudToastDock();
-    const attackCardShown = drawAttackDisableHud(accent, dockLayout);
-    const burstCardShown = drawBurstStatusHud(accent, dockLayout, attackCardShown);
-    const musicCardShown = drawMusicToggleHud(accent, dockLayout, attackCardShown || burstCardShown);
-    drawRearShotHint(accent, dockLayout, attackCardShown || burstCardShown || musicCardShown);
-    drawUpgradeHudPanel(accent, dockLayout);
+    const toastLayout = resolveTopHudToastLayout(layout);
+    const attackCardShown = drawAttackDisableHud(accent, toastLayout);
+    const burstCardShown = drawBurstStatusHud(accent, toastLayout, attackCardShown);
+    const musicCardShown = drawMusicToggleHud(accent, toastLayout, attackCardShown || burstCardShown);
+    drawRearShotHint(accent, toastLayout, attackCardShown || burstCardShown || musicCardShown);
+    drawUpgradeHudPanel(accent, toastLayout);
     drawDebugStatsLine(accent);
   }
 
@@ -7103,8 +7089,8 @@
 
     const panelX = dockLayout ? dockLayout.leftX : 70;
     const panelY = dockLayout ? dockLayout.rowY : HUD_TOAST_ROW_Y;
-    const panelW = 216;
-    const panelH = 42;
+    const panelW = dockLayout ? dockLayout.leftW : 216;
+    const panelH = dockLayout ? dockLayout.panelH : 42;
 
     drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 10);
 
@@ -7124,20 +7110,8 @@
               seconds: burst.secondsToNext.toFixed(1)
             });
     ctx.font = '600 10px "Inter", sans-serif';
-    const meterW = 68;
-    const meterX = panelX + panelW - meterW - 10;
-    const meterY = panelY + 23;
-    const detailMaxW = Math.max(52, meterX - (panelX + 10) - 8);
     ctx.fillStyle = rgba(TOKENS.ink, 0.8);
-    ctx.fillText(fitCanvasText(detail, detailMaxW), panelX + 10, panelY + 24);
-    const meterH = 8;
-    ctx.fillStyle = rgba(TOKENS.ink, 0.11);
-    fillRoundRect(meterX, meterY, meterW, meterH, 999);
-    ctx.fillStyle = rgba(TOKENS.ink, 0.28);
-    fillRoundRect(meterX + 1, meterY + 1, Math.max(0, (meterW - 2) * burst.progressToNext), meterH - 2, 999);
-    ctx.strokeStyle = rgba(TOKENS.ink, 0.5);
-    ctx.lineWidth = 1;
-    strokeRoundRect(meterX, meterY, meterW, meterH, 999);
+    ctx.fillText(fitCanvasText(detail, panelW - 20), panelX + 10, panelY + 24);
 
     if (isEnhancedMode) {
       ctx.fillStyle = rgba(TOKENS.ink, 0.34);
@@ -7158,8 +7132,8 @@
 
     const panelX = dockLayout ? dockLayout.leftX : 70;
     const panelY = dockLayout ? dockLayout.rowY : HUD_TOAST_ROW_Y;
-    const panelW = 216;
-    const panelH = 42;
+    const panelW = dockLayout ? dockLayout.leftW : 216;
+    const panelH = dockLayout ? dockLayout.panelH : 42;
     const recoveryProgress = clamp(1 - lockout.progress, 0, 1);
 
     drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 10);
@@ -7269,9 +7243,11 @@
     const hintDuration = Math.max(0.001, AIPU.constants.REAR_SHOT_NOTICE_DURATION || 4.2);
     const visibility = clamp(game.rearShotHintTimer / hintDuration, 0, 1);
     const alpha = visibility > 0.15 ? 1 : visibility / 0.15;
-    const panelW = 340;
+    const panelW = dockLayout ? Math.min(340, dockLayout.centerW) : 340;
     const panelH = 42;
-    const panelX = dockLayout ? Math.floor(dockLayout.centerX - panelW * 0.5) : Math.floor((WIDTH - panelW) * 0.5);
+    const panelX = dockLayout
+      ? dockLayout.centerX + Math.floor((dockLayout.centerW - panelW) * 0.5)
+      : Math.floor((WIDTH - panelW) * 0.5);
     const panelY = dockLayout ? dockLayout.rowY : HUD_TOAST_ROW_Y;
 
     ctx.save();

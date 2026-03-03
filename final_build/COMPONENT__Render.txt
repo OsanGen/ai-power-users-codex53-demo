@@ -8,6 +8,7 @@ Purpose:
 - HUD compact v3 further compresses the top rail to a single persistent row (HP/floor/timer core only), converts shield into a micro-badge, and shifts burst/upgrade/music status into time-bounded contextual toasts.
 - HUD compactness v4 replaces leftover-driven sizing with content-fit top-row chip layout (`HP`, `Floor`, `Space Pulse`, `Survive`), applies explicit overflow degrade order, keeps neutral gutters instead of inflating chips, and tightens toast widths to preserve row-1 dominance.
 - Bottom HUD dock v1 relocates transient gameplay status cards from top overlap to a dedicated bottom frame lane (outside arena), with one-left-priority stream (`attack-disable > burst > music`, rear-shot hint only when unblocked) and right-side upgrade toast summaries for minimal-noise OSAN hierarchy.
+- Top whisper strip v5 removes the bottom dock and repositions transient status cards/upgrades into the upper gap between persistent HUD and world frame, preserving one-left-priority stream plus right upgrade toast while reducing gameplay occlusion and overall noise.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add adaptive render-performance governance in `draw()` with runtime modes (`off|auto|force-low|force-medium|force-high`), low-cost quality fallback for GLFX/distortion/trails/particles/trails, and dynamic cadence/pool scaling.
 - Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.
@@ -59,6 +60,7 @@ State/Edges:
 - Secondary HUD cards now follow a priority stack on the left dock (`attack-disable`, then actionable `burst`, then transient `music` toast), while upgrades remain right-docked in compact list form with hidden-row summarization.
 - Secondary HUD cards now avoid persistent clutter: burst and upgrades are event/signature-driven toast cards with expiry timers, while only critical lockout state persists while active.
 - Transient HUD dock now anchors below the WORLD playfield in a compact, neutral lane so no gameplay-space overlay competes with proof objects.
+- Transient status lane now anchors above the WORLD playfield (upper whisper strip) with no bottom rail chrome, so notifications stay visible without intruding on gameplay proof region.
 - Uses `withRectClip` for lesson/death text clipping and `withClipRect` for rounded-panel masking.
 - Keeps overlay text readable by top-aligned clipping paths with insets.
 - Lesson diagram path is now two-tiered:
