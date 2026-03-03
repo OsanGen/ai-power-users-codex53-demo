@@ -6765,11 +6765,13 @@
     const hudX = 70;
     const hudY = 18;
     const hudW = WIDTH - hudX * 2;
-    const hudH = 64;
+    const hudH = 108;
     const cardInset = 8;
     const chipGap = 8;
     const cardY = hudY + 7;
-    const cardH = hudH - 14;
+    const cardH = 44;
+    const toastRowY = cardY + cardH + 8;
+    const toastRowH = 42;
     const cardMidY = cardY + cardH * 0.5;
     const laneW = hudW - cardInset * 2;
     const fixedGapCount = 3;
@@ -6882,20 +6884,20 @@
       remainingCharges,
       shieldLabel,
       shieldBadgeW,
-      tightFloor
+      tightFloor,
+      toastRowY,
+      toastRowH
     };
   }
 
   function resolveTopHudToastLayout(hudLayout) {
-    const rowX = hudLayout.hudX;
-    const rowW = hudLayout.hudW;
-    const panelH = 42;
-    const minY = hudLayout.hudY + hudLayout.hudH + 4;
-    const maxY = WORLD.y - panelH - 8;
-    const rowY = clamp(HUD_TOAST_ROW_Y, minY, maxY);
+    const rowX = hudLayout.hudX + 8;
+    const rowW = hudLayout.hudW - 16;
+    const panelH = hudLayout.toastRowH || 42;
+    const rowY = hudLayout.toastRowY || HUD_TOAST_ROW_Y;
     const leftW = 216;
     const rightW = 220;
-    const laneGap = 12;
+    const laneGap = 10;
     const leftX = rowX;
     const rightX = rowX + rowW - rightW;
     const centerX = leftX + leftW + laneGap;
@@ -6942,7 +6944,9 @@
       remainingCharges,
       shieldLabel,
       shieldBadgeW,
-      tightFloor
+      tightFloor,
+      toastRowY,
+      toastRowH
     } = layout;
 
     ctx.fillStyle = TOKENS.white;
@@ -6950,6 +6954,9 @@
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     strokeRoundRect(hudX, hudY, hudW, hudH, 18);
+    const dividerY = toastRowY - 5;
+    ctx.fillStyle = rgba(TOKENS.ink, 0.06);
+    fillRoundRect(hudX + 12, dividerY, hudW - 24, 1.5, 999);
 
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";

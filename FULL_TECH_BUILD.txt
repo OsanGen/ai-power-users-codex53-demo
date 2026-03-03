@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T14:44:50-05:00
+- UpdatedAt: 2026-03-03T14:58:44-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 6cb31f2
+- Branch, HEAD commit hash: main, da96d08
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -60,6 +60,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Top-bar integrated notifications v6: expanded the top HUD to a two-row shell and moved transient status/upgrades into row 2 inside the top bar (left priority statuses, center rear-shot hint, right upgrade toast), removing floating gap popups while keeping timer as the sole accent lead.
   - Top whisper strip v5: removed the bottom HUD dock and moved transient status/upgrades into the upper gap lane (left-priority state cards, center rear-shot hint when unblocked, right upgrade toast), reducing gameplay overlap noise while preserving compact top-row essentials.
   - Bottom HUD dock v1: moved transient gameplay notifications from top gameplay overlap into a dedicated compact bottom lane below the world area, keeping one-left-priority status stream (`attack-disable > burst > music`), contextual rear-shot hint, and right-side compact upgrade toast for lower-noise OSAN hierarchy.
   - Top HUD compactness v4: replaced leftover-driven top-row width math with content-fit chip layout (`HP`, `Floor`, `Space Pulse`, `Survive`), added explicit overflow degradation order (compact copy -> tighter ability width -> tighter survive width -> floor fit), tightened HP/ability grammar, and reduced secondary toast widths to remove oversized empty-space artifacts.
@@ -83,6 +84,9 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T14:58:44-05:00 | Implemented Top-bar integrated notifications v6 by expanding HUD shell to two rows and anchoring transient lanes inside top bar row 2; bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T14:54:30-05:00 | Verified live deployment serves updated tokens (`render.js?v=20260303-11`) and top-strip code paths (`resolveTopHudToastLayout`) with cache headers `max-age=600`; user-visible staleness likely browser/CDN cache on previously loaded page | `FULL_TECH_BUILD.txt`
+- 2026-03-03T14:48:24-05:00 | Deployed Top whisper strip v5 commit `da96d08` by pushing `main` and mirroring same head to `gh-pages` (initial mirror retry failed with transient GitHub HTTP 500, then succeeded) | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T14:44:50-05:00 | Implemented Top whisper strip v5 by removing bottom HUD dock constants/layout and re-anchoring transient status cards/upgrades to upper-gap lanes; bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T14:32:01-05:00 | Deployed Bottom HUD dock v1 commit `6cb31f2` by pushing `main` and mirroring the same head to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T14:29:28-05:00 | Implemented Bottom HUD dock v1 by re-anchoring transient toast/upgrade lanes below WORLD, compacting notification widths, and neutralizing non-timer accent usage; bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
