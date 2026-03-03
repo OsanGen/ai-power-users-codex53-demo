@@ -42,11 +42,11 @@ window.AI_POWER_USER_NARRATIVE = {
     },
     { floor: 9, title: "9) Generalize + explain", oneLiner: "A good net works on new cases and can be explained.",
       bullets: ["Test on data it never saw.", "Explain by strongest inputs and activations."],
-      tryThis: "Explain one guess in one sentence.", visualMode: "generalize_explain"
+      tryThis: "Explain one guess in one sentence.", visualMode: "generalize_explain_core"
     },
     { floor: 10, title: "10) Regularization", oneLiner: "Regularization stops memorizing noise.",
       bullets: ["Penalize extreme weights.", "Prefer generalize over memorize."],
-      tryThis: "Say: generalize > memorize.", visualMode: "generalize_explain"
+      tryThis: "Say: generalize > memorize.", visualMode: "regularization_guardrail"
     },
     { floor: 11, title: "11) Optimizers", oneLiner: "Optimizers decide how weights move.",
       bullets: ["Learning rate sets step size.", "Momentum smooths the path."],
@@ -66,7 +66,7 @@ window.AI_POWER_USER_NARRATIVE = {
     },
     { floor: 15, title: "15) Evaluate + ship", oneLiner: "You ship when results hold up.",
       bullets: ["Test on data it never saw.", "Track failures and iterate."],
-      tryThis: "Explain the win in 1 sentence.", visualMode: "generalize_explain"
+      tryThis: "Explain the win in 1 sentence.", visualMode: "evaluate_ship_gate"
     }
   ],
 

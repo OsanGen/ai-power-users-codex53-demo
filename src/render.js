@@ -3720,7 +3720,10 @@
       layers_stack: ["in1", "in2", "in3", "h1", "h2", "out"],
       loss_meter: ["pred", "target", "diff", "error", "loss", "goal"],
       backprop_arrows: ["x", "hidden", "h2", "y^", "loss", "grad"],
-      generalize_explain: ["train", "test", "batch", "model", "score", "ship"]
+      generalize_explain: ["train", "test", "batch", "model", "score", "ship"],
+      generalize_explain_core: ["test", "train", "model", "why", "score", "ship"],
+      regularization_guardrail: ["train", "batch", "model", "clip", "stable", "ship"],
+      evaluate_ship_gate: ["test", "audit", "score", "gate", "iterate", "ship"]
     });
     const edgeLabelSets = Object.freeze({
       inputs_nodes: Object.freeze({ 0: "x1", 2: "x2", 4: "x3", 6: "y" }),
@@ -3734,6 +3737,10 @@
 
     const labels = nodeLabelSets[safeMode] || nodeLabelSets.network_basic;
     const edgeLabels = edgeLabelSets[safeMode] || null;
+    const isLeanExplainMode =
+      safeMode === "generalize_explain_core" ||
+      safeMode === "regularization_guardrail" ||
+      safeMode === "evaluate_ship_gate";
     const pulse = reducedMotion ? 0.45 : Math.sin(now * 2.1) * 0.5 + 0.5;
     const phase = ((Math.floor(Math.max(0, now) / 1.1) % 3) + 3) % 3;
     const nodes = [
@@ -3797,14 +3804,14 @@
         const from = nodePos[pair[0]];
         const to = nodePos[pair[1]];
         const toTier = to.tier;
-        const active = toTier === phase;
-        ctx.strokeStyle = active ? rgba(accent, 0.7) : rgba(TOKENS.ink, 0.3);
-        ctx.lineWidth = active ? 2.4 : 1.8;
+        const active = !isLeanExplainMode && toTier === phase;
+        ctx.strokeStyle = isLeanExplainMode ? rgba(TOKENS.ink, 0.3) : active ? rgba(accent, 0.7) : rgba(TOKENS.ink, 0.3);
+        ctx.lineWidth = isLeanExplainMode ? 1.4 : active ? 2.4 : 1.8;
         ctx.beginPath();
         ctx.moveTo(from.x, from.y);
         ctx.lineTo(to.x, to.y);
         ctx.stroke();
-        if (active && !reducedMotion) {
+        if (active && !reducedMotion && !isLeanExplainMode) {
           const t = (pulse + i * 0.17) % 1;
           const px = from.x + (to.x - from.x) * t;
           const py = from.y + (to.y - from.y) * t;
@@ -3822,8 +3829,8 @@
 
       for (let i = 0; i < nodePos.length; i += 1) {
         const node = nodePos[i];
-        const active = node.tier === phase;
-        const radius = 11 + (active && !reducedMotion ? pulse * 1.8 : 0);
+        const active = !isLeanExplainMode && node.tier === phase;
+        const radius = 11 + (active && !reducedMotion && !isLeanExplainMode ? pulse * 1.8 : 0);
         ctx.fillStyle = active ? rgba(accent, 0.43) : TOKENS.white;
         ctx.strokeStyle = TOKENS.ink;
         ctx.lineWidth = 2;
@@ -3831,7 +3838,7 @@
         ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
-        drawChip(node.label, node.x, node.y - radius - 16, accent);
+        drawChip(node.label, node.x, node.y - radius - 16, isLeanExplainMode ? TOKENS.fog : accent);
       }
     });
     ctx.restore();

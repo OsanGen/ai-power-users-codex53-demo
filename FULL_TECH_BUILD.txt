@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T11:51:43-05:00
+- UpdatedAt: 2026-03-03T12:00:44-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, ea82b96
-- Dirty state: yes (`src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`, plus local `node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
+- Branch, HEAD commit hash: main, 0b836b5
+- Dirty state: yes (`narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`, plus local `node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -60,6 +60,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Floors 9/10/15 now use dedicated lean proof diagrams (`generalize_explain_core`, `regularization_guardrail`, `evaluate_ship_gate`) with reduced duplicate labeling, one-accent lane emphasis, and pulse suppression for OSAN-compliant noise levels.
   - Level-7 (`loss_meter`) OSAN cleanup: reduced chip/edge clutter, removed crowded `error` edge label, de-emphasized non-core lanes, disabled scene pulse motion, and tightened label vocabulary for clearer claim->proof read.
   - Layer-6 (`layers_stack`) right-edge containment patch: extra right inset in viewport fit and marker-center clamping in Pixi/canvas caption paths so the `Output` tier stays on-panel.
   - Deterministic bootstrap diagnostics and one-shot QA gates.
@@ -75,16 +76,16 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T12:00:44-05:00 | Implemented lean-noise remediation for floors 9/10/15: remapped visual modes and added dedicated low-clutter scene variants plus fallback parity and cache-bust refresh | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T11:55:36-05:00 | Planned lean design remediation for Floor 14 diagram mismatch: introduce dedicated gradient-stability visual mode rather than reusing `loss_meter` | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T11:54:18-05:00 | Push/deploy re-check completed: `origin/main` and `origin/gh-pages` already on `0b836b5` (no new deploy delta) | `FULL_TECH_BUILD.txt`
+- 2026-03-03T11:53:20-05:00 | Deployed Level-7 (`loss_meter`) cleanup commit `0b836b5` by pushing `main` and mirroring to `gh-pages` | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:51:43-05:00 | Applied Level-7 (`loss_meter`) visual cleanup for OSAN compliance: lower-noise labels/edges, reduced scene chrome, disabled pulse motion for this scene, and bumped lesson diagram cache token | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:46:50-05:00 | Deployed Layer-6 containment fix commit `ea82b96` by pushing `main` and mirroring the same head to `gh-pages` | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:44:46-05:00 | Layer-6 diagram containment fix: shifted `layers_stack` content left via scene-specific right inset and added panel-edge clamping for layer markers so output no longer clips | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:35:26-05:00 | Synced documentation snapshot files to live repo state and refreshed deployment blocker statuses based on current bootstrap checks | `FULL_TECH_BUILD.txt`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
 - 2026-03-03T10:38:37-05:00 | Push/deploy request executed; `origin/main` and `origin/gh-pages` are already aligned at `97e3ef5` (no additional publish delta) | `FULL_TECH_BUILD.txt`
 - 2026-03-03T10:37:24-05:00 | Prepared viewport auto-fit loading plan using dynamic shell scaling based on viewport bounds | `index.html`, `styles.css`, `src/main.js`, `FULL_TECH_BUILD.txt`
-- 2026-03-03T10:34:32-05:00 | Deployed Layer-6 visual cleanup commit `97e3ef5` to `origin/main` and mirrored the same head to `origin/gh-pages` for live rollout | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
-- 2026-03-03T10:32:59-05:00 | Applied OSAN less-is-more cleanup for Layer 6 (`layers_stack`): headers-only text system, reduced cross-edge prominence, quieter lane markers, and scene-specific pulse suppression | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`
-- 2026-03-03T10:19:28-05:00 | Polish diagram layout and nudge upward muzzle flash in latest rendering patch | `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`
-- 2026-03-03T10:16:27-05:00 | Upward-only muzzle flash render nudge + cache-bust token refresh for immediate client refresh | `src/render.js`, `index.html`
 
 ## 8) Refresh procedure
 - `git rev-parse --abbrev-ref HEAD && git rev-parse --short HEAD`

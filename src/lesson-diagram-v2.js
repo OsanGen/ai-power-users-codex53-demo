@@ -8,7 +8,7 @@
   const LAYERS_STACK_EXTRA_RIGHT_PAD = 20;
   const LAYER_MARKER_EDGE_GUARD = 8;
   const ACTIVE_STAGE_SECONDS = 1.15;
-  const SCHEMA_VERSION = "lesson_v2_20260303";
+  const SCHEMA_VERSION = "lesson_v2_20260304";
 
   const DEFAULT_TOKENS = {
     ink: "#1f2937",
@@ -152,6 +152,21 @@
       caption: { tone: "ink", maxWidth: 176, fontSize: 12.2 },
       nodePrimary: { tone: "ink", fontSize: 10.6 },
       nodeSecondary: { tone: "inkMuted", fontSize: 10, maxWidth: 88 }
+    },
+    generalize_explain_core: {
+      caption: { tone: "ink", maxWidth: 104, fontSize: 11.2, chipPaddingX: 8, chipPaddingY: 3.5 },
+      nodeSecondary: { tone: "ink", fontSize: 10.2, maxWidth: 68, chipPaddingX: 6, chipPaddingY: 2.4 },
+      edgeChip: { tone: "inkMuted", maxWidth: 48, fontSize: 8.4, chipPaddingX: 5, chipPaddingY: 2.1 }
+    },
+    regularization_guardrail: {
+      heading: { tone: "ink", fontSize: 11.8, maxWidth: 92, chipPaddingX: 8, chipPaddingY: 3.8 },
+      nodeSecondary: { tone: "ink", fontSize: 10.2, maxWidth: 70, chipPaddingX: 6, chipPaddingY: 2.5 },
+      edgeChip: { tone: "inkMuted", maxWidth: 46, fontSize: 8.2, chipPaddingX: 4.8, chipPaddingY: 2 }
+    },
+    evaluate_ship_gate: {
+      heading: { tone: "ink", fontSize: 11.8, maxWidth: 90, chipPaddingX: 8, chipPaddingY: 3.8 },
+      nodeSecondary: { tone: "ink", fontSize: 10.2, maxWidth: 68, chipPaddingX: 6, chipPaddingY: 2.5 },
+      edgeChip: { tone: "inkMuted", maxWidth: 46, fontSize: 8.2, chipPaddingX: 4.8, chipPaddingY: 2 }
     }
   };
 
@@ -687,6 +702,15 @@
     return String(tone || fallbackTone || "ink");
   }
 
+  function isLeanGeneralizeMode(mode) {
+    const safeMode = normalizeMode(mode || "");
+    return (
+      safeMode === "generalize_explain_core" ||
+      safeMode === "regularization_guardrail" ||
+      safeMode === "evaluate_ship_gate"
+    );
+  }
+
   function shouldRenderNodeLabel(sceneMode, node) {
     if (!node || !node.label) {
       return false;
@@ -873,6 +897,67 @@
             { text: "feedback", tone: "ink", purpose: "heading", layout: "bottom", maxWidth: 80 }
           ],
           stages: [["x", "h", "yhat"], ["loss"], ["grad2"], ["grad1"]]
+        };
+      case "generalize_explain_core":
+        return {
+          mode: resolved,
+          nodes: [
+            createNode("train", "train", "input", 0, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("test", "test", "input", 0, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("model", "model", "hidden", 1, "ink", "nodeCenter", "nodeSecondary", 64),
+            createNode("explain", "why", "operator", 2, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("score", "score", "metric", 2, "ink", "nodeCenter", "nodeSecondary", 60),
+            createNode("ship", "ship", "output", 3, "ink", "nodeCenter", "nodeSecondary", 56)
+          ],
+          edges: [
+            createEdge("gec1", "train", "model", "", 0.58),
+            createEdge("gec2", "test", "model", "", 0.58),
+            createEdge("gec3", "model", "explain", "", 0.74, "ink", "forwardLane"),
+            createEdge("gec4", "model", "score", "", 0.68),
+            createEdge("gec5", "explain", "ship", "", 0.82, "ink", "forwardLane"),
+            createEdge("gec6", "score", "ship", "", 0.56)
+          ],
+          captions: [
+            { text: "train set", tone: "ink", purpose: "caption", layout: "leftTop", maxWidth: 96 },
+            { text: "test set", tone: "ink", purpose: "caption", layout: "leftBottom", maxWidth: 96 }
+          ],
+          stages: [["train", "test"], ["model"], ["explain", "score"], ["ship"]]
+        };
+      case "regularization_guardrail":
+        return {
+          mode: resolved,
+          nodes: [
+            createNode("train", "train", "input", 0, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("model", "model", "hidden", 1, "ink", "nodeCenter", "nodeSecondary", 64),
+            createNode("guard", "clip/norm", "operator", 2, "ink", "nodeCenter", "nodeSecondary", 86),
+            createNode("stable", "stable", "metric", 3, "ink", "nodeCenter", "nodeSecondary", 64),
+            createNode("ship", "ship", "output", 4, "ink", "nodeCenter", "nodeSecondary", 56)
+          ],
+          edges: [
+            createEdge("rg1", "train", "model", "", 0.56),
+            createEdge("rg2", "model", "guard", "", 0.76, "ink", "forwardLane"),
+            createEdge("rg3", "guard", "stable", "", 0.86, "ink", "forwardLane"),
+            createEdge("rg4", "stable", "ship", "", 0.66)
+          ],
+          stages: [["train"], ["model"], ["guard"], ["stable"], ["ship"]]
+        };
+      case "evaluate_ship_gate":
+        return {
+          mode: resolved,
+          nodes: [
+            createNode("test", "test", "input", 0, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("score", "score", "metric", 1, "ink", "nodeCenter", "nodeSecondary", 62),
+            createNode("gate", "gate", "operator", 2, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("ship", "ship", "output", 3, "ink", "nodeCenter", "nodeSecondary", 56),
+            createNode("iterate", "iterate", "split", 3, "ink", "nodeCenter", "nodeSecondary", 70)
+          ],
+          edges: [
+            createEdge("es1", "test", "score", "", 0.6),
+            createEdge("es2", "score", "gate", "", 0.76, "ink", "forwardLane"),
+            createEdge("es3", "gate", "ship", "", 0.9, "ink", "forwardLane"),
+            createEdge("es4", "gate", "iterate", "", 0.54)
+          ],
+          stages: [["test"], ["score"], ["gate"], ["ship", "iterate"]]
         };
       case "generalize_explain":
         return {
@@ -1613,7 +1698,8 @@
     const inkInt = parseHexColor(tokens.ink, 0x1f2937);
 
     const bg = new global.PIXI.Graphics();
-    const bgAlpha = scene.mode === "loss_meter" ? 0.2 : 0.3;
+    const leanGeneralizeScene = isLeanGeneralizeMode(scene.mode);
+    const bgAlpha = scene.mode === "loss_meter" ? 0.2 : leanGeneralizeScene ? 0.22 : 0.3;
     bg.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), bgAlpha);
     bg.drawRoundedRect(8, 8, Math.max(24, state.width - 16), Math.max(24, state.height - 16), 14);
     bg.endFill();
@@ -1634,6 +1720,7 @@
         scene.mode === "layers_stack" &&
         (edge.id === "ls2" || edge.id === "ls3" || edge.id === "ls6" || edge.id === "ls7");
       const isLossFocusEdge = scene.mode === "loss_meter" && edge.id === "lm3";
+      const isLeanFocusEdge = leanGeneralizeScene && edge.labelLayout === "forwardLane";
       const alpha =
         scene.mode === "layers_stack"
           ? isActive
@@ -1643,6 +1730,10 @@
             ? isLossFocusEdge
               ? isActive ? 0.82 : 0.66
               : isActive ? 0.52 : 0.24 + edge.emphasis * 0.14
+          : leanGeneralizeScene
+            ? isLeanFocusEdge
+              ? isActive ? 0.72 : 0.56
+              : isActive ? 0.44 : 0.2 + edge.emphasis * 0.08
           : isActive
             ? 0.88
             : 0.36 + edge.emphasis * 0.2;
@@ -1651,6 +1742,8 @@
           ? isLayerCrossEdge ? 1.2 : 1.8
           : scene.mode === "loss_meter"
             ? isLossFocusEdge ? 2.2 : 1.2
+          : leanGeneralizeScene
+            ? isLeanFocusEdge ? 2 : isActive ? 1.4 : 1.1
           : isActive
             ? 2.6
             : 1.6;
@@ -1659,6 +1752,8 @@
           ? isLayerCrossEdge ? inkInt : isActive ? accentInt : inkInt
           : scene.mode === "loss_meter"
             ? isLossFocusEdge ? accentInt : inkInt
+          : leanGeneralizeScene
+            ? isLeanFocusEdge ? accentInt : inkInt
           : isActive
             ? accentInt
             : inkInt;
@@ -1681,7 +1776,7 @@
       drawNode(root, node, pos, accentInt, tokens, scene.mode);
     }
 
-    if (scene.mode !== "layers_stack" && scene.mode !== "loss_meter") {
+    if (scene.mode !== "layers_stack" && scene.mode !== "loss_meter" && !leanGeneralizeScene) {
       drawPulses(root, scene, positions, stageIndex, accentInt, reducedMotion, Number.isFinite(time) ? time : 0);
     }
   }
@@ -1892,7 +1987,8 @@
     context.rect(panelX, panelY, panelW, panelH);
     context.clip();
 
-    const bgAlpha = sceneSafe.mode === "loss_meter" ? 0.2 : 0.3;
+    const leanGeneralizeScene = isLeanGeneralizeMode(sceneSafe.mode);
+    const bgAlpha = sceneSafe.mode === "loss_meter" ? 0.2 : leanGeneralizeScene ? 0.22 : 0.3;
     context.fillStyle = rgbToRgba(toRgb("#" + fogInt.toString(16).padStart(6, "0")), bgAlpha);
     roundRectPath(context, panelX + 8, panelY + 8, Math.max(24, panelW - 16), Math.max(24, panelH - 16), 14);
     context.fill();
@@ -1911,6 +2007,7 @@
         sceneSafe.mode === "layers_stack" &&
         (edge.id === "ls2" || edge.id === "ls3" || edge.id === "ls6" || edge.id === "ls7");
       const isLossFocusEdge = sceneSafe.mode === "loss_meter" && edge.id === "lm3";
+      const isLeanFocusEdge = leanGeneralizeScene && edge.labelLayout === "forwardLane";
       const alpha =
         sceneSafe.mode === "layers_stack"
           ? isActive
@@ -1920,6 +2017,10 @@
             ? isLossFocusEdge
               ? isActive ? 0.82 : 0.66
               : isActive ? 0.52 : 0.24 + (Number(edge.emphasis) || 0.5) * 0.14
+          : leanGeneralizeScene
+            ? isLeanFocusEdge
+              ? isActive ? 0.72 : 0.56
+              : isActive ? 0.44 : 0.2 + (Number(edge.emphasis) || 0.5) * 0.08
           : isActive
             ? 0.88
             : 0.36 + (Number(edge.emphasis) || 0.5) * 0.2;
@@ -1928,6 +2029,8 @@
           ? isLayerCrossEdge ? 1.2 : 1.8
           : sceneSafe.mode === "loss_meter"
             ? isLossFocusEdge ? 2.2 : 1.2
+          : leanGeneralizeScene
+            ? isLeanFocusEdge ? 2 : isActive ? 1.4 : 1.1
           : isActive
             ? 2.6
             : 1.6;
@@ -1936,6 +2039,8 @@
           ? isLayerCrossEdge ? inkInt : isActive ? accentInt : inkInt
           : sceneSafe.mode === "loss_meter"
             ? isLossFocusEdge ? accentInt : inkInt
+          : leanGeneralizeScene
+            ? isLeanFocusEdge ? accentInt : inkInt
           : isActive
             ? accentInt
             : inkInt;
@@ -2007,7 +2112,7 @@
       }
     }
 
-    if (!reducedMotion && sceneSafe.mode !== "layers_stack" && sceneSafe.mode !== "loss_meter") {
+    if (!reducedMotion && sceneSafe.mode !== "layers_stack" && sceneSafe.mode !== "loss_meter" && !leanGeneralizeScene) {
       for (let i = 0; i < sceneSafe.edges.length; i += 1) {
         const edge = sceneSafe.edges[i];
         if (!activeNodeSet.has(edge.target)) {
