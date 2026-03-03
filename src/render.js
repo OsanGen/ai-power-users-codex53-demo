@@ -135,6 +135,11 @@
     lastKills: 0,
     lastEnemyHurt: new Map()
   };
+  const HUD_MUSIC_TOAST_MS = 2200;
+  const hudTransientState = {
+    musicSignature: "",
+    musicToastUntil: 0
+  };
   const FX_PARTICLE_CAPS = Object.freeze({
     low: 150,
     medium: 350,
@@ -6744,7 +6749,7 @@
     const hudX = 70;
     const hudY = 18;
     const hudW = WIDTH - hudX * 2;
-    const hudH = 74;
+    const hudH = 76;
 
     ctx.fillStyle = TOKENS.white;
     fillRoundRect(hudX, hudY, hudW, hudH, 18);
@@ -6772,23 +6777,9 @@
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
 
-    ctx.fillStyle = rgba(TOKENS.fog, 0.92);
-    fillRoundRect(leftCardX, cardY, leftCardW, cardH, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(leftCardX, cardY, leftCardW, cardH, 14);
-
-    ctx.fillStyle = rgba(TOKENS.white, 0.94);
-    fillRoundRect(centerCardX, cardY, centerCardW, cardH, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(centerCardX, cardY, centerCardW, cardH, 14);
-
-    ctx.fillStyle = rgba(TOKENS.fog, 0.92);
-    fillRoundRect(rightCardX, cardY, rightCardW, cardH, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(rightCardX, cardY, rightCardW, cardH, 14);
+    drawHudCardShell(leftCardX, cardY, leftCardW, cardH, rgba(TOKENS.fog, 0.92), 14);
+    drawHudCardShell(centerCardX, cardY, centerCardW, cardH, rgba(TOKENS.white, 0.95), 14);
+    drawHudCardShell(rightCardX, cardY, rightCardW, cardH, rgba(TOKENS.fog, 0.92), 14);
 
     ctx.font = '700 13px "Inter", sans-serif';
     ctx.fillStyle = rgba(TOKENS.ink, 0.76);
@@ -6848,14 +6839,14 @@
     const floorBoxX = centerInnerX;
     const bombBoxX = floorBoxX + floorBoxW + chipGap;
 
-    ctx.fillStyle = rgba(accent, 0.24);
+    ctx.fillStyle = rgba(TOKENS.fog, 0.96);
     fillRoundRect(floorBoxX, centerInnerY, floorBoxW, chipH, 999);
     ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.75;
     strokeRoundRect(floorBoxX, centerInnerY, floorBoxW, chipH, 999);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 16px "Sora", "Inter", sans-serif';
+    ctx.font = '700 15px "Sora", "Inter", sans-serif';
     ctx.textAlign = "center";
     ctx.fillText(fitCanvasText(floorLabel, floorBoxW - 22), floorBoxX + floorBoxW * 0.5, cardMidY + 1);
 
@@ -6873,16 +6864,38 @@
       total: totalCharges
     });
 
-    ctx.fillStyle = rgba(TOKENS.fog, 0.98);
+    const compactAbilityName = /escalation\s+pulse/i.test(bombAbilityName) ? "Pulse" : bombAbilityName;
+    const bombCompactText = formatUiText("hudBombLabelCompact", "{ability} {remaining}/{total}", {
+      ability: compactAbilityName,
+      remaining: remainingCharges,
+      total: totalCharges
+    });
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.96);
     fillRoundRect(bombBoxX, centerInnerY, bombBoxW, chipH, 999);
     ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(floorBoxX, 34, floorBoxW, 36, 999);
+    ctx.lineWidth = 1.75;
     strokeRoundRect(bombBoxX, centerInnerY, bombBoxW, chipH, 999);
+
+    ctx.font = '700 11px "Inter", sans-serif';
+    const keyText = "Space";
+    const keyCapW = clamp(Math.ceil(ctx.measureText(keyText).width) + 16, 46, 70);
+    const keyCapH = chipH - 10;
+    const keyCapX = bombBoxX + 10;
+    const keyCapY = centerInnerY + 5;
+    ctx.fillStyle = rgba(TOKENS.fog, 0.98);
+    fillRoundRect(keyCapX, keyCapY, keyCapW, keyCapH, 8);
+    ctx.strokeStyle = rgba(TOKENS.ink, 0.6);
+    ctx.lineWidth = 1.2;
+    strokeRoundRect(keyCapX, keyCapY, keyCapW, keyCapH, 8);
+    ctx.fillStyle = TOKENS.ink;
+    ctx.textAlign = "center";
+    ctx.fillText(keyText, keyCapX + keyCapW * 0.5, cardMidY + 1);
 
     ctx.textAlign = "left";
     ctx.font = '700 12px "Inter", sans-serif';
     ctx.fillStyle = remainingCharges > 0 ? TOKENS.ink : rgba(TOKENS.ink, 0.6);
-    ctx.fillText(fitCanvasText(bombText, bombBoxW - 24), bombBoxX + 12, cardMidY + 1);
+    ctx.fillText(fitCanvasText(bombCompactText || bombText, bombBoxW - (keyCapW + 28)), keyCapX + keyCapW + 8, cardMidY + 1);
 
     const timerText = `${Math.ceil(game.floorTimer)}s`;
     const ratio = game.floorDuration > 0 ? clamp(game.floorTimer / game.floorDuration, 0, 1) : 0;
@@ -6912,45 +6925,56 @@
     ctx.fillStyle = rgba(accent, 0.84);
     fillRoundRect(timerMeterX + 2, timerMeterY + 2, Math.max(0, (timerMeterW - 4) * ratio), timerMeterH - 4, 999);
 
-    drawBurstStatusHud(accent);
-    drawAttackDisableHud(accent);
-    drawMusicToggleHud(accent);
+    const attackCardShown = drawAttackDisableHud(accent);
+    const burstCardShown = drawBurstStatusHud(accent, attackCardShown);
+    drawMusicToggleHud(accent, attackCardShown || burstCardShown);
     drawRearShotHint(accent);
     drawUpgradeHudPanel(accent);
     drawDebugStatsLine(accent);
   }
 
-  function drawBurstStatusHud(accent) {
-    if (game.state !== GameState.PLAYING || !systems || typeof systems.getDirectionalBurstStatus !== "function") {
-      return;
+  function drawHudCardShell(x, y, w, h, fillColor, radius = 12) {
+    ctx.fillStyle = fillColor;
+    fillRoundRect(x, y, w, h, radius);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(x, y, w, h, radius);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.08);
+    fillRoundRect(x + 10, y + 8, Math.max(24, w - 20), 4, 999);
+  }
+
+  function drawBurstStatusHud(accent, blocked = false) {
+    if (blocked || game.state !== GameState.PLAYING || !systems || typeof systems.getDirectionalBurstStatus !== "function") {
+      return false;
     }
 
     const burst = systems.getDirectionalBurstStatus();
     if (!burst) {
-      return;
+      return false;
+    }
+
+    const hasDetailOverride = typeof burst.detailOverride === "string" && burst.detailOverride.trim().length > 0;
+    const isEnhancedMode = burst.mode === "dual" || burst.mode === "omni";
+    const hasProgressSignal = Number.isFinite(burst.progressToNext) && burst.progressToNext > 0.02;
+    if (!hasDetailOverride && !isEnhancedMode && !hasProgressSignal) {
+      return false;
     }
 
     const panelX = 70;
-    const panelY = 134;
+    const panelY = 100;
     const panelW = 292;
-    const panelH = 58;
+    const panelH = 52;
 
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.fillStyle = rgba(accent, 0.22);
-    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 6, 999);
+    drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 12);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
-    ctx.font = '700 14px "Sora", "Inter", sans-serif';
-    ctx.fillText(formatUiText("hudBurstLabel", "Burst: {label}", { label: burst.label }), panelX + 12, panelY + 18);
+    ctx.font = '700 13px "Sora", "Inter", sans-serif';
+    ctx.fillText(formatUiText("hudBurstLabel", "Burst: {label}", { label: burst.label }), panelX + 12, panelY + 14);
 
     const detail =
-      typeof burst.detailOverride === "string" && burst.detailOverride.trim()
+      hasDetailOverride
         ? burst.detailOverride
         : burst.mode === "omni"
           ? uiText("hudBurstAllDirections", "All directions active")
@@ -6958,74 +6982,80 @@
               nextLabel: burst.nextLabel,
               seconds: burst.secondsToNext.toFixed(1)
             });
-    ctx.font = '600 12px "Inter", sans-serif';
-    ctx.fillText(detail, panelX + 12, panelY + 35);
+    ctx.font = '600 11px "Inter", sans-serif';
+    ctx.fillStyle = rgba(TOKENS.ink, 0.8);
+    ctx.fillText(fitCanvasText(detail, 144), panelX + 12, panelY + 31);
 
-    const meterX = panelX + 158;
-    const meterY = panelY + 34;
-    const meterW = panelW - 170;
-    const meterH = 12;
+    const meterX = panelX + 160;
+    const meterY = panelY + 30;
+    const meterW = panelW - 172;
+    const meterH = 10;
     ctx.fillStyle = rgba(TOKENS.ink, 0.11);
     fillRoundRect(meterX, meterY, meterW, meterH, 999);
-    ctx.fillStyle = rgba(accent, 0.8);
+    ctx.fillStyle = rgba(TOKENS.ink, 0.28);
     fillRoundRect(meterX + 1, meterY + 1, Math.max(0, (meterW - 2) * burst.progressToNext), meterH - 2, 999);
     ctx.strokeStyle = rgba(TOKENS.ink, 0.5);
     ctx.lineWidth = 1;
     strokeRoundRect(meterX, meterY, meterW, meterH, 999);
+
+    if (isEnhancedMode) {
+      ctx.fillStyle = rgba(accent, 0.8);
+      fillRoundRect(panelX + panelW - 18, panelY + 14, 6, 6, 999);
+    }
+    return true;
   }
 
   function drawAttackDisableHud(accent) {
     if (game.state !== GameState.PLAYING) {
-      return;
+      return false;
     }
 
     const lockout = getAttackDisableSnapshot();
     if (!lockout.active) {
-      return;
+      return false;
     }
 
     const panelX = 70;
-    const panelY = 198;
+    const panelY = 100;
     const panelW = 292;
-    const panelH = 54;
+    const panelH = 52;
     const recoveryProgress = clamp(1 - lockout.progress, 0, 1);
 
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.fillStyle = rgba(accent, 0.22);
-    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 5, 999);
+    drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 12);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
-    ctx.font = '700 14px "Sora", "Inter", sans-serif';
-    ctx.fillText("Shooting disabled", panelX + 12, panelY + 15);
-    ctx.font = '600 12px "Inter", sans-serif';
-    ctx.fillText(`Recovering in ${lockout.secondsRemaining.toFixed(1)}s`, panelX + 12, panelY + 31);
+    ctx.font = '700 13px "Sora", "Inter", sans-serif';
+    ctx.fillText("Shooting disabled", panelX + 12, panelY + 13);
+    ctx.font = '600 11px "Inter", sans-serif';
+    ctx.fillStyle = rgba(TOKENS.ink, 0.82);
+    ctx.fillText(`Recover ${lockout.secondsRemaining.toFixed(1)}s`, panelX + 12, panelY + 30);
 
-    const meterX = panelX + 172;
-    const meterY = panelY + 34;
-    const meterW = panelW - 184;
+    const meterX = panelX + 168;
+    const meterY = panelY + 30;
+    const meterW = panelW - 180;
     const meterH = 10;
     ctx.fillStyle = rgba(TOKENS.ink, 0.11);
     fillRoundRect(meterX, meterY, meterW, meterH, 999);
-    ctx.fillStyle = rgba(accent, 0.78);
+    ctx.fillStyle = rgba(accent, 0.58);
     fillRoundRect(meterX + 1, meterY + 1, Math.max(0, (meterW - 2) * recoveryProgress), meterH - 2, 999);
     ctx.strokeStyle = rgba(TOKENS.ink, 0.45);
     ctx.lineWidth = 1;
     strokeRoundRect(meterX, meterY, meterW, meterH, 999);
+    return true;
   }
 
-  function drawMusicToggleHud(accent) {
+  function drawMusicToggleHud(accent, blocked = false) {
     if (
       game.state !== GameState.PLAYING &&
       game.state !== GameState.FLOOR_INTRO &&
       game.state !== GameState.FLOOR_CLEAR
     ) {
-      return;
+      return false;
+    }
+    if (blocked) {
+      return false;
     }
 
     let isMuted = false;
@@ -7040,25 +7070,34 @@
       }
     }
 
-    const statusText = !hasAudio ? "M: Music unavailable" : isMuted ? "M: Music Off" : "M: Music On";
-    const panelX = 70;
-    const panelY = 258;
-    const panelW = 292;
-    const panelH = 38;
+    const signature = `${hasAudio ? "audio" : "none"}:${isMuted ? "muted" : "on"}`;
+    const now = nowMs();
+    if (signature !== hudTransientState.musicSignature) {
+      hudTransientState.musicSignature = signature;
+      hudTransientState.musicToastUntil = now + HUD_MUSIC_TOAST_MS;
+    }
+    if (now > hudTransientState.musicToastUntil) {
+      return false;
+    }
 
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.fillStyle = rgba(accent, 0.16);
-    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 4, 999);
+    const statusText = !hasAudio
+      ? uiText("hudMusicUnavailableCompact", "Music unavailable")
+      : isMuted
+        ? uiText("hudMusicOffCompact", "Music: Off")
+        : uiText("hudMusicOnCompact", "Music: On");
+    const panelX = 70;
+    const panelY = 100;
+    const panelW = 292;
+    const panelH = 36;
+
+    drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 12);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
     ctx.font = '700 12px "Inter", sans-serif';
-    ctx.fillText(statusText, panelX + 12, panelY + panelH * 0.5 + 1);
+    ctx.fillText(statusText, panelX + 12, panelY + panelH * 0.5 + 0.5);
+    return true;
   }
 
   function drawRearShotHint(accent) {
@@ -7084,54 +7123,53 @@
     const hintDuration = Math.max(0.001, AIPU.constants.REAR_SHOT_NOTICE_DURATION || 4.2);
     const visibility = clamp(game.rearShotHintTimer / hintDuration, 0, 1);
     const alpha = visibility > 0.15 ? 1 : visibility / 0.15;
-    const panelW = 566;
-    const panelH = 58;
+    const panelW = 452;
+    const panelH = 50;
     const panelX = Math.floor((WIDTH - panelW) * 0.5);
-    const panelY = 98;
+    const panelY = 102;
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 12);
-    ctx.fillStyle = rgba(accent, 0.26);
-    fillRoundRect(panelX + 10, panelY + 8, panelW - 20, 6, 999);
+    drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 12);
 
     ctx.fillStyle = TOKENS.ink;
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
-    ctx.font = '700 15px "Sora", "Inter", sans-serif';
-    ctx.fillText(heading, panelX + 14, panelY + 17);
-    ctx.font = '600 13px "Inter", sans-serif';
-    ctx.fillText(body, panelX + 14, panelY + 37);
+    ctx.font = '700 13px "Sora", "Inter", sans-serif';
+    ctx.fillText(fitCanvasText(heading, panelW - 28), panelX + 14, panelY + 13);
+    ctx.font = '600 11px "Inter", sans-serif';
+    ctx.fillStyle = rgba(TOKENS.ink, 0.82);
+    ctx.fillText(fitCanvasText(body, panelW - 28), panelX + 14, panelY + 29);
     ctx.restore();
   }
 
   function drawUpgradeHudPanel(accent) {
-    const rows = upgrades.getUpgradeHudRows(5);
+    const rows = upgrades.getUpgradeHudRows(6);
+    const maxVisibleRows = 2;
+    const visibleRows = rows.slice(0, maxVisibleRows);
+    const hiddenCount = Math.max(0, rows.length - visibleRows.length);
     const panelX = WIDTH - 342;
-    const panelY = 98;
+    const panelY = 100;
     const panelW = 272;
-    const panelH = 34 + rows.length * 19;
+    const panelH = 30 + visibleRows.length * 18 + (hiddenCount > 0 ? 16 : 0);
 
-    ctx.fillStyle = rgba(TOKENS.white, 0.95);
-    fillRoundRect(panelX, panelY, panelW, panelH, 14);
-    ctx.strokeStyle = TOKENS.ink;
-    ctx.lineWidth = 2;
-    strokeRoundRect(panelX, panelY, panelW, panelH, 14);
-
-    ctx.fillStyle = rgba(accent, 0.22);
-    fillRoundRect(panelX + 12, panelY + 10, panelW - 24, 7, 999);
+    drawHudCardShell(panelX, panelY, panelW, panelH, rgba(TOKENS.white, 0.95), 14);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 14px "Sora", "Inter", sans-serif';
-    ctx.fillText(uiText("hudUpgradesTitle", "Upgrades"), panelX + 14, panelY + 20);
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    ctx.font = '700 13px "Sora", "Inter", sans-serif';
+    ctx.fillText(uiText("hudUpgradesTitle", "Upgrades"), panelX + 14, panelY + 12);
 
-    ctx.font = '600 13px "Inter", sans-serif';
-    for (let i = 0; i < rows.length; i += 1) {
-      ctx.fillText(fitCanvasText(rows[i], panelW - 28), panelX + 14, panelY + 41 + i * 19);
+    ctx.font = '600 12px "Inter", sans-serif';
+    for (let i = 0; i < visibleRows.length; i += 1) {
+      ctx.fillStyle = TOKENS.ink;
+      ctx.fillText(fitCanvasText(visibleRows[i], panelW - 28), panelX + 14, panelY + 30 + i * 18);
+    }
+    if (hiddenCount > 0) {
+      ctx.fillStyle = rgba(TOKENS.ink, 0.58);
+      ctx.font = '700 11px "Inter", sans-serif';
+      ctx.fillText(`+${hiddenCount} more`, panelX + 14, panelY + 30 + visibleRows.length * 18);
     }
   }
 
@@ -7154,7 +7192,7 @@
       "dbg fx " + quality + " | " + perfText + " | glfx " + fxStatus + " | particles " + particleCount + "+" + fxParticleCount + " | cache " + cacheHits + "/" + cacheMisses + frameTiming;
 
     const panelX = 70;
-    const panelY = 98;
+    const panelY = 160;
     const panelW = 620;
     const panelH = 30;
 

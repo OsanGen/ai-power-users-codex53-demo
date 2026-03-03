@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T12:07:15-05:00
+- UpdatedAt: 2026-03-03T12:36:49-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, be38d8e
+- Branch, HEAD commit hash: main, 80259db
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -60,6 +60,9 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - OSAN HUD polish v2: converted side HUD stack to contextual priority cards, compacted upgrade rows with `+N more`, restyled rear-hint card into the shared HUD system, and enforced timer-led accent governance with neutral floor/ability chips.
+  - HUD artifact cleanup: removed a leftover duplicate floor-chip stroke call in the top HUD render path so the new three-card OSAN layout stays visually symmetric and noise-free.
+  - In-game top HUD redesigned into a balanced OSAN-compliant 3-card layout (vitality card, floor+bomb status card, survive timer card) to remove left/right asymmetry and reduce status-noise while preserving existing gameplay data.
   - Floors 9/10/15 now use dedicated lean proof diagrams (`generalize_explain_core`, `regularization_guardrail`, `evaluate_ship_gate`) with reduced duplicate labeling, one-accent lane emphasis, and pulse suppression for OSAN-compliant noise levels.
   - Level-7 (`loss_meter`) OSAN cleanup: reduced chip/edge clutter, removed crowded `error` edge label, de-emphasized non-core lanes, disabled scene pulse motion, and tightened label vocabulary for clearer claim->proof read.
   - Layer-6 (`layers_stack`) right-edge containment patch: extra right inset in viewport fit and marker-center clamping in Pixi/canvas caption paths so the `Output` tier stays on-panel.
@@ -76,6 +79,10 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T12:36:49-05:00 | Implemented HUD polish v2 (contextual side-card priority, compact status copy, timer-led accent governance, compact upgrades card, rear-hint restyle) and bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T12:16:10-05:00 | Removed stray legacy stroke from top HUD card rendering and bumped `render.js` cache token for clean rollout | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T12:13:31-05:00 | Deployed OSAN HUD redesign commit `80259db` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
+- 2026-03-03T12:10:30-05:00 | Implemented OSAN HUD polish: replaced asymmetric HP/floor/timer top bar with symmetric three-card status layout and reduced ability-meter clutter; bumped runtime cache token for `render.js` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:07:15-05:00 | Synced `FULL_TECH_BUILD.txt` after deploy metadata drift (feature commit `5e487f8`, snapshot commit `be38d8e`) | `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:02:34-05:00 | Deployed floors 9/10/15 diagram-noise cleanup commit `a4187b7` by pushing `main` and mirroring to `gh-pages` | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:00:44-05:00 | Implemented lean-noise remediation for floors 9/10/15: remapped visual modes and added dedicated low-clutter scene variants plus fallback parity and cache-bust refresh | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
