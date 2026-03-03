@@ -64,6 +64,7 @@ Dependencies:
 
 Acceptance checks:
 - All nine `visualMode` scenes render topology-distinct diagrams (not simple recolors).
+- `layers_stack` now enforces headers-only text hierarchy (`Input`, `Hidden 1`, `Hidden 2`, `Output`) with no per-node pills, reduced cross-lane edge prominence, and no pulse overlays so the scene stays within OSAN noise budget.
 - `sum_bias` scene explicitly shows weighted inputs, `+b`, `Σ`, pre-activation node, activation node, and output.
 - `sum_bias` edge labels around `Σ` are visually separated and readable at mobile and desktop panel widths.
 - Graph content remains centered vertically/horizontally within the lesson diagram card; no large lower dead-zone caused by top anchoring.

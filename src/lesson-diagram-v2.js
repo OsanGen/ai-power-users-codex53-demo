@@ -689,14 +689,7 @@
       return false;
     }
     const safeMode = normalizeMode(sceneMode || "");
-    if (safeMode !== "layers_stack") {
-      return true;
-    }
-    if (node.id === "i1" || node.id === "o1") {
-      return false;
-    }
-    const tier = Number(node.tier);
-    if (node.kind === "hidden" || tier === 1 || tier === 2) {
+    if (safeMode === "layers_stack") {
       return false;
     }
     return true;
@@ -818,12 +811,12 @@
           ],
           edges: [
             createEdge("ls1", "i1", "h1", "", 0.56),
-            createEdge("ls2", "i1", "h2", "", 0.56),
-            createEdge("ls3", "i2", "h1", "", 0.56),
+            createEdge("ls2", "i1", "h2", "", 0.22),
+            createEdge("ls3", "i2", "h1", "", 0.22),
             createEdge("ls4", "i2", "h2", "", 0.56),
             createEdge("ls5", "h1", "h3", "", 0.7),
-            createEdge("ls6", "h1", "h4", "", 0.7),
-            createEdge("ls7", "h2", "h3", "", 0.7),
+            createEdge("ls6", "h1", "h4", "", 0.24),
+            createEdge("ls7", "h2", "h3", "", 0.24),
             createEdge("ls8", "h2", "h4", "", 0.7),
             createEdge("ls9", "h3", "o1", "", 0.78),
             createEdge("ls10", "h4", "o2", "", 0.78)
@@ -938,9 +931,10 @@
   function fitPositionsToViewport(scene, inputPositions, width, height) {
     const safeWidth = Math.max(32, Number(width) || 32);
     const safeHeight = Math.max(32, Number(height) || 32);
+    const isLayersStack = normalizeMode(scene && scene.mode) === "layers_stack";
     const padLeft = LAYOUT_MARGIN + 24;
-    const padRight = LAYOUT_MARGIN + 56;
-    const padTop = LAYOUT_MARGIN + 16;
+    const padRight = LAYOUT_MARGIN + (isLayersStack ? 34 : 56);
+    const padTop = LAYOUT_MARGIN + (isLayersStack ? 34 : 16);
     const padBottom = LAYOUT_MARGIN + 24;
     const availW = Math.max(1, safeWidth - padLeft - padRight);
     const availH = Math.max(1, safeHeight - padTop - padBottom);
@@ -1632,9 +1626,29 @@
         continue;
       }
       const isActive = activeNodeSet.has(edge.target);
-      const alpha = isActive ? 0.88 : 0.36 + edge.emphasis * 0.2;
-      const width = isActive ? 2.6 : 1.6;
-      const color = isActive ? accentInt : inkInt;
+      const isLayerCrossEdge =
+        scene.mode === "layers_stack" &&
+        (edge.id === "ls2" || edge.id === "ls3" || edge.id === "ls6" || edge.id === "ls7");
+      const alpha =
+        scene.mode === "layers_stack"
+          ? isActive
+            ? isLayerCrossEdge ? 0.28 : 0.58
+            : isLayerCrossEdge ? 0.16 : 0.34
+          : isActive
+            ? 0.88
+            : 0.36 + edge.emphasis * 0.2;
+      const width =
+        scene.mode === "layers_stack"
+          ? isLayerCrossEdge ? 1.2 : 1.8
+          : isActive
+            ? 2.6
+            : 1.6;
+      const color =
+        scene.mode === "layers_stack"
+          ? isLayerCrossEdge ? inkInt : isActive ? accentInt : inkInt
+          : isActive
+            ? accentInt
+            : inkInt;
       edgeGraphics.lineStyle(width, color, alpha);
       edgeGraphics.moveTo(source.x, source.y);
       edgeGraphics.lineTo(target.x, target.y);
@@ -1654,7 +1668,9 @@
       drawNode(root, node, pos, accentInt, tokens, scene.mode);
     }
 
-    drawPulses(root, scene, positions, stageIndex, accentInt, reducedMotion, Number.isFinite(time) ? time : 0);
+    if (scene.mode !== "layers_stack") {
+      drawPulses(root, scene, positions, stageIndex, accentInt, reducedMotion, Number.isFinite(time) ? time : 0);
+    }
   }
 
   function drawLayerCaptions(root, scene, positions, mode, tokens) {
@@ -1708,8 +1724,8 @@
         const markerX = avgX - markerWidth * 0.5;
         const markerY = minY - 12;
         const marker = new global.PIXI.Graphics();
-        const markerFillAlpha = sceneMode === "layers_stack" ? 0.16 : 0.28;
-        const markerStrokeAlpha = sceneMode === "layers_stack" ? 0.48 : 0.65;
+        const markerFillAlpha = sceneMode === "layers_stack" ? 0.1 : 0.28;
+        const markerStrokeAlpha = sceneMode === "layers_stack" ? 0.34 : 0.65;
         marker.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), markerFillAlpha);
         marker.drawRoundedRect(markerX, markerY, markerWidth, markerHeight, 20);
         marker.lineStyle(1, parseHexColor(tokens.ink, 0x1f2937), markerStrokeAlpha);
@@ -1718,7 +1734,7 @@
         root.addChild(marker);
         let labelY = markerY + markerHeight * 0.45;
         if (sceneMode === "layers_stack") {
-          labelY = Math.max(14, markerY - 26);
+          labelY = Math.max(18, markerY - 24);
         }
         renderPixiLabelCard(root, caption.text, avgX, labelY, spec, tokens);
         continue;
@@ -1874,9 +1890,29 @@
         continue;
       }
       const isActive = activeNodeSet.has(edge.target);
-      const alpha = isActive ? 0.88 : 0.36 + (Number(edge.emphasis) || 0.5) * 0.2;
-      const width = isActive ? 2.6 : 1.6;
-      const colorInt = isActive ? accentInt : inkInt;
+      const isLayerCrossEdge =
+        sceneSafe.mode === "layers_stack" &&
+        (edge.id === "ls2" || edge.id === "ls3" || edge.id === "ls6" || edge.id === "ls7");
+      const alpha =
+        sceneSafe.mode === "layers_stack"
+          ? isActive
+            ? isLayerCrossEdge ? 0.28 : 0.58
+            : isLayerCrossEdge ? 0.16 : 0.34
+          : isActive
+            ? 0.88
+            : 0.36 + (Number(edge.emphasis) || 0.5) * 0.2;
+      const width =
+        sceneSafe.mode === "layers_stack"
+          ? isLayerCrossEdge ? 1.2 : 1.8
+          : isActive
+            ? 2.6
+            : 1.6;
+      const colorInt =
+        sceneSafe.mode === "layers_stack"
+          ? isLayerCrossEdge ? inkInt : isActive ? accentInt : inkInt
+          : isActive
+            ? accentInt
+            : inkInt;
       const lineColor = rgbToRgba(toRgb("#" + colorInt.toString(16).padStart(6, "0")), alpha);
       drawCanvasArrow(
         context,
@@ -1945,7 +1981,7 @@
       }
     }
 
-    if (!reducedMotion) {
+    if (!reducedMotion && sceneSafe.mode !== "layers_stack") {
       for (let i = 0; i < sceneSafe.edges.length; i += 1) {
         const edge = sceneSafe.edges[i];
         if (!activeNodeSet.has(edge.target)) {
@@ -2021,8 +2057,8 @@
         const markerH = Math.max(42, maxY - minY + 18);
         const markerX = panelX + avgX - markerW * 0.5;
         const markerY = panelY + minY - 12;
-        const markerFillAlpha = safeMode === "layers_stack" ? 0.16 : 0.28;
-        const markerStrokeAlpha = safeMode === "layers_stack" ? 0.48 : 0.65;
+        const markerFillAlpha = safeMode === "layers_stack" ? 0.1 : 0.28;
+        const markerStrokeAlpha = safeMode === "layers_stack" ? 0.34 : 0.65;
         context.fillStyle = rgbToRgba(toRgb("#" + (tokens.fog || "#e2e8f0").replace("#", "")), markerFillAlpha);
         context.strokeStyle = rgbToRgba(toRgb("#" + (tokens.ink || "#1f2937").replace("#", "")), markerStrokeAlpha);
         context.lineWidth = 1;
@@ -2031,7 +2067,7 @@
         context.stroke();
         let labelY = markerY + markerH * 0.45;
         if (safeMode === "layers_stack") {
-          labelY = Math.max(panelY + 14, markerY - 26);
+          labelY = Math.max(panelY + 18, markerY - 24);
         }
         renderLabelCard(
           context,
