@@ -7448,10 +7448,15 @@
 
     function drawStatChip(x, y, w, h, count, label) {
       const chipText = String(Number.isFinite(count) ? count : 0);
-      const labelText = fitCanvasText(label, Math.max(40, w - 24));
-      const labelY = y + 6;
-      const valueY = y + (isCompact ? 22 : 24);
-      const valueFont = clamp(Math.floor(Math.min(28, w * 0.16)), isCompact ? 16 : 18, 30);
+      const rawLabel = String(typeof label === "string" ? label : "");
+      const cleanLabel = rawLabel
+        .replace(/\{count\}/gi, "")
+        .replace(/\s+/g, " ")
+        .replace(/[:\-\u2013\u2014]\s*$/g, "")
+        .trim();
+      const labelText = fitCanvasText(cleanLabel || "Summary", Math.max(40, w - 84));
+      const centerY = y + h * 0.5 + 0.5;
+      const valueFont = clamp(Math.floor(Math.min(26, w * 0.115)), isCompact ? 16 : 18, 28);
 
       ctx.save();
       ctx.shadowColor = rgba(TOKENS.ink, 0.08);
@@ -7466,11 +7471,13 @@
 
       ctx.fillStyle = TOKENS.ink;
       ctx.textAlign = "left";
-      ctx.textBaseline = "middle";
-      ctx.font = `700 ${valueFont}px "Sora", "Inter", sans-serif`;
-      ctx.fillText(fitCanvasText(chipText, w - 28), x + 16, valueY);
       ctx.font = isCompact ? '600 11px "Inter", sans-serif' : '600 12px "Inter", sans-serif';
-      ctx.fillText(labelText, x + 16, labelY);
+      ctx.textBaseline = "middle";
+      ctx.fillText(labelText, x + 16, centerY);
+      ctx.textAlign = "right";
+      ctx.textBaseline = "alphabetic";
+      ctx.font = `700 ${valueFont}px "Sora", "Inter", sans-serif`;
+      ctx.fillText(fitCanvasText(chipText, 52), x + w - 16, y + h - (isCompact ? 8 : 7));
     }
 
     ctx.save();
