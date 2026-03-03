@@ -2,6 +2,7 @@ Render Component
 
 Purpose:
 - Draw all visuals each frame from `AIPU.state`, including environment, entities, HUD, state overlays, and visual theme layers.
+- Draw the gameplay top HUD using an OSAN-style balanced 3-card composition so HP, floor/ability status, and survival timer share symmetric geometry and low-noise hierarchy.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add adaptive render-performance governance in `draw()` with runtime modes (`off|auto|force-low|force-medium|force-high`), low-cost quality fallback for GLFX/distortion/trails/particles/trails, and dynamic cadence/pool scaling.
 - Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.

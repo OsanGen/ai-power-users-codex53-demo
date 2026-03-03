@@ -6743,60 +6743,121 @@
   function drawHud(floor, accent) {
     const hudX = 70;
     const hudY = 18;
+    const hudW = WIDTH - hudX * 2;
+    const hudH = 74;
 
     ctx.fillStyle = TOKENS.white;
-    fillRoundRect(hudX, hudY, WIDTH - hudX * 2, 70, 18);
+    fillRoundRect(hudX, hudY, hudW, hudH, 18);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
-    strokeRoundRect(hudX, hudY, WIDTH - hudX * 2, 70, 18);
+    strokeRoundRect(hudX, hudY, hudW, hudH, 18);
 
-    ctx.font = '700 20px "Sora", "Inter", sans-serif';
-    ctx.fillStyle = TOKENS.ink;
+    const cardInset = 12;
+    const cardGap = 10;
+    const cardY = hudY + 10;
+    const cardH = hudH - 20;
+    const cardMidY = cardY + cardH * 0.5;
+
+    const rightCardW = 328;
+    const leftCardW = clamp(
+      252 + Math.max(0, player.maxHearts - 3) * 18 + (player.shieldCharges > 0 ? 30 : 0),
+      244,
+      340
+    );
+    const leftCardX = hudX + cardInset;
+    const rightCardX = hudX + hudW - cardInset - rightCardW;
+    const centerCardX = leftCardX + leftCardW + cardGap;
+    const centerCardW = rightCardX - cardGap - centerCardX;
+
     ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
 
+    ctx.fillStyle = rgba(TOKENS.fog, 0.92);
+    fillRoundRect(leftCardX, cardY, leftCardW, cardH, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(leftCardX, cardY, leftCardW, cardH, 14);
+
+    ctx.fillStyle = rgba(TOKENS.white, 0.94);
+    fillRoundRect(centerCardX, cardY, centerCardW, cardH, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(centerCardX, cardY, centerCardW, cardH, 14);
+
+    ctx.fillStyle = rgba(TOKENS.fog, 0.92);
+    fillRoundRect(rightCardX, cardY, rightCardW, cardH, 14);
+    ctx.strokeStyle = TOKENS.ink;
+    ctx.lineWidth = 2;
+    strokeRoundRect(rightCardX, cardY, rightCardW, cardH, 14);
+
+    ctx.font = '700 13px "Inter", sans-serif';
+    ctx.fillStyle = rgba(TOKENS.ink, 0.76);
+    ctx.fillText(uiText("hudHpLabel", "HP"), leftCardX + 14, cardMidY);
+
+    ctx.font = '700 12px "Inter", sans-serif';
+    let shieldLabel = "";
+    let shieldChipW = 0;
+    if (player.shieldCharges > 0) {
+      shieldLabel = formatUiText("hudShieldLabel", "Shield {count}", { count: player.shieldCharges });
+      shieldChipW = clamp(Math.ceil(ctx.measureText(shieldLabel).width) + 22, 90, 140);
+    }
+
+    const heartStartX = leftCardX + 46;
+    const heartRightLimit = leftCardX + leftCardW - 14 - (shieldChipW > 0 ? shieldChipW + 10 : 0);
+    const heartsSpan = Math.max(0, heartRightLimit - heartStartX);
+    const safeHearts = Math.max(1, player.maxHearts);
+    const heartSpacing = safeHearts > 1 ? Math.min(24, heartsSpan / (safeHearts - 1)) : 0;
     for (let i = 0; i < player.maxHearts; i += 1) {
       const fill = i < player.hearts ? 1 : 0;
-      drawHeartIcon(120 + i * 34, 52, floor.heartType, accent, fill);
+      drawHeartIcon(heartStartX + i * heartSpacing, cardMidY + 1, floor.heartType, accent, fill);
     }
 
-    ctx.font = '600 14px "Inter", sans-serif';
-    ctx.fillText(uiText("hudHpLabel", "HP"), 92, 52);
-
-    if (player.shieldCharges > 0) {
-      const shieldX = 252;
-      const shieldY = 36;
-      ctx.fillStyle = rgba(accent, 0.22);
-      fillRoundRect(shieldX, shieldY, 118, 30, 999);
+    if (shieldChipW > 0) {
+      const shieldX = leftCardX + leftCardW - shieldChipW - 10;
+      const shieldY = cardY + 10;
+      const shieldH = cardH - 20;
+      ctx.fillStyle = rgba(accent, 0.2);
+      fillRoundRect(shieldX, shieldY, shieldChipW, shieldH, 999);
       ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 2;
-      strokeRoundRect(shieldX, shieldY, 118, 30, 999);
-
+      ctx.lineWidth = 1.5;
+      strokeRoundRect(shieldX, shieldY, shieldChipW, shieldH, 999);
       ctx.fillStyle = TOKENS.ink;
-      ctx.font = '700 14px "Inter", sans-serif';
-      ctx.fillText(formatUiText("hudShieldLabel", "Shield {count}", { count: player.shieldCharges }), shieldX + 14, shieldY + 18);
+      ctx.textAlign = "center";
+      ctx.font = '700 12px "Inter", sans-serif';
+      ctx.fillText(shieldLabel, shieldX + shieldChipW * 0.5, cardMidY + 1);
+      ctx.textAlign = "left";
     }
 
-    const timerText = `${Math.ceil(game.floorTimer)}s`;
-    const timerBoxX = WIDTH - 370;
-    const timerBoxY = 33;
-    const timerW = 250;
-    const timerH = 30;
+    const floorLabel = formatUiText("hudFloorLabel", "Floor {floor} / {maxFloors}", {
+      floor: floor.id,
+      maxFloors: FLOORS.length
+    });
+    const centerInnerX = centerCardX + 10;
+    const centerInnerY = cardY + 8;
+    const centerInnerW = centerCardW - 20;
+    const chipGap = 8;
+    const chipH = cardH - 16;
 
-    ctx.font = '700 14px "Inter", sans-serif';
-    ctx.fillText(uiText("hudSurviveLabel", "Survive"), timerBoxX, 27);
+    ctx.font = '700 16px "Sora", "Inter", sans-serif';
+    let floorBoxW = clamp(Math.ceil(ctx.measureText(floorLabel).width) + 28, 152, 232);
+    const minBombW = 182;
+    if (centerInnerW - floorBoxW - chipGap < minBombW) {
+      floorBoxW = Math.max(138, centerInnerW - chipGap - minBombW);
+    }
+    const bombBoxW = Math.max(140, centerInnerW - floorBoxW - chipGap);
+    const floorBoxX = centerInnerX;
+    const bombBoxX = floorBoxX + floorBoxW + chipGap;
 
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(timerBoxX, timerBoxY, timerW, timerH, 999);
+    ctx.fillStyle = rgba(accent, 0.24);
+    fillRoundRect(floorBoxX, centerInnerY, floorBoxW, chipH, 999);
     ctx.strokeStyle = TOKENS.ink;
-    strokeRoundRect(timerBoxX, timerBoxY, timerW, timerH, 999);
-
-    const ratio = game.floorDuration > 0 ? clamp(game.floorTimer / game.floorDuration, 0, 1) : 0;
-    ctx.fillStyle = rgba(accent, 0.9);
-    fillRoundRect(timerBoxX + 3, timerBoxY + 3, (timerW - 6) * ratio, timerH - 6, 999);
+    ctx.lineWidth = 2;
+    strokeRoundRect(floorBoxX, centerInnerY, floorBoxW, chipH, 999);
 
     ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 16px "Inter", sans-serif';
-    ctx.fillText(timerText, timerBoxX + timerW + 14, timerBoxY + timerH * 0.5 + 1);
+    ctx.font = '700 16px "Sora", "Inter", sans-serif';
+    ctx.textAlign = "center";
+    ctx.fillText(fitCanvasText(floorLabel, floorBoxW - 22), floorBoxX + floorBoxW * 0.5, cardMidY + 1);
 
     const bombCopy = typeof getBombBriefingCopy === "function" ? getBombBriefingCopy() : BOMB_BRIEFING_FALLBACK;
     const bombAbilityName = bombCopy && bombCopy.abilityName ? bombCopy.abilityName : BOMB_BRIEFING_FALLBACK.abilityName;
@@ -6811,88 +6872,45 @@
       remaining: remainingCharges,
       total: totalCharges
     });
-    ctx.font = '700 12px "Inter", sans-serif';
-    let bombBoxW = clamp(Math.ceil(ctx.measureText(bombText).width) + 42, 140, 286);
-    const bombBoxH = 30;
-    let bombBoxX = timerBoxX - bombBoxW - 18;
-    const bombBoxY = timerBoxY;
 
-    const floorLabel = formatUiText("hudFloorLabel", "Floor {floor} / {maxFloors}", {
-      floor: floor.id,
-      maxFloors: FLOORS.length
-    });
-    ctx.font = '700 20px "Sora", "Inter", sans-serif';
-    const floorLabelWidth = ctx.measureText(floorLabel).width;
-    let floorBoxW = clamp(floorLabelWidth + 28, 104, 200);
-
-    const hpAreaRight = 120 + player.maxHearts * 34 + 12;
-    const shieldAreaRight = player.shieldCharges > 0 ? 252 + 118 + 12 : 0;
-    const leftHudBoundary = Math.max(300, hpAreaRight, shieldAreaRight) + 10;
-    const rightHudBoundary = timerBoxX - 12;
-    const floorGap = 10;
-    const minFloorW = 92;
-    const minBombW = 118;
-    const middleW = Math.max(0, rightHudBoundary - leftHudBoundary);
-
-    if (middleW > 0) {
-      let requiredW = floorBoxW + floorGap + bombBoxW;
-      if (requiredW > middleW) {
-        let overflow = requiredW - middleW;
-        const bombReducible = Math.max(0, bombBoxW - minBombW);
-        const bombReduce = Math.min(bombReducible, overflow);
-        bombBoxW -= bombReduce;
-        overflow -= bombReduce;
-        const floorReducible = Math.max(0, floorBoxW - minFloorW);
-        const floorReduce = Math.min(floorReducible, overflow);
-        floorBoxW -= floorReduce;
-        overflow -= floorReduce;
-        if (overflow > 0) {
-          bombBoxW = Math.max(minBombW, middleW - floorGap - floorBoxW);
-          if (bombBoxW < minBombW) {
-            floorBoxW = Math.max(minFloorW, middleW - floorGap - minBombW);
-            bombBoxW = Math.max(minBombW, middleW - floorGap - floorBoxW);
-          }
-        }
-      }
-    }
-
-    const floorBoxX = leftHudBoundary;
-    bombBoxX = floorBoxX + floorBoxW + floorGap;
-    const floorTextX = floorBoxX + 14;
-
-    ctx.fillStyle = rgba(accent, 0.28);
-    fillRoundRect(floorBoxX, 34, floorBoxW, 36, 999);
+    ctx.fillStyle = rgba(TOKENS.fog, 0.98);
+    fillRoundRect(bombBoxX, centerInnerY, bombBoxW, chipH, 999);
     ctx.strokeStyle = TOKENS.ink;
     strokeRoundRect(floorBoxX, 34, floorBoxW, 36, 999);
+    strokeRoundRect(bombBoxX, centerInnerY, bombBoxW, chipH, 999);
 
+    ctx.textAlign = "left";
+    ctx.font = '700 12px "Inter", sans-serif';
+    ctx.fillStyle = remainingCharges > 0 ? TOKENS.ink : rgba(TOKENS.ink, 0.6);
+    ctx.fillText(fitCanvasText(bombText, bombBoxW - 24), bombBoxX + 12, cardMidY + 1);
+
+    const timerText = `${Math.ceil(game.floorTimer)}s`;
+    const ratio = game.floorDuration > 0 ? clamp(game.floorTimer / game.floorDuration, 0, 1) : 0;
+    const timerPad = 12;
+    const timerLabelY = cardY + 11;
+    const timerMeterY = cardY + cardH - 20;
+    const timerMeterH = 14;
+    const timerMeterX = rightCardX + timerPad;
+    const timerMeterW = rightCardW - timerPad * 2;
+
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "left";
+    ctx.font = '700 13px "Inter", sans-serif';
+    ctx.fillStyle = rgba(TOKENS.ink, 0.78);
+    ctx.fillText(uiText("hudSurviveLabel", "Survive"), rightCardX + timerPad, timerLabelY);
+
+    ctx.textAlign = "right";
     ctx.fillStyle = TOKENS.ink;
-    ctx.fillText(fitCanvasText(floorLabel, floorBoxW - 24), floorTextX, 52);
+    ctx.font = '700 17px "Sora", "Inter", sans-serif';
+    ctx.fillText(timerText, rightCardX + rightCardW - timerPad, timerLabelY + 1);
 
-    ctx.fillStyle = TOKENS.fog;
-    fillRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
+    ctx.fillStyle = rgba(TOKENS.white, 0.95);
+    fillRoundRect(timerMeterX, timerMeterY, timerMeterW, timerMeterH, 999);
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 2;
-    strokeRoundRect(bombBoxX, bombBoxY, bombBoxW, bombBoxH, 999);
-
-    const meterSegmentGap = 3;
-    const meterSegmentW = 8;
-    const meterX = bombBoxX + 10;
-    const meterY = bombBoxY + 7;
-    const meterH = bombBoxH - 14;
-    for (let i = 0; i < totalCharges; i += 1) {
-      const segmentX = meterX + i * (meterSegmentW + meterSegmentGap);
-      const isActive = i < remainingCharges;
-      ctx.fillStyle = rgba(accent, isActive ? 0.34 : 0.12);
-      fillRoundRect(segmentX, meterY, meterSegmentW, meterH, 999);
-      ctx.strokeStyle = rgba(TOKENS.ink, 0.45);
-      ctx.lineWidth = 1;
-      strokeRoundRect(segmentX, meterY, meterSegmentW, meterH, 999);
-    }
-
-    ctx.fillStyle = TOKENS.ink;
-    ctx.font = '700 12px "Inter", sans-serif';
-    const meterW = totalCharges * meterSegmentW + Math.max(0, totalCharges - 1) * meterSegmentGap;
-    ctx.fillText(fitCanvasText(bombText, bombBoxW - (meterW + 28)), bombBoxX + 16 + meterW, bombBoxY + 18);
+    strokeRoundRect(timerMeterX, timerMeterY, timerMeterW, timerMeterH, 999);
+    ctx.fillStyle = rgba(accent, 0.84);
+    fillRoundRect(timerMeterX + 2, timerMeterY + 2, Math.max(0, (timerMeterW - 4) * ratio), timerMeterH - 4, 999);
 
     drawBurstStatusHud(accent);
     drawAttackDisableHud(accent);
