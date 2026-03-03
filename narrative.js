@@ -215,6 +215,7 @@ window.AI_POWER_USER_NARRATIVE = {
     hudBurstNextCompact: "Next {nextLabel} {seconds}s",
     hudBurstOmniNextCompact: "Omni {seconds}s",
     hudAttackDisableCompact: "Shooting disabled {seconds}s",
+    hudAttackDisableCompactShort: "Shoot disabled {seconds}s",
     hudUpgradesTitle: "Upgrades",
     hudUpgradesToastTitle: "Upgrade",
     hudUpgradesToastMore: "+{count} more",

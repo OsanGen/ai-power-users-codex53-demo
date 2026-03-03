@@ -6768,15 +6768,17 @@
     if (inPlaying) {
       const lockout = getAttackDisableSnapshot();
       if (lockout.active) {
+        const secondsLabel = lockout.secondsRemaining.toFixed(1);
         return {
           type: "attackDisable",
           text: formatUiText("hudAttackDisableCompact", "Shooting disabled {seconds}s", {
-            seconds: lockout.secondsRemaining.toFixed(1)
+            seconds: secondsLabel
           }),
           priority: 1,
           persistent: true,
           emphasis: true,
-          progress: clamp(1 - lockout.progress, 0, 1)
+          progress: clamp(1 - lockout.progress, 0, 1),
+          seconds: Number(secondsLabel)
         };
       }
     }
@@ -6966,8 +6968,15 @@
     const inlineStatus = resolveHudInlineStatus(accent);
     const statusType = inlineStatus && inlineStatus.type ? String(inlineStatus.type) : "";
     const statusProgress = inlineStatus && Number.isFinite(inlineStatus.progress) ? clamp(inlineStatus.progress, 0, 1) : 0;
+    const statusSeconds = inlineStatus && Number.isFinite(inlineStatus.seconds) ? Math.max(0, Number(inlineStatus.seconds)) : 0;
     let statusText = inlineStatus && inlineStatus.text ? String(inlineStatus.text) : "";
-    let statusW = statusText ? clamp(abilityTextW(statusText) + 22, 132, 212) : 0;
+    let statusW = 0;
+    if (statusText) {
+      const statusPadding = statusType === "attackDisable" ? 28 : 22;
+      const statusMinW = statusType === "attackDisable" ? 176 : 132;
+      const statusMaxW = statusType === "attackDisable" ? 244 : 212;
+      statusW = clamp(abilityTextW(statusText) + statusPadding, statusMinW, statusMaxW);
+    }
 
     const totalNeeded = () =>
       hpW + floorW + abilityW + surviveW + (statusW > 0 ? statusW : 0) + chipGap * (statusW > 0 ? 4 : 3);
@@ -6988,16 +6997,28 @@
     if (tightFloor) {
       floorW = clamp(floorW, 118, 170);
     }
-    if (statusW > 0 && totalNeeded() > laneW) {
+    const canShrinkStatus = statusType !== "attackDisable";
+    if (canShrinkStatus && statusW > 0 && totalNeeded() > laneW) {
       statusW = Math.max(120, statusW - (totalNeeded() - laneW));
+    }
+    if (statusType === "attackDisable" && statusW > 0 && totalNeeded() > laneW && statusSeconds > 0) {
+      statusText = formatUiText("hudAttackDisableCompactShort", "Shoot disabled {seconds}s", {
+        seconds: statusSeconds.toFixed(1)
+      });
+      statusW = clamp(abilityTextW(statusText) + 24, 152, 220);
     }
     if (totalNeeded() > laneW) {
       const overflow = totalNeeded() - laneW;
-      if (statusW > 0) {
+      if (statusW > 0 && canShrinkStatus) {
         statusW = Math.max(108, statusW - overflow);
+      } else if (statusType === "attackDisable" && statusW > 0) {
+        floorW = Math.max(110, floorW - overflow);
       } else {
         abilityW = Math.max(124, abilityW - overflow);
       }
+    }
+    if (statusType === "attackDisable" && statusW > 0 && totalNeeded() > laneW) {
+      statusW = Math.max(148, statusW - (totalNeeded() - laneW));
     }
 
     const neutralGutter = Math.max(0, laneW - totalNeeded());
@@ -7167,11 +7188,12 @@
         strokeRoundRect(statusX + 1, cardY + 1, statusW - 2, cardH - 2, 10);
       }
       let statusTextMax = statusW - 20;
+      let statusTextY = cardMidY + 1;
       if (isAttackDisableStatus) {
-        const meterW = clamp(Math.floor(statusW * 0.26), 32, 56);
-        const meterH = 6;
-        const meterX = statusX + statusW - meterW - 10;
-        const meterY = cardY + cardH - 12;
+        const meterW = Math.max(36, statusW - 20);
+        const meterH = 4;
+        const meterX = statusX + 10;
+        const meterY = cardY + cardH - 9;
         ctx.fillStyle = rgba(TOKENS.ink, 0.12);
         fillRoundRect(meterX, meterY, meterW, meterH, 999);
         ctx.fillStyle = rgba(TOKENS.ink, 0.34);
@@ -7179,12 +7201,13 @@
         ctx.strokeStyle = rgba(TOKENS.ink, 0.42);
         ctx.lineWidth = 1;
         strokeRoundRect(meterX, meterY, meterW, meterH, 999);
-        statusTextMax = Math.max(54, meterX - (statusX + 10) - 8);
+        statusTextMax = statusW - 20;
+        statusTextY = cardY + Math.floor(cardH * 0.5) - 0.5;
       }
       ctx.textAlign = "left";
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 11px "Inter", sans-serif';
-      ctx.fillText(fitCanvasText(statusText, statusTextMax), statusX + 10, cardMidY + 1);
+      ctx.fillText(fitCanvasText(statusText, statusTextMax), statusX + 10, statusTextY);
       if (statusEmphasis && !isAttackDisableStatus) {
         ctx.fillStyle = rgba(TOKENS.ink, 0.34);
         fillRoundRect(statusX + statusW - 12, cardY + 9, 4, 4, 999);

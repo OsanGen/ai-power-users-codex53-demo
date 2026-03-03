@@ -12,6 +12,7 @@ Purpose:
 - Top-bar integrated notifications v6 moves transient status cards/upgrades fully inside the top HUD border by expanding the HUD into a two-row shell (persistent row + transient row) and anchoring left/center/right lanes to row 2, eliminating floating gap toasts.
 - Single-row top HUD v7 restores a strict one-row top shell and collapses transient notifications into one inline status chip in row-1 (`HP | Floor | Space Pulse | Status | Survive`), removing all separate transient cards from active draw flow.
 - Single-row top HUD v8 keeps the one-row shell while restoring burst progression countdown inside the inline status chip (`Next Dual`, `Omni`) and upgrades shooting-disabled visibility with an OSAN-safe caution treatment (contrast pulse + micro recovery meter, no glow).
+- Single-row top HUD v9 resolves lockout text truncation by making attack-disable status content-fit first, preserving lockout status width under overflow pressure, and relocating its progress micro-meter to a bottom rail so full status text remains readable.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add adaptive render-performance governance in `draw()` with runtime modes (`off|auto|force-low|force-medium|force-high`), low-cost quality fallback for GLFX/distortion/trails/particles/trails, and dynamic cadence/pool scaling.
 - Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.
@@ -67,6 +68,7 @@ State/Edges:
 - Transient status lane is now internal to the top HUD shell row-2 geometry and no longer depends on WORLD-relative placement.
 - Transient status presentation is now unified under `resolveHudInlineStatus(...)` and rendered by `drawHud(...)` as a single compact inline chip with priority order (`attack-disable > burst > rear-hint > upgrade > music`).
 - Inline status now carries optional metadata (`type`, `progress`) so `drawHud(...)` can apply context-sensitive rendering: burst countdown text and lockout caution meter without adding additional rows or popup cards.
+- Inline status now also carries optional lockout `seconds` payload for attack-disable-specific short-copy fallback under extreme width pressure.
 - Uses `withRectClip` for lesson/death text clipping and `withClipRect` for rounded-panel masking.
 - Keeps overlay text readable by top-aligned clipping paths with insets.
 - Lesson diagram path is now two-tiered:
@@ -160,6 +162,7 @@ Acceptance Checks:
 - Burst and lockout inline readability:
   - `resolveHudInlineStatus(...)` now includes compact countdown copy (`Next {nextLabel} {seconds}s` and `Omni {seconds}s`) when directional burst has a next threshold.
   - Lockout inline status now uses stronger neutral caution emphasis with a bounded pulse and a compact progress meter, while maintaining OSAN constraints (no glow, no second accent lead).
+  - Lockout inline status now keeps full primary text visibility by avoiding right-side meter text squeeze and by switching to short copy (`Shoot disabled {seconds}s`) only under hard width pressure.
 - Run summary pill labels and spacing remain correctly anchored within the summary panel bounds.
 - Bomb briefing charge chips render deterministic labels (`SPACE #1/#2/#3`) with no unresolved template text.
 - Bomb briefing SPACE callout action text remains fully visible inside the callout card at desktop and compact sizes.
