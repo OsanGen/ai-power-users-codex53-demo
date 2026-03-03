@@ -7035,6 +7035,11 @@
       return;
     }
 
+    const dualTriggerSeconds = Math.max(0.001, Number(AIPU.constants.REAR_SHOT_TRIGGER_SECONDS) || 4);
+    const omniTriggerSeconds = Math.max(0.001, Number(AIPU.constants.ALL_DIRECTION_SHOT_TRIGGER_SECONDS) || 10);
+    const dualSecondsLabel = Number.isInteger(dualTriggerSeconds) ? String(dualTriggerSeconds) : dualTriggerSeconds.toFixed(1).replace(/\.0$/, "");
+    const omniSecondsLabel = Number.isInteger(omniTriggerSeconds) ? String(omniTriggerSeconds) : omniTriggerSeconds.toFixed(1).replace(/\.0$/, "");
+
     const hintMode = game.rearShotHintMode === "omni" ? "omni" : "dual";
     const heading =
       hintMode === "omni"
@@ -7042,8 +7047,8 @@
         : uiText("rearHintDualTitle", "Dual burst unlocked");
     const body =
       hintMode === "omni"
-        ? uiText("rearHintOmniBody", "10s hold: shots fire in all 4 directions.")
-        : uiText("rearHintDualBody", "2s hold: shots fire forward and backward.");
+        ? formatUiText("rearHintOmniBody", "{seconds}s hold: shots fire in all 4 directions.", { seconds: omniSecondsLabel })
+        : formatUiText("rearHintDualBody", "{seconds}s hold: shots fire forward and backward.", { seconds: dualSecondsLabel });
 
     const hintDuration = Math.max(0.001, AIPU.constants.REAR_SHOT_NOTICE_DURATION || 4.2);
     const visibility = clamp(game.rearShotHintTimer / hintDuration, 0, 1);
