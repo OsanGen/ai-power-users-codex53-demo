@@ -8,7 +8,7 @@
   const LAYERS_STACK_EXTRA_RIGHT_PAD = 20;
   const LAYER_MARKER_EDGE_GUARD = 8;
   const ACTIVE_STAGE_SECONDS = 1.15;
-  const SCHEMA_VERSION = "lesson_v2_20260302";
+  const SCHEMA_VERSION = "lesson_v2_20260303";
 
   const DEFAULT_TOKENS = {
     ink: "#1f2937",
@@ -138,10 +138,11 @@
       nodePrimary: { fontSize: 10.8, maxWidth: 76, tone: "ink" }
     },
     loss_meter: {
-      heading: { tone: "ink", fontSize: 13.4, chipPaddingY: 5 },
-      nodeSecondary: { tone: "fog", maxWidth: 80 },
-      nodePrimary: { tone: "ink", fontSize: 11 },
-      edgeTiny: { tone: "ink", maxWidth: 48, fontSize: 8.6 }
+      heading: { tone: "ink", fontSize: 12.2, chipPaddingX: 9, chipPaddingY: 4.2, maxWidth: 96 },
+      nodeSecondary: { tone: "ink", maxWidth: 74, fontSize: 10.2, chipPaddingX: 6, chipPaddingY: 2.4 },
+      nodePrimary: { tone: "ink", fontSize: 10.2, maxWidth: 72, chipPaddingX: 6.5, chipPaddingY: 2.6 },
+      edgeChip: { tone: "inkMuted", maxWidth: 52, fontSize: 8.8, chipPaddingX: 5.4, chipPaddingY: 2.1 },
+      edgeTiny: { tone: "inkMuted", maxWidth: 44, fontSize: 8.2 }
     },
     backprop_arrows: {
       edgeChip: { maxWidth: 62, tone: "blue", fontSize: 9.4 },
@@ -835,19 +836,19 @@
         return {
           mode: resolved,
           nodes: [
-            createNode("pred", "y^", "output", 0),
-            createNode("truth", "y", "input", 0),
-            createNode("diff", "|y^-y|", "operator", 1),
-            createNode("loss", "Loss", "metric", 2, "ink", "nodeTopHeader", "heading"),
-            createNode("goal", "minimize", "output", 3)
+            createNode("truth", "y", "input", 0, "ink", "nodeCenter", "nodeSecondary", 44),
+            createNode("pred", "y^", "output", 0, "ink", "nodeCenter", "nodeSecondary", 44),
+            createNode("diff", "error", "operator", 1, "ink", "nodeCenter", "nodeSecondary", 74),
+            createNode("loss", "Loss", "metric", 2, "ink", "nodeTopHeader", "heading", 72),
+            createNode("goal", "goal", "output", 3, "ink", "nodeCenter", "nodeSecondary", 64)
           ],
           edges: [
-            createEdge("lm1", "pred", "diff", "", 0.72),
-            createEdge("lm2", "truth", "diff", "", 0.72),
-            createEdge("lm3", "diff", "loss", "error", 0.9, "ink", "forwardLane", "edgeChip"),
-            createEdge("lm4", "loss", "goal", "", 0.85, "ink", "forwardLane", "edgeChip")
+            createEdge("lm1", "truth", "diff", "", 0.56),
+            createEdge("lm2", "pred", "diff", "", 0.56),
+            createEdge("lm3", "diff", "loss", "", 0.92, "ink", "forwardLane", "edgeChip"),
+            createEdge("lm4", "loss", "goal", "", 0.68, "ink", "forwardLane", "edgeChip")
           ],
-          stages: [["pred", "truth"], ["diff"], ["loss"], ["goal"]]
+          stages: [["truth", "pred"], ["diff"], ["loss"], ["goal"]]
         };
       case "backprop_arrows":
         return {
@@ -1612,7 +1613,8 @@
     const inkInt = parseHexColor(tokens.ink, 0x1f2937);
 
     const bg = new global.PIXI.Graphics();
-    bg.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), 0.3);
+    const bgAlpha = scene.mode === "loss_meter" ? 0.2 : 0.3;
+    bg.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), bgAlpha);
     bg.drawRoundedRect(8, 8, Math.max(24, state.width - 16), Math.max(24, state.height - 16), 14);
     bg.endFill();
     root.addChild(bg);
@@ -1631,23 +1633,32 @@
       const isLayerCrossEdge =
         scene.mode === "layers_stack" &&
         (edge.id === "ls2" || edge.id === "ls3" || edge.id === "ls6" || edge.id === "ls7");
+      const isLossFocusEdge = scene.mode === "loss_meter" && edge.id === "lm3";
       const alpha =
         scene.mode === "layers_stack"
           ? isActive
             ? isLayerCrossEdge ? 0.28 : 0.58
             : isLayerCrossEdge ? 0.16 : 0.34
+          : scene.mode === "loss_meter"
+            ? isLossFocusEdge
+              ? isActive ? 0.82 : 0.66
+              : isActive ? 0.52 : 0.24 + edge.emphasis * 0.14
           : isActive
             ? 0.88
             : 0.36 + edge.emphasis * 0.2;
       const width =
         scene.mode === "layers_stack"
           ? isLayerCrossEdge ? 1.2 : 1.8
+          : scene.mode === "loss_meter"
+            ? isLossFocusEdge ? 2.2 : 1.2
           : isActive
             ? 2.6
             : 1.6;
       const color =
         scene.mode === "layers_stack"
           ? isLayerCrossEdge ? inkInt : isActive ? accentInt : inkInt
+          : scene.mode === "loss_meter"
+            ? isLossFocusEdge ? accentInt : inkInt
           : isActive
             ? accentInt
             : inkInt;
@@ -1670,7 +1681,7 @@
       drawNode(root, node, pos, accentInt, tokens, scene.mode);
     }
 
-    if (scene.mode !== "layers_stack") {
+    if (scene.mode !== "layers_stack" && scene.mode !== "loss_meter") {
       drawPulses(root, scene, positions, stageIndex, accentInt, reducedMotion, Number.isFinite(time) ? time : 0);
     }
   }
@@ -1881,7 +1892,8 @@
     context.rect(panelX, panelY, panelW, panelH);
     context.clip();
 
-    context.fillStyle = rgbToRgba(toRgb("#" + fogInt.toString(16).padStart(6, "0")), 0.3);
+    const bgAlpha = sceneSafe.mode === "loss_meter" ? 0.2 : 0.3;
+    context.fillStyle = rgbToRgba(toRgb("#" + fogInt.toString(16).padStart(6, "0")), bgAlpha);
     roundRectPath(context, panelX + 8, panelY + 8, Math.max(24, panelW - 16), Math.max(24, panelH - 16), 14);
     context.fill();
 
@@ -1898,23 +1910,32 @@
       const isLayerCrossEdge =
         sceneSafe.mode === "layers_stack" &&
         (edge.id === "ls2" || edge.id === "ls3" || edge.id === "ls6" || edge.id === "ls7");
+      const isLossFocusEdge = sceneSafe.mode === "loss_meter" && edge.id === "lm3";
       const alpha =
         sceneSafe.mode === "layers_stack"
           ? isActive
             ? isLayerCrossEdge ? 0.28 : 0.58
             : isLayerCrossEdge ? 0.16 : 0.34
+          : sceneSafe.mode === "loss_meter"
+            ? isLossFocusEdge
+              ? isActive ? 0.82 : 0.66
+              : isActive ? 0.52 : 0.24 + (Number(edge.emphasis) || 0.5) * 0.14
           : isActive
             ? 0.88
             : 0.36 + (Number(edge.emphasis) || 0.5) * 0.2;
       const width =
         sceneSafe.mode === "layers_stack"
           ? isLayerCrossEdge ? 1.2 : 1.8
+          : sceneSafe.mode === "loss_meter"
+            ? isLossFocusEdge ? 2.2 : 1.2
           : isActive
             ? 2.6
             : 1.6;
       const colorInt =
         sceneSafe.mode === "layers_stack"
           ? isLayerCrossEdge ? inkInt : isActive ? accentInt : inkInt
+          : sceneSafe.mode === "loss_meter"
+            ? isLossFocusEdge ? accentInt : inkInt
           : isActive
             ? accentInt
             : inkInt;
@@ -1986,7 +2007,7 @@
       }
     }
 
-    if (!reducedMotion && sceneSafe.mode !== "layers_stack") {
+    if (!reducedMotion && sceneSafe.mode !== "layers_stack" && sceneSafe.mode !== "loss_meter") {
       for (let i = 0; i < sceneSafe.edges.length; i += 1) {
         const edge = sceneSafe.edges[i];
         if (!activeNodeSet.has(edge.target)) {

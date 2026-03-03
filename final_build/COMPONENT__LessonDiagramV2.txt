@@ -50,6 +50,7 @@ State / Edges:
 - Active layout source is recomputed from availability each render pass: manual is used while async ELK computes, then switched to ELK as soon as `elkPositions` resolves for that same mode/size key to prevent stale manual topology lingering after async completion.
 - Additional viewport right padding and inward label anchors protect right-edge labels (`output` leg) from clipping in narrow or compact lesson cards.
 - `layers_stack` now applies an extra right-side viewport inset during fit normalization and clamps per-tier marker centers to panel bounds (with a small edge guard) in both Pixi and canvas fallback paths, preventing right-edge `Output` marker clipping without topology changes.
+- `loss_meter` now follows an OSAN lower-noise profile: edge-label chip removed for the core lane, node chips shortened (`y`, `y^`, `error`, `Loss`, `goal`), background chrome reduced, pulse motion disabled for this scene, and only the `error -> Loss` lane receives accent-leading emphasis.
 - If PixiJS is missing or renderer creation fails, `renderTo()` uses deterministic 2D canvas scene drawing when possible and only falls back to legacy `render.js` sketch when a hard failure prevents V2 canvas rendering.
 - If ELK is missing/fails, manual layout continues with deterministic structure.
 - If particle emitter is missing/fails, spark fallback visuals are used and diagram remains functional.
@@ -67,6 +68,7 @@ Acceptance checks:
 - All nine `visualMode` scenes render topology-distinct diagrams (not simple recolors).
 - `layers_stack` now enforces headers-only text hierarchy (`Input`, `Hidden 1`, `Hidden 2`, `Output`) with no per-node pills, reduced cross-lane edge prominence, and no pulse overlays so the scene stays within OSAN noise budget.
 - `layers_stack` output-tier marker and label remain fully inside the diagram panel bounds across desktop and compact lesson-card widths.
+- `loss_meter` remains fully legible at compact widths without edge-label overlap/chip crowding, and the proof lane (`error -> Loss`) is visually prioritized with single-accent discipline.
 - `sum_bias` scene explicitly shows weighted inputs, `+b`, `Σ`, pre-activation node, activation node, and output.
 - `sum_bias` edge labels around `Σ` are visually separated and readable at mobile and desktop panel widths.
 - Graph content remains centered vertically/horizontally within the lesson diagram card; no large lower dead-zone caused by top anchoring.
