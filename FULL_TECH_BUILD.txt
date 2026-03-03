@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T12:36:49-05:00
+- UpdatedAt: 2026-03-03T13:13:19-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 80259db
+- Branch, HEAD commit hash: main, 977a447
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -60,6 +60,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Top HUD compact v3: reduced persistent top rail to a tighter single-row core (HP/floor/timer), replaced shield pill with micro-badge, and converted burst/upgrades/music into contextual toasts to remove always-on second-row clutter.
   - OSAN HUD polish v2: converted side HUD stack to contextual priority cards, compacted upgrade rows with `+N more`, restyled rear-hint card into the shared HUD system, and enforced timer-led accent governance with neutral floor/ability chips.
   - HUD artifact cleanup: removed a leftover duplicate floor-chip stroke call in the top HUD render path so the new three-card OSAN layout stays visually symmetric and noise-free.
   - In-game top HUD redesigned into a balanced OSAN-compliant 3-card layout (vitality card, floor+bomb status card, survive timer card) to remove left/right asymmetry and reduce status-noise while preserving existing gameplay data.
@@ -79,6 +80,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T13:13:19-05:00 | Implemented top HUD compact v3 with tighter single-row geometry, shield micro-badge, compact status copy keys, event-driven burst/upgrade/music toasts, and initial-load toast suppression; bumped `narrative.js` + `render.js` cache tokens | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T12:38:52-05:00 | Deployed HUD polish v2 commit `977a447` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:36:49-05:00 | Implemented HUD polish v2 (contextual side-card priority, compact status copy, timer-led accent governance, compact upgrades card, rear-hint restyle) and bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:16:10-05:00 | Removed stray legacy stroke from top HUD card rendering and bumped `render.js` cache token for clean rollout | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:13:31-05:00 | Deployed OSAN HUD redesign commit `80259db` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
