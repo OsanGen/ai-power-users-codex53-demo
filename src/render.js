@@ -6018,6 +6018,7 @@
     }
     return accentValue;
   }
+  const MUZZLE_FLASH_UPWARD_FORWARD_NUDGE = 5;
 
   function drawMuzzleFlashes(accent, _visualTheme = null) {
     if (!Array.isArray(muzzleFlashes) || muzzleFlashes.length === 0) {
@@ -6071,6 +6072,11 @@
       const length = Math.hypot(dxRaw, dyRaw) || 1;
       const dx = dxRaw / length;
       const dy = dyRaw / length;
+      let originX = x;
+      let originY = y;
+      if (Math.abs(dx) < 0.01 && dy < -0.99) {
+        originY += dy * MUZZLE_FLASH_UPWARD_FORWARD_NUDGE;
+      }
       const px = -dy;
       const py = dx;
       const seed = Number.isFinite(flash.intensitySeed) ? flash.intensitySeed : 0.5;
@@ -6082,27 +6088,27 @@
       const tipLength = coneLength + flashProfile.reachBoost;
       const coneSpread = (reducedMotion ? 2.2 : 3.2) + seed * 1.1;
 
-      const bloom = ctx.createRadialGradient(x, y, 0, x, y, bloomRadius);
+      const bloom = ctx.createRadialGradient(originX, originY, 0, originX, originY, bloomRadius);
       bloom.addColorStop(0, rgba(flashColor, clamp(0.78 + life * 0.16, 0.64, 0.98)));
       bloom.addColorStop(0.28, rgba(flashColor, clamp(0.44 + life * 0.32, 0.3, 0.86)));
       bloom.addColorStop(0.72, rgba(flashColor, clamp(0.16 + life * 0.24, 0.12, 0.52)));
       bloom.addColorStop(1, rgba(flashColor, 0));
       ctx.fillStyle = bloom;
       ctx.beginPath();
-      ctx.arc(x, y, bloomRadius, 0, Math.PI * 2);
+      ctx.arc(originX, originY, bloomRadius, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = rgba(flashColor, clamp(0.44 + life * 0.36, 0.22, 0.9));
       ctx.beginPath();
-      ctx.moveTo(x + px * coneSpread * 0.5, y + py * coneSpread * 0.5);
-      ctx.lineTo(x + dx * tipLength, y + dy * tipLength);
-      ctx.lineTo(x - px * coneSpread * 0.5, y - py * coneSpread * 0.5);
+      ctx.moveTo(originX + px * coneSpread * 0.5, originY + py * coneSpread * 0.5);
+      ctx.lineTo(originX + dx * tipLength, originY + dy * tipLength);
+      ctx.lineTo(originX - px * coneSpread * 0.5, originY - py * coneSpread * 0.5);
       ctx.closePath();
       ctx.fill();
 
       ctx.fillStyle = rgba(flashColor, clamp(0.1 + life * 0.12, 0.08, 0.2));
       ctx.beginPath();
-      ctx.ellipse(x, y, coreRadius, coreRadius * 0.7, Math.atan2(dy, dx), 0, Math.PI * 2);
+      ctx.ellipse(originX, originY, coreRadius, coreRadius * 0.7, Math.atan2(dy, dx), 0, Math.PI * 2);
       ctx.fill();
 
       ctx.strokeStyle = rgba(flashColor, clamp(0.22 + life * 0.28, 0.14, 0.62));
@@ -6113,10 +6119,10 @@
         const jitter = reducedMotion ? 0 : (streak === 0 ? 0.65 : -0.65) * life;
         const tailLength = tipLength + 2 + jitter;
         ctx.beginPath();
-        ctx.moveTo(x + px * offset, y + py * offset);
+        ctx.moveTo(originX + px * offset, originY + py * offset);
         ctx.lineTo(
-          x + dx * tailLength + px * offset * 0.35,
-          y + dy * tailLength + py * offset * 0.35
+          originX + dx * tailLength + px * offset * 0.35,
+          originY + dy * tailLength + py * offset * 0.35
         );
         ctx.stroke();
       }

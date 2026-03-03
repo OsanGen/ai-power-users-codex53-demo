@@ -131,9 +131,9 @@
       edgeChip: { fontSize: 9.6, maxWidth: 64, tone: "ink" }
     },
     layers_stack: {
-      caption: { tone: "ink", maxWidth: 110, fontSize: 12 },
-      heading: { tone: "ink", fontSize: 12.4, maxWidth: 86 },
-      nodePrimary: { fontSize: 11, tone: "ink" }
+      caption: { tone: "ink", maxWidth: 108, fontSize: 11.8 },
+      heading: { tone: "ink", fontSize: 11.4, maxWidth: 72 },
+      nodePrimary: { fontSize: 10.8, maxWidth: 76, tone: "ink" }
     },
     loss_meter: {
       heading: { tone: "ink", fontSize: 13.4, chipPaddingY: 5 },
@@ -684,6 +684,24 @@
     return String(tone || fallbackTone || "ink");
   }
 
+  function shouldRenderNodeLabel(sceneMode, node) {
+    if (!node || !node.label) {
+      return false;
+    }
+    const safeMode = normalizeMode(sceneMode || "");
+    if (safeMode !== "layers_stack") {
+      return true;
+    }
+    if (node.id === "i1" || node.id === "o1") {
+      return false;
+    }
+    const tier = Number(node.tier);
+    if (node.kind === "hidden" || tier === 1 || tier === 2) {
+      return false;
+    }
+    return true;
+  }
+
   function resolveNodeLabelPlacement(node, position, mode, spec) {
     const radius = spec && spec.radius ? Number(spec.radius) : 14;
     const layout = String(node.labelLayout || (mode === "network_basic" ? "nodePill" : "nodeCenter")).trim();
@@ -812,8 +830,8 @@
           ],
           captions: [
             { text: "Input", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 0, maxWidth: 60 },
-            { text: "Hidden", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 1, maxWidth: 60 },
-            { text: "Hidden", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 2, maxWidth: 60 },
+            { text: "Hidden 1", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 1, maxWidth: 60 },
+            { text: "Hidden 2", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 2, maxWidth: 60 },
             { text: "Output", tone: "ink", purpose: "heading", layout: "layerMarker", tier: 3, maxWidth: 60 }
           ],
           stages: [["i1", "i2"], ["h1", "h2"], ["h3", "h4"], ["o1", "o2"]]
@@ -1581,7 +1599,7 @@
     shape.endFill();
     root.addChild(shape);
 
-    if (node.label) {
+    if (shouldRenderNodeLabel(sceneMode, node)) {
       const spec = buildTextSpec(sceneMode, node.labelPurpose || "nodePrimary", node);
       const labelPlacement = resolveNodeLabelPlacement(node, position, sceneMode, { radius, mode: sceneMode });
       renderPixiLabelCard(root, node.label, labelPlacement.x, labelPlacement.y, spec, tokens);
@@ -1690,13 +1708,19 @@
         const markerX = avgX - markerWidth * 0.5;
         const markerY = minY - 12;
         const marker = new global.PIXI.Graphics();
-        marker.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), 0.28);
+        const markerFillAlpha = sceneMode === "layers_stack" ? 0.16 : 0.28;
+        const markerStrokeAlpha = sceneMode === "layers_stack" ? 0.48 : 0.65;
+        marker.beginFill(parseHexColor(tokens.fog, 0xe2e8f0), markerFillAlpha);
         marker.drawRoundedRect(markerX, markerY, markerWidth, markerHeight, 20);
-        marker.lineStyle(1, parseHexColor(tokens.ink, 0x1f2937), 0.65);
+        marker.lineStyle(1, parseHexColor(tokens.ink, 0x1f2937), markerStrokeAlpha);
         marker.drawRoundedRect(markerX, markerY, markerWidth, markerHeight, 20);
         marker.endFill();
         root.addChild(marker);
-        renderPixiLabelCard(root, caption.text, avgX, markerY + markerHeight * 0.45, spec, tokens);
+        let labelY = markerY + markerHeight * 0.45;
+        if (sceneMode === "layers_stack") {
+          labelY = Math.max(14, markerY - 26);
+        }
+        renderPixiLabelCard(root, caption.text, avgX, labelY, spec, tokens);
         continue;
       }
       const spec = buildTextSpec(sceneMode, caption.purpose || "caption", caption);
@@ -1914,9 +1938,11 @@
       context.fill();
       context.stroke();
 
-      const spec = buildTextSpec(sceneSafe.mode, node.labelPurpose || "nodePrimary", node);
-      const labelPlacement = resolveNodeLabelPlacement(node, { x, y }, sceneSafe.mode || "network_basic", { radius });
-      renderLabelCard(context, node.label, labelPlacement.x, labelPlacement.y, spec, tokens, sceneSafe.mode);
+      if (shouldRenderNodeLabel(sceneSafe.mode, node)) {
+        const spec = buildTextSpec(sceneSafe.mode, node.labelPurpose || "nodePrimary", node);
+        const labelPlacement = resolveNodeLabelPlacement(node, { x, y }, sceneSafe.mode || "network_basic", { radius });
+        renderLabelCard(context, node.label, labelPlacement.x, labelPlacement.y, spec, tokens, sceneSafe.mode);
+      }
     }
 
     if (!reducedMotion) {
@@ -1995,17 +2021,23 @@
         const markerH = Math.max(42, maxY - minY + 18);
         const markerX = panelX + avgX - markerW * 0.5;
         const markerY = panelY + minY - 12;
-        context.fillStyle = rgbToRgba(toRgb("#" + (tokens.fog || "#e2e8f0").replace("#", "")), 0.28);
-        context.strokeStyle = rgbToRgba(toRgb("#" + (tokens.ink || "#1f2937").replace("#", "")), 0.65);
+        const markerFillAlpha = safeMode === "layers_stack" ? 0.16 : 0.28;
+        const markerStrokeAlpha = safeMode === "layers_stack" ? 0.48 : 0.65;
+        context.fillStyle = rgbToRgba(toRgb("#" + (tokens.fog || "#e2e8f0").replace("#", "")), markerFillAlpha);
+        context.strokeStyle = rgbToRgba(toRgb("#" + (tokens.ink || "#1f2937").replace("#", "")), markerStrokeAlpha);
         context.lineWidth = 1;
         roundRectPath(context, markerX, markerY, markerW, markerH, 20);
         context.fill();
         context.stroke();
+        let labelY = markerY + markerH * 0.45;
+        if (safeMode === "layers_stack") {
+          labelY = Math.max(panelY + 14, markerY - 26);
+        }
         renderLabelCard(
           context,
           caption.text,
           panelX + avgX,
-          markerY + markerH * 0.45,
+          labelY,
           spec,
           tokens,
           safeMode

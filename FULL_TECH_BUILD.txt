@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T09:57:02-05:00
+- UpdatedAt: 2026-03-03T10:16:27-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, caa9073
+- Branch, HEAD commit hash: main, 232c439
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and temporary capture artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -62,6 +62,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-net con
 - If DEV MODE is active, `final_build/CURRENT_GAPS.txt` is the source of in-flight status.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T10:16:27-05:00 | Nudged upward-only muzzle flash render origin forward by 5px and cache-busted render asset token for immediate client refresh | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T10:10:38-05:00 | Polished `layers_stack` diagram readability by suppressing hidden-layer node pills, moving layer headers to a top lane, renaming duplicate hidden headers to `Hidden 1/Hidden 2`, and reducing Layer 6 label crowding in both PIXI and canvas fallback paths | `src/lesson-diagram-v2.js`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:57:02-05:00 | Fixed burst hint timing mismatch by binding dual/omni hint copy to runtime constants (`REAR_SHOT_TRIGGER_SECONDS`, `ALL_DIRECTION_SHOT_TRIGGER_SECONDS`) and converting narrative copy to `{seconds}` templates | `src/render.js`, `narrative.js`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:26:37-05:00 | Deployment push request executed; `origin/main` and `origin/gh-pages` already matched local `main` at `127791d` (no additional publish delta) | `FULL_TECH_BUILD.txt`
 - 2026-03-03T09:25:48-05:00 | Implemented source-level run-summary copy fix by removing `{count}` placeholders from narrative stat labels and deployed commit `127791d` to `main` and `gh-pages` | `narrative.js`, `FULL_TECH_BUILD.txt`
