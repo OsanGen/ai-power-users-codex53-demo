@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T12:00:44-05:00
+- UpdatedAt: 2026-03-03T12:06:56:z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 0b836b5
-- Dirty state: yes (`narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`, plus local `node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
+- Branch, HEAD commit hash: main, 5e487f8
+- Dirty state: yes (, , , , and  temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -76,6 +76,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T12:06:56:z | Deployed viewport-fit 90% shell scaling commit  by pushing  and mirroring to  | , , 
+- 2026-03-03T12:02:34-05:00 | Deployed floors 9/10/15 diagram-noise cleanup commit `a4187b7` by pushing `main` and mirroring to `gh-pages` | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:00:44-05:00 | Implemented lean-noise remediation for floors 9/10/15: remapped visual modes and added dedicated low-clutter scene variants plus fallback parity and cache-bust refresh | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:55:36-05:00 | Planned lean design remediation for Floor 14 diagram mismatch: introduce dedicated gradient-stability visual mode rather than reusing `loss_meter` | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:54:18-05:00 | Push/deploy re-check completed: `origin/main` and `origin/gh-pages` already on `0b836b5` (no new deploy delta) | `FULL_TECH_BUILD.txt`
@@ -85,7 +87,6 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 - 2026-03-03T11:44:46-05:00 | Layer-6 diagram containment fix: shifted `layers_stack` content left via scene-specific right inset and added panel-edge clamping for layer markers so output no longer clips | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:35:26-05:00 | Synced documentation snapshot files to live repo state and refreshed deployment blocker statuses based on current bootstrap checks | `FULL_TECH_BUILD.txt`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
 - 2026-03-03T10:38:37-05:00 | Push/deploy request executed; `origin/main` and `origin/gh-pages` are already aligned at `97e3ef5` (no additional publish delta) | `FULL_TECH_BUILD.txt`
-- 2026-03-03T10:37:24-05:00 | Prepared viewport auto-fit loading plan using dynamic shell scaling based on viewport bounds | `index.html`, `styles.css`, `src/main.js`, `FULL_TECH_BUILD.txt`
 
 ## 8) Refresh procedure
 - `git rev-parse --abbrev-ref HEAD && git rev-parse --short HEAD`
