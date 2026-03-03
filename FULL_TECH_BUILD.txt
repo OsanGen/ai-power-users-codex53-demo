@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T12:06:56:z
+- UpdatedAt: 2026-03-03T12:07:15-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 5e487f8
-- Dirty state: yes (, , , , and  temporary capture/smoke artifacts)
+- Branch, HEAD commit hash: main, be38d8e
+- Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -76,7 +76,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
-- 2026-03-03T12:06:56:z | Deployed viewport-fit 90% shell scaling commit  by pushing  and mirroring to  | , , 
+- 2026-03-03T12:07:15-05:00 | Synced `FULL_TECH_BUILD.txt` after deploy metadata drift (feature commit `5e487f8`, snapshot commit `be38d8e`) | `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:02:34-05:00 | Deployed floors 9/10/15 diagram-noise cleanup commit `a4187b7` by pushing `main` and mirroring to `gh-pages` | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:00:44-05:00 | Implemented lean-noise remediation for floors 9/10/15: remapped visual modes and added dedicated low-clutter scene variants plus fallback parity and cache-bust refresh | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T11:55:36-05:00 | Planned lean design remediation for Floor 14 diagram mismatch: introduce dedicated gradient-stability visual mode rather than reusing `loss_meter` | `narrative.js`, `src/lesson-diagram-v2.js`, `src/render.js`, `FULL_TECH_BUILD.txt`
