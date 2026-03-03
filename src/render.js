@@ -3710,75 +3710,129 @@
   }
 
   function drawLessonSlideDiagramFallback(rect, accent, mode, reducedMotion, now) {
-    const pulse = reducedMotion ? 0 : Math.sin(now * 2.2) * 0.5 + 0.5;
-    const highlightLayer =
-      mode === "inputs_nodes" || mode === "weights_knobs"
-        ? 0
-        : mode === "sum_bias" || mode === "activation_gate" || mode === "layers_stack"
-          ? 1
-          : 2;
+    const safeMode = typeof mode === "string" && mode.trim() ? mode.trim() : "network_basic";
+    const nodeLabelSets = Object.freeze({
+      network_basic: ["x1", "x2", "x3", "h1", "h2", "y"],
+      inputs_nodes: ["pixel", "click", "time", "encode", "feature", "guess"],
+      weights_knobs: ["x1", "x2", "x3", "sum", "mix", "y"],
+      sum_bias: ["x1", "x2", "x3", "sum", "+ b", "y"],
+      activation_gate: ["signal", "sum", "ReLU", "gate", "clip", "y"],
+      layers_stack: ["in1", "in2", "in3", "h1", "h2", "out"],
+      loss_meter: ["pred", "target", "diff", "error", "loss", "goal"],
+      backprop_arrows: ["x", "hidden", "h2", "y^", "loss", "grad"],
+      generalize_explain: ["train", "test", "batch", "model", "score", "ship"]
+    });
+    const edgeLabelSets = Object.freeze({
+      inputs_nodes: Object.freeze({ 0: "x1", 2: "x2", 4: "x3", 6: "y" }),
+      weights_knobs: Object.freeze({ 0: "0.9", 2: "0.2", 4: "0.6" }),
+      sum_bias: Object.freeze({ 0: "w1", 2: "w2", 4: "w3", 5: "+ b" }),
+      activation_gate: Object.freeze({ 6: "on", 7: "off" }),
+      loss_meter: Object.freeze({ 6: "error" }),
+      backprop_arrows: Object.freeze({ 0: "forward", 6: "feedback" }),
+      generalize_explain: Object.freeze({ 0: "train", 2: "test", 6: "ship" })
+    });
+
+    const labels = nodeLabelSets[safeMode] || nodeLabelSets.network_basic;
+    const edgeLabels = edgeLabelSets[safeMode] || null;
+    const pulse = reducedMotion ? 0.45 : Math.sin(now * 2.1) * 0.5 + 0.5;
+    const phase = ((Math.floor(Math.max(0, now) / 1.1) % 3) + 3) % 3;
+    const nodes = [
+      { x: 0.16, y: 0.22, tier: 0, label: labels[0] || "x1" },
+      { x: 0.16, y: 0.5, tier: 0, label: labels[1] || "x2" },
+      { x: 0.16, y: 0.78, tier: 0, label: labels[2] || "x3" },
+      { x: 0.56, y: 0.35, tier: 1, label: labels[3] || "h1" },
+      { x: 0.56, y: 0.65, tier: 1, label: labels[4] || "h2" },
+      { x: 0.86, y: 0.5, tier: 2, label: labels[5] || "y" }
+    ];
+    const edges = [
+      [0, 3],
+      [0, 4],
+      [1, 3],
+      [1, 4],
+      [2, 3],
+      [2, 4],
+      [3, 5],
+      [4, 5]
+    ];
+
+    function drawChip(text, x, y, tone = TOKENS.accent) {
+      const safeText = String(text == null ? "" : text).trim();
+      if (!safeText) {
+        return;
+      }
+      ctx.font = '700 10px "Inter", sans-serif';
+      const padX = 8;
+      const width = Math.max(28, ctx.measureText(safeText).width + padX * 2);
+      const height = 20;
+      ctx.fillStyle = rgba(tone, 0.78);
+      fillRoundRect(x - width * 0.5, y - height * 0.5, width, height, 999);
+      ctx.strokeStyle = rgba(TOKENS.ink, 0.55);
+      ctx.lineWidth = 1.4;
+      strokeRoundRect(x - width * 0.5, y - height * 0.5, width, height, 999);
+      ctx.fillStyle = TOKENS.ink;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(safeText, x, y + 0.5);
+    }
 
     ctx.save();
     withClipRect(rect.x, rect.y, rect.w, rect.h, () => {
-      const brainCx = rect.x + rect.w * 0.28;
-      const brainCy = rect.y + rect.h * 0.45;
-      const brainOffset = reducedMotion ? 0 : Math.sin(now * 1.8) * 2;
+      ctx.fillStyle = rgba(TOKENS.fog, 0.28);
+      fillRoundRect(rect.x + 8, rect.y + 8, Math.max(24, rect.w - 16), Math.max(24, rect.h - 16), 14);
 
-      ctx.fillStyle = rgba(accent, 0.18);
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.ellipse(brainCx - 24, brainCy + brainOffset, 46, 54, 0, 0, Math.PI * 2);
-      ctx.ellipse(brainCx + 24, brainCy - brainOffset, 46, 54, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      const minX = rect.x + 20;
+      const maxX = rect.x + rect.w - 20;
+      const minY = rect.y + 22;
+      const maxY = rect.y + rect.h - 22;
+      const nodePos = nodes.map((node) => ({
+        x: minX + (maxX - minX) * node.x,
+        y: minY + (maxY - minY) * node.y,
+        tier: node.tier,
+        label: node.label
+      }));
 
-      ctx.beginPath();
-      ctx.moveTo(brainCx, brainCy - 56);
-      ctx.lineTo(brainCx, brainCy + 56);
-      ctx.stroke();
-
-      const layerX = [rect.x + rect.w * 0.58, rect.x + rect.w * 0.72, rect.x + rect.w * 0.86];
-      const layerY = [
-        [rect.y + 58, rect.y + rect.h * 0.5, rect.y + rect.h - 58],
-        [rect.y + 78, rect.y + rect.h * 0.5, rect.y + rect.h - 78],
-        [rect.y + rect.h * 0.5]
-      ];
-
-      ctx.strokeStyle = rgba(TOKENS.ink, 0.45);
-      ctx.lineWidth = 2;
-      for (let li = 0; li < layerY.length - 1; li += 1) {
-        for (let i = 0; i < layerY[li].length; i += 1) {
-          for (let j = 0; j < layerY[li + 1].length; j += 1) {
-            ctx.beginPath();
-            ctx.moveTo(layerX[li], layerY[li][i]);
-            ctx.lineTo(layerX[li + 1], layerY[li + 1][j]);
-            ctx.stroke();
-          }
-        }
-      }
-
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 2;
-      for (let li = 0; li < layerY.length; li += 1) {
-        for (let i = 0; i < layerY[li].length; i += 1) {
-          const x = layerX[li];
-          const y = layerY[li][i];
-          const radius = 11 + (!reducedMotion && li === highlightLayer ? pulse * 2 : 0);
-          ctx.fillStyle = li === highlightLayer ? rgba(accent, 0.45) : TOKENS.white;
+      ctx.lineCap = "round";
+      for (let i = 0; i < edges.length; i += 1) {
+        const pair = edges[i];
+        const from = nodePos[pair[0]];
+        const to = nodePos[pair[1]];
+        const toTier = to.tier;
+        const active = toTier === phase;
+        ctx.strokeStyle = active ? rgba(accent, 0.7) : rgba(TOKENS.ink, 0.3);
+        ctx.lineWidth = active ? 2.4 : 1.8;
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+        if (active && !reducedMotion) {
+          const t = (pulse + i * 0.17) % 1;
+          const px = from.x + (to.x - from.x) * t;
+          const py = from.y + (to.y - from.y) * t;
+          ctx.fillStyle = rgba(accent, 0.35);
           ctx.beginPath();
-          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.arc(px, py, 4, 0, Math.PI * 2);
           ctx.fill();
-          ctx.stroke();
+        }
+        if (edgeLabels && edgeLabels[i]) {
+          const mx = from.x + (to.x - from.x) * 0.43;
+          const my = from.y + (to.y - from.y) * 0.43 - 8;
+          drawChip(edgeLabels[i], mx, my, TOKENS.fog);
         }
       }
 
-      ctx.strokeStyle = TOKENS.ink;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(brainCx + 58, brainCy);
-      ctx.lineTo(layerX[0] - 18, layerY[0][1]);
-      ctx.stroke();
+      for (let i = 0; i < nodePos.length; i += 1) {
+        const node = nodePos[i];
+        const active = node.tier === phase;
+        const radius = 11 + (active && !reducedMotion ? pulse * 1.8 : 0);
+        ctx.fillStyle = active ? rgba(accent, 0.43) : TOKENS.white;
+        ctx.strokeStyle = TOKENS.ink;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        drawChip(node.label, node.x, node.y - radius - 16, accent);
+      }
     });
     ctx.restore();
   }
