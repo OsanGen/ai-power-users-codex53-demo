@@ -1,4 +1,5 @@
 :root {
+  --app-shell-scale: 1;
   --cog-yellow: #f4d66d;
   --cog-blue: #89b6ff;
   --cog-mint: #90dec9;
@@ -59,6 +60,7 @@ body {
   place-items: center;
   padding: var(--space-3) var(--space-3) var(--space-4);
   min-height: 100vh;
+  overflow: hidden;
 }
 
 .app-shell {

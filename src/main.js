@@ -4,6 +4,7 @@
   const AIPU = window.AIPU;
   const FIXED_STEP_SECONDS = 1 / 60;
   const MAX_FRAME_DT_SECONDS = 0.25;
+  const TARGET_APP_SHELL_SCALE = 0.9;
 
   let lastTimestamp = performance.now();
   let manualStepping = false;
@@ -110,6 +111,42 @@
     window.__AIPU_RUNTIME = runtimeState;
   }
 
+  function fitAppShellToViewport() {
+    const appShell = document.getElementById("appShell");
+    if (!appShell) {
+      return;
+    }
+
+    appShell.style.zoom = "1";
+
+    const bodyStyle = window.getComputedStyle(document.body);
+    const bodyPaddingX = (Number.parseFloat(bodyStyle.paddingLeft) || 0) + (Number.parseFloat(bodyStyle.paddingRight) || 0);
+    const bodyPaddingY = (Number.parseFloat(bodyStyle.paddingTop) || 0) + (Number.parseFloat(bodyStyle.paddingBottom) || 0);
+    const availableWidth = Math.max(1, window.innerWidth - bodyPaddingX);
+    const availableHeight = Math.max(1, window.innerHeight - bodyPaddingY);
+    const shellWidth = Math.max(1, appShell.offsetWidth);
+    const shellHeight = Math.max(1, appShell.offsetHeight);
+    const widthScale = availableWidth / shellWidth;
+    const heightScale = availableHeight / shellHeight;
+    const fitScale = Math.min(1, TARGET_APP_SHELL_SCALE, widthScale, heightScale);
+    const resolvedScale = Number.isFinite(fitScale) && fitScale > 0 ? fitScale : TARGET_APP_SHELL_SCALE;
+    const scaleText = resolvedScale.toFixed(3);
+
+    appShell.style.zoom = scaleText;
+    document.documentElement.style.setProperty("--app-shell-scale", scaleText);
+  }
+
+  let fitShellRaf = 0;
+  function scheduleFitAppShellToViewport() {
+    if (fitShellRaf) {
+      return;
+    }
+    fitShellRaf = requestAnimationFrame(() => {
+      fitShellRaf = 0;
+      fitAppShellToViewport();
+    });
+  }
+
   function runTick(dt) {
     const safeDt = Math.max(0, Math.min(MAX_FRAME_DT_SECONDS, Number.isFinite(dt) ? dt : 0));
     try {
@@ -187,6 +224,13 @@
     });
   }
 
+  window.addEventListener("resize", scheduleFitAppShellToViewport, { passive: true });
+  window.addEventListener("orientationchange", scheduleFitAppShellToViewport, { passive: true });
+  if (document.fonts && typeof document.fonts.ready === "object") {
+    document.fonts.ready.then(scheduleFitAppShellToViewport).catch(() => {});
+  }
+
+  fitAppShellToViewport();
   AIPU.systems.toTitle();
   requestAnimationFrame(frame);
 })();
