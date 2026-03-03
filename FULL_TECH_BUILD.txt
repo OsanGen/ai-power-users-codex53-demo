@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T17:23:22-05:00
+- UpdatedAt: 2026-03-03T17:30:21-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 0f0cf32
+- Branch, HEAD commit hash: main, a0253b0
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -87,6 +87,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T17:30:21-05:00 | Verified HUD v9 live deployment on GitHub Pages: remote heads aligned at `a0253b0`; live `render.js?v=20260303-15` includes lockout-readability code path and `index.html` serves `...-11/-15` tokens after cache revalidation (`Cache-Control: no-cache`) | `final_build/CURRENT_GAPS.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T17:23:22-05:00 | Deployed HUD v9 lockout readability commit `a0253b0` by pushing `main` and mirroring same head to `gh-pages` | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T17:23:22-05:00 | Implemented single-row HUD v9 lockout readability fix: preserved attack-disable status width, added short-copy fallback path, and moved lockout micro-meter to bottom rail to prevent `Shooting disabled` truncation; bumped cache tokens | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T17:17:07-05:00 | Verified live deployment is serving HUD v8 assets/content on GitHub Pages: `index.html` includes `narrative.js?v=20260303-10` + `render.js?v=20260303-14`, and live render bundle contains inline countdown/caution markers | `final_build/CURRENT_GAPS.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T17:14:58-05:00 | Deployed HUD v8 commit `0f0cf32` by pushing `main` and mirroring same head to `gh-pages` for live rollout | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
