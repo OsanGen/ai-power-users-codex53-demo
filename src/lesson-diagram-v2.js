@@ -5,6 +5,8 @@
 
   const LAYOUT_BUCKET = 96;
   const LAYOUT_MARGIN = 28;
+  const LAYERS_STACK_EXTRA_RIGHT_PAD = 20;
+  const LAYER_MARKER_EDGE_GUARD = 8;
   const ACTIVE_STAGE_SECONDS = 1.15;
   const SCHEMA_VERSION = "lesson_v2_20260302";
 
@@ -933,7 +935,7 @@
     const safeHeight = Math.max(32, Number(height) || 32);
     const isLayersStack = normalizeMode(scene && scene.mode) === "layers_stack";
     const padLeft = LAYOUT_MARGIN + 24;
-    const padRight = LAYOUT_MARGIN + (isLayersStack ? 34 : 56);
+    const padRight = LAYOUT_MARGIN + (isLayersStack ? 34 + LAYERS_STACK_EXTRA_RIGHT_PAD : 56);
     const padTop = LAYOUT_MARGIN + (isLayersStack ? 34 : 16);
     const padBottom = LAYOUT_MARGIN + 24;
     const availW = Math.max(1, safeWidth - padLeft - padRight);
@@ -1721,7 +1723,10 @@
         const spec = buildTextSpec(sceneMode, caption.purpose || "heading", caption);
         const markerWidth = Math.max(48, spec.chipPaddingX * 2 + 26);
         const markerHeight = Math.max(44, (maxY - minY) + 20);
-        const markerX = avgX - markerWidth * 0.5;
+        const minCenterX = markerWidth * 0.5 + LAYER_MARKER_EDGE_GUARD;
+        const maxCenterX = Math.max(minCenterX, state.width - markerWidth * 0.5 - LAYER_MARKER_EDGE_GUARD);
+        const clampedX = clamp(avgX, minCenterX, maxCenterX);
+        const markerX = clampedX - markerWidth * 0.5;
         const markerY = minY - 12;
         const marker = new global.PIXI.Graphics();
         const markerFillAlpha = sceneMode === "layers_stack" ? 0.1 : 0.28;
@@ -1736,7 +1741,7 @@
         if (sceneMode === "layers_stack") {
           labelY = Math.max(18, markerY - 24);
         }
-        renderPixiLabelCard(root, caption.text, avgX, labelY, spec, tokens);
+        renderPixiLabelCard(root, caption.text, clampedX, labelY, spec, tokens);
         continue;
       }
       const spec = buildTextSpec(sceneMode, caption.purpose || "caption", caption);
@@ -2055,7 +2060,10 @@
         const spec = buildTextSpec(safeMode, caption.purpose || "heading", caption);
         const markerW = Math.max(44, spec.chipPaddingX * 2 + 20);
         const markerH = Math.max(42, maxY - minY + 18);
-        const markerX = panelX + avgX - markerW * 0.5;
+        const minCenterX = markerW * 0.5 + LAYER_MARKER_EDGE_GUARD;
+        const maxCenterX = Math.max(minCenterX, panelW - markerW * 0.5 - LAYER_MARKER_EDGE_GUARD);
+        const clampedX = clamp(avgX, minCenterX, maxCenterX);
+        const markerX = panelX + clampedX - markerW * 0.5;
         const markerY = panelY + minY - 12;
         const markerFillAlpha = safeMode === "layers_stack" ? 0.1 : 0.28;
         const markerStrokeAlpha = safeMode === "layers_stack" ? 0.34 : 0.65;
@@ -2072,7 +2080,7 @@
         renderLabelCard(
           context,
           caption.text,
-          panelX + avgX,
+          panelX + clampedX,
           labelY,
           spec,
           tokens,

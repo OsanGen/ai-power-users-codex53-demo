@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T10:32:59-05:00
+- UpdatedAt: 2026-03-03T11:44:46-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 1c90804
-- Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
+- Branch, HEAD commit hash: main, 97e3ef5
+- Dirty state: yes (`src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`, plus local `node_modules/`, `output/`, `test-results/`, and `tmp-*` capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -60,6 +60,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Layer-6 (`layers_stack`) right-edge containment patch: extra right inset in viewport fit and marker-center clamping in Pixi/canvas caption paths so the `Output` tier stays on-panel.
   - Deterministic bootstrap diagnostics and one-shot QA gates.
   - Full lesson-diagram V2 engine with textual polish and fallback strategy (`lesson-diagram-v2.js`).
   - Adaptive rendering governance and multiple visual polish passes in render.
@@ -67,23 +68,22 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - Audio subsystem floor-scoped playback with mute migration and SFX retry handling.
   - Expanded architecture documentation in `final_build/` component specs and gaps map.
 - In progress:
-  - Layer-6 (`layers_stack`) diagram visual cleanup is implemented locally; next action is live deploy verification on floor-6 lesson slide.
+  - No active code changes in this pass.
 - Not started:
   - Additional automated visual-noise/per-frame regression assertions for lesson diagrams and run-summary density on multi-viewport CI.
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
-- 2026-03-03T10:32:59-05:00 | Applied OSAN less-is-more cleanup for Layer 6 (`layers_stack`): headers-only text system, reduced cross-edge prominence, quieter layer markers, and scene-specific pulse suppression; cache-busted `lesson-diagram-v2.js` token | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T11:44:46-05:00 | Layer-6 diagram containment fix: shifted `layers_stack` content left via scene-specific right inset and added panel-edge clamping for layer markers so output no longer clips | `src/lesson-diagram-v2.js`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T11:35:26-05:00 | Synced documentation snapshot files to live repo state and refreshed deployment blocker statuses based on current bootstrap checks | `FULL_TECH_BUILD.txt`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
+- 2026-03-03T10:38:37-05:00 | Push/deploy request executed; `origin/main` and `origin/gh-pages` are already aligned at `97e3ef5` (no additional publish delta) | `FULL_TECH_BUILD.txt`
+- 2026-03-03T10:37:24-05:00 | Prepared viewport auto-fit loading plan using dynamic shell scaling based on viewport bounds | `index.html`, `styles.css`, `src/main.js`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T10:34:32-05:00 | Deployed Layer-6 visual cleanup commit `97e3ef5` to `origin/main` and mirrored the same head to `origin/gh-pages` for live rollout | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T10:32:59-05:00 | Applied OSAN less-is-more cleanup for Layer 6 (`layers_stack`): headers-only text system, reduced cross-edge prominence, quieter lane markers, and scene-specific pulse suppression | `src/lesson-diagram-v2.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__LessonDiagramV2.txt`
 - 2026-03-03T10:19:28-05:00 | Polish diagram layout and nudge upward muzzle flash in latest rendering patch | `src/lesson-diagram-v2.js`, `src/render.js`, `index.html`
 - 2026-03-03T10:16:27-05:00 | Upward-only muzzle flash render nudge + cache-bust token refresh for immediate client refresh | `src/render.js`, `index.html`
 - 2026-03-03T10:10:38-05:00 | Layer stack readability polish and topology spacing tweaks for `layers_stack` diagram mode | `src/lesson-diagram-v2.js`
 - 2026-03-03T09:57:02-05:00 | Burst hint and timing copy aligned to runtime constants | `src/render.js`, `narrative.js`
-- 2026-03-03T09:26:37-05:00 | Deployment verification pass (main/gh-pages already matched at 127791d during deploy request) | `FULL_TECH_BUILD.txt`
-- 2026-03-03T09:25:48-05:00 | Removed stale placeholders in run-summary stat labels and synchronized source deployment | `narrative.js`
-- 2026-03-03T09:24:42-05:00 | Cache token bump for render asset refresh on stale clients | `index.html`, `src/render.js`
-- 2026-03-03T09:22:37-05:00 | Run summary run-build style polish and refresh deployment alignment | `src/render.js`
-- 2026-03-03T09:18:40-05:00 | Verified branch parity on deployment (no new delta) | `FULL_TECH_BUILD.txt`
-- 2026-03-03T09:17:28-05:00 | Validated live lesson fallback behavior via capture checks | `src/render.js`, `tmp-live-lesson-slide-after-fix.png`
 
 ## 8) Refresh procedure
 - `git rev-parse --abbrev-ref HEAD && git rev-parse --short HEAD`
