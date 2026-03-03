@@ -207,6 +207,7 @@ window.AI_POWER_USER_NARRATIVE = {
     hudSurviveLabel: "Survive",
     hudBombLabel: "Space: {ability} {remaining}/{total}",
     hudBombLabelCompact: "Space Pulse {remaining}/{total}",
+    hudBombLabelCompactShort: "Pulse {remaining}/{total}",
     hudFloorLabel: "Floor {floor} / {maxFloors}",
     hudBurstLabel: "Burst: {label}",
     hudBurstAllDirections: "All directions active",

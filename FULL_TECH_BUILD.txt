@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T13:16:56-05:00
+- UpdatedAt: 2026-03-03T14:29:28-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, cd7702b
+- Branch, HEAD commit hash: main, d69d734
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -60,6 +60,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Bottom HUD dock v1: moved transient gameplay notifications from top gameplay overlap into a dedicated compact bottom lane below the world area, keeping one-left-priority status stream (`attack-disable > burst > music`), contextual rear-shot hint, and right-side compact upgrade toast for lower-noise OSAN hierarchy.
+  - Top HUD compactness v4: replaced leftover-driven top-row width math with content-fit chip layout (`HP`, `Floor`, `Space Pulse`, `Survive`), added explicit overflow degradation order (compact copy -> tighter ability width -> tighter survive width -> floor fit), tightened HP/ability grammar, and reduced secondary toast widths to remove oversized empty-space artifacts.
   - Top HUD compact v3: reduced persistent top rail to a tighter single-row core (HP/floor/timer), replaced shield pill with micro-badge, and converted burst/upgrades/music into contextual toasts to remove always-on second-row clutter.
   - OSAN HUD polish v2: converted side HUD stack to contextual priority cards, compacted upgrade rows with `+N more`, restyled rear-hint card into the shared HUD system, and enforced timer-led accent governance with neutral floor/ability chips.
   - HUD artifact cleanup: removed a leftover duplicate floor-chip stroke call in the top HUD render path so the new three-card OSAN layout stays visually symmetric and noise-free.
@@ -80,6 +82,9 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T14:29:28-05:00 | Implemented Bottom HUD dock v1 by re-anchoring transient toast/upgrade lanes below WORLD, compacting notification widths, and neutralizing non-timer accent usage; bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T14:22:56-05:00 | Planned top-to-bottom HUD notification relocation strategy via UQ design scoring (OSAN-compliant compact bottom status lane; no code changes yet) | `FULL_TECH_BUILD.txt`
+- 2026-03-03T14:17:11-05:00 | Implemented Top HUD compactness v4 (content-fit top-row chip widths, inline HP compact grammar, `Pulse {remaining}/{total}` degrade path, narrower secondary toasts) and bumped cache tokens | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T13:16:56-05:00 | Deployed top HUD compact v3 commit `cd7702b` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T13:13:19-05:00 | Implemented top HUD compact v3 with tighter single-row geometry, shield micro-badge, compact status copy keys, event-driven burst/upgrade/music toasts, and initial-load toast suppression; bumped `narrative.js` + `render.js` cache tokens | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T12:38:52-05:00 | Deployed HUD polish v2 commit `977a447` by pushing `main` and mirroring to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
