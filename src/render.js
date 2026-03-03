@@ -6760,21 +6760,134 @@
     return width;
   }
 
+  function resolveHudInlineStatus(accent) {
+    void accent;
+    const now = nowMs();
+    const inPlaying = game.state === GameState.PLAYING;
+
+    if (inPlaying) {
+      const lockout = getAttackDisableSnapshot();
+      if (lockout.active) {
+        return {
+          type: "attackDisable",
+          text: `Shooting disabled ${lockout.secondsRemaining.toFixed(1)}s`,
+          priority: 1,
+          persistent: true,
+          emphasis: true
+        };
+      }
+    }
+
+    if (inPlaying && systems && typeof systems.getDirectionalBurstStatus === "function") {
+      const burst = systems.getDirectionalBurstStatus();
+      if (burst) {
+        const hasDetailOverride = typeof burst.detailOverride === "string" && burst.detailOverride.trim().length > 0;
+        const isEnhancedMode = burst.mode === "dual" || burst.mode === "omni";
+        const signature = `${burst.mode || "normal"}|${burst.label || ""}|${hasDetailOverride ? burst.detailOverride : ""}`;
+        if (signature !== hudTransientState.burstSignature) {
+          if (hudTransientState.burstSignature) {
+            hudTransientState.burstToastUntil = now + HUD_BURST_TOAST_MS;
+          }
+          hudTransientState.burstSignature = signature;
+        }
+        if (isEnhancedMode || now <= hudTransientState.burstToastUntil) {
+          const burstLabel = formatUiText("hudBurstLabelCompact", "Burst {label}", { label: burst.label || "Normal" });
+          return {
+            type: "burst",
+            text: burstLabel,
+            priority: 2,
+            persistent: isEnhancedMode,
+            emphasis: isEnhancedMode
+          };
+        }
+      }
+    }
+
+    if (inPlaying && game.rearShotHintTimer > 0) {
+      const hintText =
+        game.rearShotHintMode === "omni"
+          ? uiText("rearHintOmniTitle", "Omni burst unlocked")
+          : uiText("rearHintDualTitle", "Dual burst unlocked");
+      return {
+        type: "rearHint",
+        text: hintText,
+        priority: 3,
+        persistent: false,
+        emphasis: false
+      };
+    }
+
+    const rows = upgrades.getUpgradeHudRows(6);
+    const upgradeSignature = rows.join("|");
+    if (rows.length > 0 && upgradeSignature !== hudTransientState.upgradeSignature) {
+      if (hudTransientState.upgradeSignature) {
+        hudTransientState.upgradeToastUntil = now + HUD_UPGRADE_TOAST_MS;
+      }
+      hudTransientState.upgradeSignature = upgradeSignature;
+    }
+    if (rows.length > 0 && now <= hudTransientState.upgradeToastUntil) {
+      const head = rows[0] || "";
+      const hiddenCount = Math.max(0, rows.length - 1);
+      const moreLabel = hiddenCount > 0 ? formatUiText("hudUpgradesToastMore", "+{count} more", { count: hiddenCount }) : "";
+      return {
+        type: "upgrade",
+        text: hiddenCount > 0 ? `Upgrade ${head} ${moreLabel}` : `Upgrade ${head}`,
+        priority: 4,
+        persistent: false,
+        emphasis: false
+      };
+    }
+
+    if (game.state === GameState.PLAYING || game.state === GameState.FLOOR_INTRO || game.state === GameState.FLOOR_CLEAR) {
+      let isMuted = false;
+      let hasAudio = true;
+      if (AIPU.audio && typeof AIPU.audio.getState === "function") {
+        try {
+          const audioState = AIPU.audio.getState();
+          isMuted = !!(audioState && audioState.muted);
+          hasAudio = !(audioState && audioState.hasAudio === false);
+        } catch (error) {
+          void error;
+        }
+      }
+      const musicSignature = `${hasAudio ? "audio" : "none"}:${isMuted ? "muted" : "on"}`;
+      if (musicSignature !== hudTransientState.musicSignature) {
+        if (hudTransientState.musicSignature) {
+          hudTransientState.musicToastUntil = now + HUD_MUSIC_TOAST_MS;
+        }
+        hudTransientState.musicSignature = musicSignature;
+      }
+      if (now <= hudTransientState.musicToastUntil) {
+        const musicText = !hasAudio
+          ? uiText("hudMusicUnavailableCompact", "Music unavailable")
+          : isMuted
+            ? uiText("hudMusicOffCompact", "Music: Off")
+            : uiText("hudMusicOnCompact", "Music: On");
+        return {
+          type: "music",
+          text: musicText,
+          priority: 5,
+          persistent: false,
+          emphasis: false
+        };
+      }
+    }
+
+    return null;
+  }
+
   function resolveTopHudCompactLayout(floor, accent) {
     void accent;
     const hudX = 70;
     const hudY = 18;
     const hudW = WIDTH - hudX * 2;
-    const hudH = 108;
+    const hudH = 64;
     const cardInset = 8;
     const chipGap = 8;
     const cardY = hudY + 7;
-    const cardH = 44;
-    const toastRowY = cardY + cardH + 8;
-    const toastRowH = 42;
+    const cardH = hudH - 14;
     const cardMidY = cardY + cardH * 0.5;
     const laneW = hudW - cardInset * 2;
-    const fixedGapCount = 3;
 
     const hpLabel = uiText("hudHpLabel", "HP");
     const hpLabelW = measureHudTextWidth('700 12px "Inter", sans-serif', hpLabel);
@@ -6829,25 +6942,39 @@
     let abilityLabel = bombCompactText || bombCompactShortText || bombText;
     let abilityW = abilityWidthFor(abilityLabel);
     let surviveW = 250;
+    const inlineStatus = resolveHudInlineStatus(accent);
+    let statusText = inlineStatus && inlineStatus.text ? String(inlineStatus.text) : "";
+    let statusW = statusText ? clamp(abilityTextW(statusText) + 22, 132, 212) : 0;
 
-    const totalNeeded = () => hpW + floorW + abilityW + surviveW + chipGap * fixedGapCount;
-    if (totalNeeded() > laneW) {
+    const totalNeeded = () =>
+      hpW + floorW + abilityW + surviveW + (statusW > 0 ? statusW : 0) + chipGap * (statusW > 0 ? 4 : 3);
+    if (statusW > 0 && totalNeeded() > laneW) {
       abilityLabel = bombCompactShortText || abilityLabel;
       abilityW = clamp(keyCapW + abilityTextW(abilityLabel) + 24, 138, 220);
     }
-    if (totalNeeded() > laneW) {
+    if (statusW > 0 && totalNeeded() > laneW) {
+      surviveW = 220;
+    }
+    if (statusW > 0 && totalNeeded() > laneW) {
       abilityW = Math.min(abilityW, 138);
     }
     if (totalNeeded() > laneW) {
-      surviveW = 220;
+      abilityW = Math.max(124, abilityW);
     }
     const tightFloor = totalNeeded() > laneW;
     if (tightFloor) {
       floorW = clamp(floorW, 118, 170);
     }
+    if (statusW > 0 && totalNeeded() > laneW) {
+      statusW = Math.max(120, statusW - (totalNeeded() - laneW));
+    }
     if (totalNeeded() > laneW) {
       const overflow = totalNeeded() - laneW;
-      abilityW = Math.max(124, abilityW - overflow);
+      if (statusW > 0) {
+        statusW = Math.max(108, statusW - overflow);
+      } else {
+        abilityW = Math.max(124, abilityW - overflow);
+      }
     }
 
     const neutralGutter = Math.max(0, laneW - totalNeeded());
@@ -6856,7 +6983,8 @@
     const hpX = hudX + cardInset;
     const floorX = hpX + hpW + chipGap + leadGutter;
     const abilityX = floorX + floorW + chipGap;
-    const surviveX = abilityX + abilityW + chipGap + tailGutter;
+    const statusX = statusW > 0 ? abilityX + abilityW + chipGap : 0;
+    const surviveX = (statusW > 0 ? statusX + statusW : abilityX + abilityW) + chipGap + tailGutter;
 
     return {
       hudX,
@@ -6877,6 +7005,10 @@
       abilityX,
       abilityW,
       abilityLabel: abilityLabel || bombText,
+      statusX,
+      statusW,
+      statusText,
+      statusEmphasis: !!(inlineStatus && inlineStatus.emphasis),
       keyText,
       keyCapW,
       surviveX,
@@ -6884,35 +7016,7 @@
       remainingCharges,
       shieldLabel,
       shieldBadgeW,
-      tightFloor,
-      toastRowY,
-      toastRowH
-    };
-  }
-
-  function resolveTopHudToastLayout(hudLayout) {
-    const rowX = hudLayout.hudX + 8;
-    const rowW = hudLayout.hudW - 16;
-    const panelH = hudLayout.toastRowH || 42;
-    const rowY = hudLayout.toastRowY || HUD_TOAST_ROW_Y;
-    const leftW = 216;
-    const rightW = 220;
-    const laneGap = 10;
-    const leftX = rowX;
-    const rightX = rowX + rowW - rightW;
-    const centerX = leftX + leftW + laneGap;
-    const centerW = Math.max(220, rightX - centerX - laneGap);
-    return {
-      rowX,
-      rowY,
-      rowW,
-      panelH,
-      leftX,
-      leftW,
-      rightX,
-      rightW,
-      centerX,
-      centerW
+      tightFloor
     };
   }
 
@@ -6937,6 +7041,10 @@
       abilityX,
       abilityW,
       abilityLabel,
+      statusX,
+      statusW,
+      statusText,
+      statusEmphasis,
       keyText,
       keyCapW,
       surviveX,
@@ -6944,9 +7052,7 @@
       remainingCharges,
       shieldLabel,
       shieldBadgeW,
-      tightFloor,
-      toastRowY,
-      toastRowH
+      tightFloor
     } = layout;
 
     ctx.fillStyle = TOKENS.white;
@@ -6954,9 +7060,6 @@
     ctx.strokeStyle = TOKENS.ink;
     ctx.lineWidth = 3;
     strokeRoundRect(hudX, hudY, hudW, hudH, 18);
-    const dividerY = toastRowY - 5;
-    ctx.fillStyle = rgba(TOKENS.ink, 0.06);
-    fillRoundRect(hudX + 12, dividerY, hudW - 24, 1.5, 999);
 
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
@@ -6964,6 +7067,9 @@
     drawHudCardShell(hpX, cardY, hpW, cardH, rgba(TOKENS.fog, 0.92), 12);
     drawHudCardShell(floorX, cardY, floorW, cardH, rgba(TOKENS.fog, 0.94), 12);
     drawHudCardShell(abilityX, cardY, abilityW, cardH, rgba(TOKENS.white, 0.96), 12);
+    if (statusW > 0) {
+      drawHudCardShell(statusX, cardY, statusW, cardH, rgba(TOKENS.white, 0.95), 10);
+    }
     drawHudCardShell(surviveX, cardY, surviveW, cardH, rgba(TOKENS.fog, 0.92), 12);
 
     const hpLabelX = hpX + 14;
@@ -7021,6 +7127,17 @@
     ctx.fillStyle = remainingCharges > 0 ? TOKENS.ink : rgba(TOKENS.ink, 0.6);
     ctx.fillText(fitCanvasText(abilityLabel, abilityW - (keyCapW + 28)), keyCapX + keyCapW + 8, cardMidY + 1);
 
+    if (statusW > 0) {
+      ctx.textAlign = "left";
+      ctx.fillStyle = TOKENS.ink;
+      ctx.font = '700 11px "Inter", sans-serif';
+      ctx.fillText(fitCanvasText(statusText, statusW - 20), statusX + 10, cardMidY + 1);
+      if (statusEmphasis) {
+        ctx.fillStyle = rgba(TOKENS.ink, 0.34);
+        fillRoundRect(statusX + statusW - 12, cardY + 9, 4, 4, 999);
+      }
+    }
+
     const timerText = `${Math.ceil(game.floorTimer)}s`;
     const ratio = game.floorDuration > 0 ? clamp(game.floorTimer / game.floorDuration, 0, 1) : 0;
     const timerPad = 10;
@@ -7050,12 +7167,6 @@
     ctx.fillStyle = rgba(accent, 0.84);
     fillRoundRect(timerMeterX + 2, timerMeterY + 2, Math.max(0, (timerMeterW - 4) * ratio), timerMeterH - 4, 999);
 
-    const toastLayout = resolveTopHudToastLayout(layout);
-    const attackCardShown = drawAttackDisableHud(accent, toastLayout);
-    const burstCardShown = drawBurstStatusHud(accent, toastLayout, attackCardShown);
-    const musicCardShown = drawMusicToggleHud(accent, toastLayout, attackCardShown || burstCardShown);
-    drawRearShotHint(accent, toastLayout, attackCardShown || burstCardShown || musicCardShown);
-    drawUpgradeHudPanel(accent, toastLayout);
     drawDebugStatsLine(accent);
   }
 
