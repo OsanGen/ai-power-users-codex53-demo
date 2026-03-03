@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-03T16:44:05-05:00
+- UpdatedAt: 2026-03-03T17:12:11-05:00
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 3612641
+- Branch, HEAD commit hash: main, 15e1c35
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -60,6 +60,7 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Single-row top HUD v8: kept one-row HUD status architecture while restoring directional-burst countdown in the inline status chip (`Next Dual` / `Omni`) and adding a stronger OSAN-safe shooting-disabled caution treatment (neutral contrast pulse + micro recovery meter, no glow).
   - Single-row top HUD v7: removed two-row notification shell and unified transient gameplay notices into one inline status chip in the top row (`HP | Floor | Space Pulse | Status | Survive`), preserving event priority while eliminating second-row/floating popup noise.
   - Top-bar integrated notifications v6: expanded the top HUD to a two-row shell and moved transient status/upgrades into row 2 inside the top bar (left priority statuses, center rear-shot hint, right upgrade toast), removing floating gap popups while keeping timer as the sole accent lead.
   - Top whisper strip v5: removed the bottom HUD dock and moved transient status/upgrades into the upper gap lane (left-priority state cards, center rear-shot hint when unblocked, right upgrade toast), reducing gameplay overlap noise while preserving compact top-row essentials.
@@ -85,6 +86,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-03T17:12:11-05:00 | Implemented single-row HUD v8 refinement: restored inline burst countdown copy and added OSAN-safe lockout caution emphasis in status chip; bumped `narrative.js` and `render.js` cache tokens | `src/render.js`, `narrative.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-03T16:46:51-05:00 | Deployed Single-row top HUD v7 commit `15e1c35` by pushing `main` and mirroring same head to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T16:44:05-05:00 | Implemented Single-row top HUD v7 by restoring single-row shell geometry, removing row-2 toast layout usage, and rendering one inline prioritized status chip in `drawHud`; bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T15:57:29-05:00 | Deployed Top-bar integrated notifications v6 commit `3612641` by pushing `main` and mirroring same head to `gh-pages` | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T14:58:44-05:00 | Implemented Top-bar integrated notifications v6 by expanding HUD shell to two rows and anchoring transient lanes inside top bar row 2; bumped `render.js` cache token | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`

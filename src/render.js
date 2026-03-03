@@ -6770,10 +6770,13 @@
       if (lockout.active) {
         return {
           type: "attackDisable",
-          text: `Shooting disabled ${lockout.secondsRemaining.toFixed(1)}s`,
+          text: formatUiText("hudAttackDisableCompact", "Shooting disabled {seconds}s", {
+            seconds: lockout.secondsRemaining.toFixed(1)
+          }),
           priority: 1,
           persistent: true,
-          emphasis: true
+          emphasis: true,
+          progress: clamp(1 - lockout.progress, 0, 1)
         };
       }
     }
@@ -6782,6 +6785,12 @@
       const burst = systems.getDirectionalBurstStatus();
       if (burst) {
         const hasDetailOverride = typeof burst.detailOverride === "string" && burst.detailOverride.trim().length > 0;
+        const secondsToNext = Math.max(0, Number(burst.secondsToNext) || 0);
+        const hasCountdown =
+          !hasDetailOverride &&
+          typeof burst.nextLabel === "string" &&
+          burst.nextLabel.trim().length > 0 &&
+          secondsToNext > 0;
         const isEnhancedMode = burst.mode === "dual" || burst.mode === "omni";
         const signature = `${burst.mode || "normal"}|${burst.label || ""}|${hasDetailOverride ? burst.detailOverride : ""}`;
         if (signature !== hudTransientState.burstSignature) {
@@ -6790,14 +6799,26 @@
           }
           hudTransientState.burstSignature = signature;
         }
-        if (isEnhancedMode || now <= hudTransientState.burstToastUntil) {
-          const burstLabel = formatUiText("hudBurstLabelCompact", "Burst {label}", { label: burst.label || "Normal" });
+        if (isEnhancedMode || hasCountdown || now <= hudTransientState.burstToastUntil) {
+          let burstLabel = formatUiText("hudBurstLabelCompact", "Burst {label}", { label: burst.label || "Normal" });
+          if (hasDetailOverride) {
+            burstLabel = burst.detailOverride;
+          } else if (burst.mode === "normal" && hasCountdown) {
+            burstLabel = formatUiText("hudBurstNextCompact", "Next {nextLabel} {seconds}s", {
+              nextLabel: burst.nextLabel,
+              seconds: secondsToNext.toFixed(1)
+            });
+          } else if (burst.mode === "dual" && hasCountdown) {
+            burstLabel = formatUiText("hudBurstOmniNextCompact", "Omni {seconds}s", {
+              seconds: secondsToNext.toFixed(1)
+            });
+          }
           return {
             type: "burst",
             text: burstLabel,
             priority: 2,
-            persistent: isEnhancedMode,
-            emphasis: isEnhancedMode
+            persistent: isEnhancedMode || hasCountdown,
+            emphasis: isEnhancedMode || hasCountdown
           };
         }
       }
@@ -6943,6 +6964,8 @@
     let abilityW = abilityWidthFor(abilityLabel);
     let surviveW = 250;
     const inlineStatus = resolveHudInlineStatus(accent);
+    const statusType = inlineStatus && inlineStatus.type ? String(inlineStatus.type) : "";
+    const statusProgress = inlineStatus && Number.isFinite(inlineStatus.progress) ? clamp(inlineStatus.progress, 0, 1) : 0;
     let statusText = inlineStatus && inlineStatus.text ? String(inlineStatus.text) : "";
     let statusW = statusText ? clamp(abilityTextW(statusText) + 22, 132, 212) : 0;
 
@@ -7008,6 +7031,8 @@
       statusX,
       statusW,
       statusText,
+      statusType,
+      statusProgress,
       statusEmphasis: !!(inlineStatus && inlineStatus.emphasis),
       keyText,
       keyCapW,
@@ -7044,6 +7069,8 @@
       statusX,
       statusW,
       statusText,
+      statusType,
+      statusProgress,
       statusEmphasis,
       keyText,
       keyCapW,
@@ -7128,11 +7155,37 @@
     ctx.fillText(fitCanvasText(abilityLabel, abilityW - (keyCapW + 28)), keyCapX + keyCapW + 8, cardMidY + 1);
 
     if (statusW > 0) {
+      const isAttackDisableStatus = statusType === "attackDisable";
+      if (isAttackDisableStatus) {
+        const cautionPulse = isReducedMotion() ? 0.64 : 0.5 + 0.25 * Math.sin(nowMs() * 0.018);
+        ctx.fillStyle = rgba(TOKENS.ink, 0.06 + cautionPulse * 0.06);
+        fillRoundRect(statusX + 2, cardY + 2, statusW - 4, cardH - 4, 8);
+        ctx.fillStyle = rgba(TOKENS.ink, 0.24 + cautionPulse * 0.12);
+        fillRoundRect(statusX + 6, cardY + 8, 4, cardH - 16, 999);
+        ctx.strokeStyle = rgba(TOKENS.ink, 0.58);
+        ctx.lineWidth = 1.25;
+        strokeRoundRect(statusX + 1, cardY + 1, statusW - 2, cardH - 2, 10);
+      }
+      let statusTextMax = statusW - 20;
+      if (isAttackDisableStatus) {
+        const meterW = clamp(Math.floor(statusW * 0.26), 32, 56);
+        const meterH = 6;
+        const meterX = statusX + statusW - meterW - 10;
+        const meterY = cardY + cardH - 12;
+        ctx.fillStyle = rgba(TOKENS.ink, 0.12);
+        fillRoundRect(meterX, meterY, meterW, meterH, 999);
+        ctx.fillStyle = rgba(TOKENS.ink, 0.34);
+        fillRoundRect(meterX + 1, meterY + 1, Math.max(0, (meterW - 2) * statusProgress), meterH - 2, 999);
+        ctx.strokeStyle = rgba(TOKENS.ink, 0.42);
+        ctx.lineWidth = 1;
+        strokeRoundRect(meterX, meterY, meterW, meterH, 999);
+        statusTextMax = Math.max(54, meterX - (statusX + 10) - 8);
+      }
       ctx.textAlign = "left";
       ctx.fillStyle = TOKENS.ink;
       ctx.font = '700 11px "Inter", sans-serif';
-      ctx.fillText(fitCanvasText(statusText, statusW - 20), statusX + 10, cardMidY + 1);
-      if (statusEmphasis) {
+      ctx.fillText(fitCanvasText(statusText, statusTextMax), statusX + 10, cardMidY + 1);
+      if (statusEmphasis && !isAttackDisableStatus) {
         ctx.fillStyle = rgba(TOKENS.ink, 0.34);
         fillRoundRect(statusX + statusW - 12, cardY + 9, 4, 4, 999);
       }
