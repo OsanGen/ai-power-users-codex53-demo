@@ -134,7 +134,7 @@ Dependencies:
 - `AIPU.systems.getMuzzleAnchorForDirection(dirVector)` (new debug path) for optional socket marker visualization and direction-specific anchor parity checks.
 - `AIPU.lessonDiagramV2` for lesson/death-lesson concept diagram rendering and diagnostics handoff.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260304-1`, `main.js?v=20260303-5`) to force updated runtime bundle refresh.
+- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260304-2`, `main.js?v=20260303-5`) to force updated runtime bundle refresh.
 - `index.html` now includes optional diagram dependencies before render bootstrap:
   - `elkjs`
   - `pixi.js`
