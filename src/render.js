@@ -213,7 +213,7 @@
     lowFrameStreak: 0,
     lastTierSwitchMs: 0
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260222-4";
+  const CHARACTER_ART_CACHE_BUST = "v=20260304-1";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -242,12 +242,15 @@
     right: "Right_shoot.png"
   });
 
+  const PLAYER_DEATH_FRAMES = Object.freeze(["Death.png", "death.png"]);
+
   const CHARACTER_ART = Object.freeze({
     player: Object.freeze({
       bucketDir: "./assets/characters/player/main",
       frames: PLAYER_PRIMARY_MOVEMENT_FRAMES,
       dualFrames: Object.freeze(["DUAL.png", "dual.png"]),
       shootFrames: PLAYER_PRIMARY_SHOOT_FRAMES,
+      deathFrames: PLAYER_DEATH_FRAMES,
       legacy: Object.freeze({
         front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
         left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
@@ -355,6 +358,7 @@
     move: Object.create(null),
     shoot: Object.create(null),
     dual: Object.create(null),
+    death: Object.create(null),
     omni: Object.create(null)
   };
   const playerSpriteModeState = {
@@ -383,6 +387,9 @@
   }
 
   function getPlayerSpriteModeLabel(spriteMode) {
+    if (spriteMode === "death") {
+      return "death";
+    }
     if (spriteMode === "dual" || spriteMode === "omni") {
       return "dual";
     }
@@ -515,9 +522,10 @@
     return true;
   }
 
-  function buildPlayerSpriteCandidates(direction, useShootFrameSet = false, useDualFrame = false) {
+  function buildPlayerSpriteCandidates(direction, useShootFrameSet = false, useDualFrame = false, useDeathFrame = false) {
     const resolvedDirection = normalizeDirection(direction);
     const preferredDualFrame = useDualFrame ? CHARACTER_ART.player.dualFrames : "";
+    const preferredDeathFrameSet = useDeathFrame ? CHARACTER_ART.player.deathFrames : null;
     const preferredFrameSet = useShootFrameSet ? CHARACTER_ART.player.shootFrames : CHARACTER_ART.player.frames;
     const preferredFrame = preferredFrameSet && preferredFrameSet[resolvedDirection] ? preferredFrameSet[resolvedDirection] : null;
     const aliasFrames = useShootFrameSet
@@ -530,6 +538,14 @@
       for (let i = 0; i < preferredDualFrame.length; i += 1) {
         if (preferredDualFrame[i]) {
           candidates.push(`${CHARACTER_ART.player.bucketDir}/${preferredDualFrame[i]}`);
+        }
+      }
+    }
+
+    if (Array.isArray(preferredDeathFrameSet)) {
+      for (let i = 0; i < preferredDeathFrameSet.length; i += 1) {
+        if (preferredDeathFrameSet[i]) {
+          candidates.push(`${CHARACTER_ART.player.bucketDir}/${preferredDeathFrameSet[i]}`);
         }
       }
     }
@@ -647,11 +663,15 @@
     return entry;
   }
 
-  function getPlayerSpriteState(direction, useShootFrameSet = false, useDualFrame = false) {
+  function getPlayerSpriteState(direction, useShootFrameSet = false, useDualFrame = false, useDeathFrame = false) {
     const resolvedDirection = normalizeDirection(direction);
-    const mode = useDualFrame ? "dual" : useShootFrameSet ? "shoot" : "move";
+    const mode = useDeathFrame ? "death" : useDualFrame ? "dual" : useShootFrameSet ? "shoot" : "move";
     const cacheKey = `player:${mode}:${resolvedDirection}`;
-    return getCharacterSpriteState(cacheKey, buildPlayerSpriteCandidates(resolvedDirection, useShootFrameSet, useDualFrame), true);
+    return getCharacterSpriteState(
+      cacheKey,
+      buildPlayerSpriteCandidates(resolvedDirection, useShootFrameSet, useDualFrame, useDeathFrame),
+      true
+    );
   }
 
   function getEnemySpriteState(enemyType) {
@@ -669,6 +689,7 @@
       getPlayerSpriteState(direction, false, false);
       getPlayerSpriteState(direction, true, false);
       getPlayerSpriteState(direction, false, true);
+      getPlayerSpriteState(direction, false, false, true);
     }
 
     playerSpriteCachePrimed = true;
@@ -882,6 +903,9 @@
   function getPlayerSpriteModeFallbackLabels(spriteMode) {
     const modeLabel = getPlayerSpriteModeLabel(spriteMode);
     const fallbackModeLabels = [modeLabel];
+    if (modeLabel === "death") {
+      return fallbackModeLabels;
+    }
     if (modeLabel === "dual") {
       fallbackModeLabels.push("shoot", "move");
     } else if (modeLabel === "shoot") {
@@ -894,10 +918,11 @@
     const resolvedDirection = normalizeDirection(direction);
     const useShootFrameSet = spriteMode === "shoot";
     const useDualFrame = spriteMode === "dual" || spriteMode === "omni";
+    const useDeathFrame = spriteMode === "death";
     const order = resolvedDirection === "front" ? ["front"] : [resolvedDirection, "front"];
 
     for (let i = 0; i < order.length; i += 1) {
-      const state = getPlayerSpriteState(order[i], useShootFrameSet, useDualFrame);
+      const state = getPlayerSpriteState(order[i], useShootFrameSet, useDualFrame, useDeathFrame);
       if (isDrawablePlayerSpriteState(state)) {
         return true;
       }
@@ -1001,15 +1026,17 @@
   }
 
   function drawPlayerSprite(direction, accent, spriteMode = "move", visualTheme = null) {
-    const order = direction === "front" ? ["front"] : [direction, "front"];
+    const isDeathMode = spriteMode === "death";
+    const order = isDeathMode ? ["front"] : direction === "front" ? ["front"] : [direction, "front"];
     const resolvedDirection = normalizeDirection(direction);
     const useShootFrameSet = spriteMode === "shoot";
     const useDualFrame = spriteMode === "dual" || spriteMode === "omni";
+    const useDeathFrame = spriteMode === "death";
     const modeLabel = getPlayerSpriteModeLabel(spriteMode);
 
     for (let i = 0; i < order.length; i += 1) {
       const candidateDirection = normalizeDirection(order[i]);
-      const state = getPlayerSpriteState(candidateDirection, useShootFrameSet, useDualFrame);
+      const state = getPlayerSpriteState(candidateDirection, useShootFrameSet, useDualFrame, useDeathFrame);
       if (!isDrawablePlayerSpriteState(state)) {
         continue;
       }
@@ -6424,18 +6451,19 @@
 
   function drawPlayer(accent, visualTheme = null) {
     primePlayerSpriteCacheIfNeeded();
-    const frameState = resolvePlayerSpriteFrameState();
+    const isDeathAnim = game.state === GameState.DEATH_ANIM;
+    const frameState = isDeathAnim ? { mode: "death", direction: "front" } : resolvePlayerSpriteFrameState();
     const blink = player.invuln > 0 && Math.floor(game.globalTime * 24) % 2 === 0;
     if (blink) {
       return;
     }
 
     const direction = frameState.direction;
-    const drewSprite = drawPlayerSprite(direction, accent, frameState.mode, visualTheme);
-    if (!drewSprite) {
+    const drewSprite = drawPlayerSprite(direction, accent, isDeathAnim ? "death" : frameState.mode, visualTheme);
+    if (!drewSprite && !isDeathAnim) {
       drawPlayerProceduralSprite(direction, accent, visualTheme);
     }
-    if (isPlayerShootInputActive() && (!drewSprite || SHOW_AIM_LINE_WITH_SPRITE)) {
+    if (!isDeathAnim && isPlayerShootInputActive() && (!drewSprite || SHOW_AIM_LINE_WITH_SPRITE)) {
       drawPlayerAimLine();
     }
   }

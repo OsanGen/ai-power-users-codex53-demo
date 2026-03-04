@@ -13,6 +13,7 @@ Purpose:
 - Single-row top HUD v7 restores a strict one-row top shell and collapses transient notifications into one inline status chip in row-1 (`HP | Floor | Space Pulse | Status | Survive`), removing all separate transient cards from active draw flow.
 - Single-row top HUD v8 keeps the one-row shell while restoring burst progression countdown inside the inline status chip (`Next Dual`, `Omni`) and upgrades shooting-disabled visibility with an OSAN-safe caution treatment (contrast pulse + micro recovery meter, no glow).
 - Single-row top HUD v9 resolves lockout text truncation by making attack-disable status content-fit first, preserving lockout status width under overflow pressure, and relocating its progress micro-meter to a bottom rail so full status text remains readable.
+- Death animation now includes a dedicated render route where `game.state === GameState.DEATH_ANIM` resolves player sprite mode to `death`, forcing `Death.png` from `assets/characters/player/main` and suppressing procedural fallback while the existing explosion overlay remains on top.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add adaptive render-performance governance in `draw()` with runtime modes (`off|auto|force-low|force-medium|force-high`), low-cost quality fallback for GLFX/distortion/trails/particles/trails, and dynamic cadence/pool scaling.
 - Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.
@@ -32,12 +33,13 @@ Purpose:
     - canonical shoot aliases are checked next (`shoot_front.png`, `shoot_back.png`, `shoot_left.png`, `shoot_right.png`), then legacy root fallbacks.
   - Player burst sprites resolve by `AIPU.systems.getDirectionalBurstStatus()`:
     - `dual`/`omni` states force `assets/characters/player/main/DUAL.png` (falls back to `dual.png`).
+  - Player death sprites resolve in `GameState.DEATH_ANIM` via `assets/characters/player/main/Death.png` (falls back to `death.png` for case-insensitive host environments).
     - Otherwise movement/shoot frame logic continues as above.
     - Burst gating is render-state-stable to reduce one-frame sprite jitter.
   - Enemy sprites resolve by `enemy.type` to:
     - `assets/characters/enemies/<enemyType>/idle.png`
     - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
-- Sprite URLs are cache-busted with `?v=20260221-23`.
+- Sprite URLs are cache-busted with `?v=20260304-1`.
 - Shoot/move mode is resolved from active `Arrow*` keys (and `AIPU.input.lastShootKey` fallback); when no shoot key is active, movement keys are used; otherwise player facing holds its last valid direction.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
   - Fallback draw sizing now uses the fallback frame’s own direction stance scale (not the originally requested direction), which prevents occasional stretch/pop artifacts when rendering `front` fallback frames for side/back requests.
@@ -132,15 +134,21 @@ Dependencies:
 - `AIPU.systems.getMuzzleAnchorForDirection(dirVector)` (new debug path) for optional socket marker visualization and direction-specific anchor parity checks.
 - `AIPU.lessonDiagramV2` for lesson/death-lesson concept diagram rendering and diagnostics handoff.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260303-4`, `main.js?v=20260223-1`) to force updated runtime bundle refresh.
+- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260304-1`, `main.js?v=20260303-5`) to force updated runtime bundle refresh.
 - `index.html` now includes optional diagram dependencies before render bootstrap:
   - `elkjs`
   - `pixi.js`
   - `@pixi/particle-emitter`
   - `src/lesson-diagram-v2.js`
-- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260222-4"`) to avoid stale image caching across art updates.
+- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260304-1"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
+
+Acceptance Checks:
+- DEATH_ANIM player rendering:
+  - While in `GameState.DEATH_ANIM`, `drawPlayer()` must call `drawPlayerSprite(..., "death")` and bypass procedural fallback to keep the normal model hidden.
+  - The death sprite routing path must resolve `Death.png` (`death.png` fallback) and still render through normal draw order with `drawDeathAnim()` overlay running after HUD.
+
 
 Acceptance Checks:
 - Adaptive governor is reversible and bounded: `off|auto|force-low|force-medium|force-high`, defaults to `auto`, and never disables core entity/world rendering.
