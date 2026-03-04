@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-04T12:18:43-05:00
+- UpdatedAt: 2026-03-04T19:31:50Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, a0253b0
+- Branch, HEAD commit hash: main, 1a91610
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -79,16 +79,19 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - Deterministic bootstrap diagnostics and one-shot QA gates.
   - Full lesson-diagram V2 engine with textual polish and fallback strategy (`lesson-diagram-v2.js`).
   - Adaptive rendering governance and multiple visual polish passes in render.
+  - Death sprite trim cleanup in render path: added edge-noise trimming for death frame alpha bounds so sparse border artifacts do not over-expand frame bounds and shrink perceived in-game size.
   - Directional burst/muzzle rendering consistency, character art routing, late-game content + dual-wave pressure updates.
   - Audio subsystem floor-scoped playback with mute migration and SFX retry handling.
   - Expanded architecture documentation in `final_build/` component specs and gaps map.
 - In progress:
-  - No active code changes in this pass.
+  - User-side cache refresh validation of the live death sprite size behavior.
 - Not started:
   - Additional automated visual-noise/per-frame regression assertions for lesson diagrams and run-summary density on multi-viewport CI.
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-04T19:31:50Z | Fixed death sprite scale consistency by trimming sparse alpha-border noise in death-frame bounds (`computeTrimmedSpriteRect`) and bumping character art cache-bust/render tokens to `v=20260304-4`; this should stop the Death.png from appearing undersized | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-04T17:20:40Z | Fixed death art propagation by bumping character sprite cache-bust token for `Death.png` and the bootstrap entrypoint `main.js` to `v=20260304-3`, enabling immediate client refetch of the updated frame art | `src/render.js`, `index.html`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T12:18:43-05:00 | Forced second cache refresh pass (`render.js?v=20260304-2`) and redeployed `main` + mirrored `gh-pages` to trigger live token propagation; docs updated accordingly | `index.html`, `final_build/COMPONENT__Render.txt`, `final_build/CURRENT_GAPS.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T11:56:05-05:00 | Implemented DEATH_ANIM player sprite routing to death art (`Death.png`), added death-only mode cache priming and render guards, and bumped `render.js` cache token for immediate client refresh (`v=20260304-1`) | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-03T17:30:21-05:00 | Verified HUD v9 live deployment on GitHub Pages: remote heads aligned at `a0253b0`; live `render.js?v=20260303-15` includes lockout-readability code path and `index.html` serves `...-11/-15` tokens after cache revalidation (`Cache-Control: no-cache`) | `final_build/CURRENT_GAPS.txt`, `FULL_TECH_BUILD.txt`

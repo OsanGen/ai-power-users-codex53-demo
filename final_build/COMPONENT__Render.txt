@@ -14,6 +14,7 @@ Purpose:
 - Single-row top HUD v8 keeps the one-row shell while restoring burst progression countdown inside the inline status chip (`Next Dual`, `Omni`) and upgrades shooting-disabled visibility with an OSAN-safe caution treatment (contrast pulse + micro recovery meter, no glow).
 - Single-row top HUD v9 resolves lockout text truncation by making attack-disable status content-fit first, preserving lockout status width under overflow pressure, and relocating its progress micro-meter to a bottom rail so full status text remains readable.
 - Death animation now includes a dedicated render route where `game.state === GameState.DEATH_ANIM` resolves player sprite mode to `death`, forcing `Death.png` from `assets/characters/player/main` and suppressing procedural fallback while the existing explosion overlay remains on top.
+- Death sprite sizing is stabilized by edge-noise alpha trimming: `computeTrimmedSpriteRect` removes sparse opaque edge pixels for death frames so background artifacts do not over-expand the bbox and reduce perceived size.
 - Apply the arena floor visual themes and transition overlays while keeping gameplay state and rules unchanged.
 - Add adaptive render-performance governance in `draw()` with runtime modes (`off|auto|force-low|force-medium|force-high`), low-cost quality fallback for GLFX/distortion/trails/particles/trails, and dynamic cadence/pool scaling.
 - Add a compounded water-wrapper visual pass for floors `1..8` that deepens support-color integration and animation intensity as floors progress, with a stronger baseline on floor `1` and stronger low-floor motion amplification.
@@ -39,7 +40,7 @@ Purpose:
   - Enemy sprites resolve by `enemy.type` to:
     - `assets/characters/enemies/<enemyType>/idle.png`
     - `assets/characters/enemies/<enemyType>/default.png` (optional fallback)
-- Sprite URLs are cache-busted with `?v=20260304-1`.
+- Sprite URLs are cache-busted with `?v=20260304-4`.
 - Shoot/move mode is resolved from active `Arrow*` keys (and `AIPU.input.lastShootKey` fallback); when no shoot key is active, movement keys are used; otherwise player facing holds its last valid direction.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
   - Fallback draw sizing now uses the fallback frame’s own direction stance scale (not the originally requested direction), which prevents occasional stretch/pop artifacts when rendering `front` fallback frames for side/back requests.
@@ -134,13 +135,13 @@ Dependencies:
 - `AIPU.systems.getMuzzleAnchorForDirection(dirVector)` (new debug path) for optional socket marker visualization and direction-specific anchor parity checks.
 - `AIPU.lessonDiagramV2` for lesson/death-lesson concept diagram rendering and diagnostics handoff.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260304-2`, `main.js?v=20260303-5`) to force updated runtime bundle refresh.
+- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260304-4`, `main.js?v=20260304-4`) to force updated runtime bundle refresh.
 - `index.html` now includes optional diagram dependencies before render bootstrap:
   - `elkjs`
   - `pixi.js`
   - `@pixi/particle-emitter`
   - `src/lesson-diagram-v2.js`
-- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260304-1"`) to avoid stale image caching across art updates.
+- Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260304-4"`) to avoid stale image caching across art updates.
   - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
@@ -205,8 +206,8 @@ Acceptance Checks:
 - `buildRenderGameTextState()` now uses a shared `collectRenderSamples()` helper for entity sampling, eliminating duplicated loop logic while preserving debug payload shape.
 - `buildRenderGameTextState()` now maps `enemy`, `bullet`, and `pickup` payloads through dedicated render mappers (`mapEnemyRenderSample`, `mapBulletRenderSample`, `mapPickupRenderSample`) to keep debug sample schema deterministic and remove inline mapping churn in the hot path.
 - `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
-- Sprite cache busting for character art is now `v=20260222-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
-- Script cache-bust alignment and player-cache keys are now expected at `v=20260222-6` for this stability patch.
+- Sprite cache busting for character art is now `v=20260304-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
+- Script cache-bust alignment and player-cache keys are now expected at `v=20260304-4` for this stability patch.
 - Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.
 - Run summary screen (GAME_OVER/VICTORY) is now concise and proof-first:
   - Uses compact stat chips, split-card summary blocks, and reduced line count.

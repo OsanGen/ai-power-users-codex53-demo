@@ -213,7 +213,7 @@
     lowFrameStreak: 0,
     lastTierSwitchMs: 0
   };
-  const CHARACTER_ART_CACHE_BUST = "v=20260304-1";
+  const CHARACTER_ART_CACHE_BUST = "v=20260304-4";
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -270,6 +270,8 @@
     heightScale: 2.2
   });
   const PLAYER_SPRITE_ALPHA_THRESHOLD = 10;
+  const PLAYER_SPRITE_EDGE_NOISE_ALPHA_DENSITY = 0.03;
+  const PLAYER_SPRITE_EDGE_NOISE_MAX_TRIM_PIXELS = 10;
   const PLAYER_SPRITE_HEIGHT_SCALE = 5;
   const PLAYER_SPRITE_WIDTH_SCALE = {
     min: 1.7,
@@ -752,7 +754,7 @@
         return;
       }
 
-      const measuredTrim = entry.useTrimmedBounds ? computeTrimmedSpriteRect(image) : null;
+      const measuredTrim = entry.useTrimmedBounds ? computeTrimmedSpriteRect(image, entry.cacheKey) : null;
       const naturalWidth = Number.isFinite(image.naturalWidth) ? image.naturalWidth : 0;
       const naturalHeight = Number.isFinite(image.naturalHeight) ? image.naturalHeight : 0;
       const fallbackRect = naturalWidth > 0 && naturalHeight > 0
@@ -826,7 +828,7 @@
       });
   }
 
-  function computeTrimmedSpriteRect(image) {
+  function computeTrimmedSpriteRect(image, cacheKey = "") {
     if (!playerSpriteMeasureCanvas || !playerSpriteMeasureCtx || !image) {
       return null;
     }
@@ -865,19 +867,138 @@
       return null;
     }
 
-    const trimWidth = maxX - minX + 1;
-    const trimHeight = maxY - minY + 1;
+    let trimX = minX;
+    let trimY = minY;
+    let trimW = maxX - minX + 1;
+    let trimH = maxY - minY + 1;
+    const isDeathSprite = typeof cacheKey === "string" && cacheKey.startsWith("player:death:");
+    if (isDeathSprite && trimW > 0 && trimH > 0 && trimW <= imageWidth && trimH <= imageHeight) {
+      const edgeTrimmedRect = trimSpriteRectByEdgeAlphaNoise(
+        {
+          x: trimX,
+          y: trimY,
+          w: trimW,
+          h: trimH
+        },
+        imageData,
+        imageWidth,
+        threshold
+      );
+      if (edgeTrimmedRect && edgeTrimmedRect.w > 0 && edgeTrimmedRect.h > 0) {
+        trimX = edgeTrimmedRect.x;
+        trimY = edgeTrimmedRect.y;
+        trimW = edgeTrimmedRect.w;
+        trimH = edgeTrimmedRect.h;
+      }
+    }
+
+    const trimWidth = trimW;
+    const trimHeight = trimH;
     if (trimWidth <= 0 || trimHeight <= 0) {
       return null;
     }
 
     return {
-      x: minX,
-      y: minY,
+      x: trimX,
+      y: trimY,
       w: trimWidth,
       h: trimHeight,
       aspect: trimWidth / trimHeight
     };
+  }
+
+  function trimSpriteRectByEdgeAlphaNoise(rect, imageData, imageWidth, alphaThreshold) {
+    let { x, y, w, h } = rect;
+    if (!rect || !imageData || imageWidth <= 0 || w <= 0 || h <= 0) {
+      return null;
+    }
+
+    let minX = x;
+    let minY = y;
+    let maxX = x + w - 1;
+    let maxY = y + h - 1;
+
+    const safeTrimLimit = Math.max(1, Math.min(PLAYER_SPRITE_EDGE_NOISE_MAX_TRIM_PIXELS, Math.floor(Math.min(w, h) * 0.18)));
+
+    const width = () => maxX - minX + 1;
+    const height = () => maxY - minY + 1;
+    const densityThreshold = PLAYER_SPRITE_EDGE_NOISE_ALPHA_DENSITY;
+
+    let trimLeftBudget = safeTrimLimit;
+    while (trimLeftBudget > 0 && minX <= maxX) {
+      const columnSpan = Math.max(1, height());
+      let hits = 0;
+      for (let cy = minY; cy <= maxY; cy += 1) {
+        const alphaIndex = (cy * imageWidth + minX) * 4 + 3;
+        if (imageData[alphaIndex] > alphaThreshold) {
+          hits += 1;
+        }
+      }
+      if (hits / columnSpan > densityThreshold) {
+        break;
+      }
+      minX += 1;
+      trimLeftBudget -= 1;
+    }
+
+    let trimRightBudget = safeTrimLimit;
+    while (trimRightBudget > 0 && minX <= maxX) {
+      const columnSpan = Math.max(1, height());
+      let hits = 0;
+      for (let cy = minY; cy <= maxY; cy += 1) {
+        const alphaIndex = (cy * imageWidth + maxX) * 4 + 3;
+        if (imageData[alphaIndex] > alphaThreshold) {
+          hits += 1;
+        }
+      }
+      if (hits / columnSpan > densityThreshold) {
+        break;
+      }
+      maxX -= 1;
+      trimRightBudget -= 1;
+    }
+
+    let trimTopBudget = safeTrimLimit;
+    while (trimTopBudget > 0 && minY <= maxY) {
+      const rowSpan = Math.max(1, width());
+      let hits = 0;
+      let rowOffset = (minY * imageWidth + minX) * 4;
+      for (let cx = minX; cx <= maxX; cx += 1) {
+        if (imageData[rowOffset + cx * 4 + 3] > alphaThreshold) {
+          hits += 1;
+        }
+      }
+      if (hits / rowSpan > densityThreshold) {
+        break;
+      }
+      minY += 1;
+      trimTopBudget -= 1;
+    }
+
+    let trimBottomBudget = safeTrimLimit;
+    while (trimBottomBudget > 0 && minY <= maxY) {
+      const rowSpan = Math.max(1, width());
+      let hits = 0;
+      let rowOffset = (maxY * imageWidth + minX) * 4;
+      for (let cx = minX; cx <= maxX; cx += 1) {
+        if (imageData[rowOffset + cx * 4 + 3] > alphaThreshold) {
+          hits += 1;
+        }
+      }
+      if (hits / rowSpan > densityThreshold) {
+        break;
+      }
+      maxY -= 1;
+      trimBottomBudget -= 1;
+    }
+
+    const trimW = maxX - minX + 1;
+    const trimH = maxY - minY + 1;
+    if (trimW <= 0 || trimH <= 0) {
+      return null;
+    }
+
+    return { x: minX, y: minY, w: trimW, h: trimH };
   }
 
   function getPlayerDirectionFromMotion() {
