@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-04T19:31:50Z
+- UpdatedAt: 2026-03-04T19:34:13Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 1a91610
+- Branch, HEAD commit hash: main, 127af80
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -84,12 +84,13 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - Audio subsystem floor-scoped playback with mute migration and SFX retry handling.
   - Expanded architecture documentation in `final_build/` component specs and gaps map.
 - In progress:
-  - User-side cache refresh validation of the live death sprite size behavior.
+  - Verify user-visible deployment propagation for the cached `render.js`/`Death.png` change on a fresh browser session.
 - Not started:
   - Additional automated visual-noise/per-frame regression assertions for lesson diagrams and run-summary density on multi-viewport CI.
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-04T19:34:13Z | Deployed death sprite sizing pass by pushing commit `127af80` to `main` and mirroring to `gh-pages` (cache token `v=20260304-4`, death-frame edge-noise trim path) | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T19:31:50Z | Fixed death sprite scale consistency by trimming sparse alpha-border noise in death-frame bounds (`computeTrimmedSpriteRect`) and bumping character art cache-bust/render tokens to `v=20260304-4`; this should stop the Death.png from appearing undersized | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T17:20:40Z | Fixed death art propagation by bumping character sprite cache-bust token for `Death.png` and the bootstrap entrypoint `main.js` to `v=20260304-3`, enabling immediate client refetch of the updated frame art | `src/render.js`, `index.html`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T12:18:43-05:00 | Forced second cache refresh pass (`render.js?v=20260304-2`) and redeployed `main` + mirrored `gh-pages` to trigger live token propagation; docs updated accordingly | `index.html`, `final_build/COMPONENT__Render.txt`, `final_build/CURRENT_GAPS.txt`, `FULL_TECH_BUILD.txt`
