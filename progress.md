@@ -118,6 +118,25 @@ Original prompt: I want the code way better—fewer errors, higher performance, 
 ## Verification commands run (omni + blink-state)
 - `node --check src/*.js narrative.js` (pass)
 - Custom Playwright floor-10 probe (with forced invuln for survivability):
+
+## 2026-03-06 patch log (20% gameplay sprite size reduction)
+- `/Users/abelsanchez/CODEX/WONDERLAND/src/render.js`
+  - Added `PLAYER_SPRITE_MODE_RENDER_SCALE` so gameplay sprite modes (`move`, `shoot`, `dual`, `omni`) render at `0.8` while `death` remains `1`.
+  - Added `resolvePlayerSpriteDrawBox(...)` to centralize player sprite sizing/placement.
+  - Applied the new scale in both the primary sprite draw path and cached fallback draw path.
+  - Preserved baseline placement while shrinking so the player reads as smaller instead of floating.
+- `/Users/abelsanchez/CODEX/WONDERLAND/index.html`
+  - Bumped `render.js` token to `v=20260306-1`.
+
+## Verification commands run (20% gameplay sprite size reduction)
+- `node --check src/render.js` (pass)
+- `npm run qa:deps-contract` (pass)
+- `node "$HOME/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js" --url http://127.0.0.1:4173 --actions-json '{"steps":[{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90}]}' --iterations 1 --pause-ms 250 --screenshot-dir output/web-game-player-scale` (pass; produced `shot-0.png`, `state-0.json`, `errors-0.json`)
+- `node "$HOME/.codex/skills/develop-web-game/scripts/web_game_playwright_client.js" --url http://127.0.0.1:4173 --actions-json '{"steps":[{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["space"],"frames":2},{"buttons":[],"frames":90},{"buttons":["left"],"frames":30},{"buttons":[],"frames":30}]}' --iterations 1 --pause-ms 250 --screenshot-dir output/web-game-player-scale-shoot` (pass; produced `shot-0.png`, `state-0.json`, `errors-0.json`)
+- Validation notes:
+  - Local server served `render.js?v=20260306-1`.
+  - Captured screenshots show the player sprite rendering correctly in local gameplay after the shrink.
+  - Existing console/runtime noise remains from missing SFX/enemy art assets and a pre-existing `Unknown behavior: speed` harness message.
   - held: `burstMode=omni`, `hold=10.41s`, `activeMode=omni`
   - released: `burstMode=normal`, `hold=0`, `activeMode=move` (no stale omni state)
 

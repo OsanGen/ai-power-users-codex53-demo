@@ -9,6 +9,12 @@ Purpose:
 - HUD compactness v4 replaces leftover-driven sizing with content-fit top-row chip layout (`HP`, `Floor`, `Space Pulse`, `Survive`), applies explicit overflow degrade order, keeps neutral gutters instead of inflating chips, and tightens toast widths to preserve row-1 dominance.
 - Bottom HUD dock v1 relocates transient gameplay status cards from top overlap to a dedicated bottom frame lane (outside arena), with one-left-priority stream (`attack-disable > burst > music`, rear-shot hint only when unblocked) and right-side upgrade toast summaries for minimal-noise OSAN hierarchy.
 - Top whisper strip v5 removes the bottom dock and repositions transient status cards/upgrades into the upper gap between persistent HUD and world frame, preserving one-left-priority stream plus right upgrade toast while reducing gameplay occlusion and overall noise.
+- Launch/idle sprite startup guard:
+  - `drawPlayer` now suppresses immediate procedural fallback while player sprite candidates are still loading, so the old cog-like fallback no longer flashes during first frame resolve on idle/launch.
+- Gameplay player sprite scale pass:
+  - `move`, `shoot`, `dual`, and `omni` sprite draws are now rendered at 80% of prior size through shared mode-aware sizing math, while `death` remains full size.
+  - The reduced scale is applied to both primary sprite draws and cached fallback sprite draws.
+  - Vertical placement preserves the existing baseline feel so the smaller character does not appear to float.
 - Top-bar integrated notifications v6 moves transient status cards/upgrades fully inside the top HUD border by expanding the HUD into a two-row shell (persistent row + transient row) and anchoring left/center/right lanes to row 2, eliminating floating gap toasts.
 - Single-row top HUD v7 restores a strict one-row top shell and collapses transient notifications into one inline status chip in row-1 (`HP | Floor | Space Pulse | Status | Survive`), removing all separate transient cards from active draw flow.
 - Single-row top HUD v8 keeps the one-row shell while restoring burst progression countdown inside the inline status chip (`Next Dual`, `Omni`) and upgrades shooting-disabled visibility with an OSAN-safe caution treatment (contrast pulse + micro recovery meter, no glow).
@@ -25,7 +31,7 @@ Purpose:
     - `assets/characters/player/main/back.png` (back primary)
     - `assets/characters/player/main/left.png` (left primary)
     - `assets/characters/player/main/right.png` (right primary)
-    - movement fallback uses canonical names first, then legacy root filenames during migration.
+    - movement fallback uses canonical names and case variants before optional legacy aliases.
   - Player shoot sprites resolve by bucket from:
     - `assets/characters/player/main/Down_Shoot.png` (front shoot primary)
     - `assets/characters/player/main/UP_shoot.png` (back shoot primary)
@@ -43,6 +49,7 @@ Purpose:
 - Sprite URLs are cache-busted with `?v=20260304-4`.
 - Shoot/move mode is resolved from active `Arrow*` keys (and `AIPU.input.lastShootKey` fallback); when no shoot key is active, movement keys are used; otherwise player facing holds its last valid direction.
   - Missing or failed sprite loads fallback to built-in directional procedural rendering.
+  - Gameplay sprite render size is controlled by `PLAYER_SPRITE_MODE_RENDER_SCALE`; current values are `0.8` for `move|shoot|dual|omni` and `1` for `death`.
   - Fallback draw sizing now uses the fallback frame’s own direction stance scale (not the originally requested direction), which prevents occasional stretch/pop artifacts when rendering `front` fallback frames for side/back requests.
   - Mode-switch smoothing now behaves dynamically:
     - if target mode/direction has renderable frames (or cached fallback), switch immediately with `holdFrames = 0`;
@@ -135,14 +142,14 @@ Dependencies:
 - `AIPU.systems.getMuzzleAnchorForDirection(dirVector)` (new debug path) for optional socket marker visualization and direction-specific anchor parity checks.
 - `AIPU.lessonDiagramV2` for lesson/death-lesson concept diagram rendering and diagnostics handoff.
 - `AIPU.utils` for color/geometry/font helpers.
-- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260304-4`, `main.js?v=20260304-4`) to force updated runtime bundle refresh.
+- `index.html` script tags use cache-bust tokens (`audio.js?v=20260224-2`, `systems.js?v=20260228-1`, `lesson-diagram-v2.js?v=20260303-4`, `render.js?v=20260306-1`, `main.js?v=20260304-4`) to force updated runtime bundle refresh.
 - `index.html` now includes optional diagram dependencies before render bootstrap:
   - `elkjs`
   - `pixi.js`
   - `@pixi/particle-emitter`
   - `src/lesson-diagram-v2.js`
 - Sprite URLs are additionally cache-busted in `src/render.js` (`CHARACTER_ART_CACHE_BUST = "v=20260304-4"`) to avoid stale image caching across art updates.
-  - Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical and legacy root fallback.
+- Player movement resolution is labeled-first: `Front.png/back.png/left.png/right.png` with canonical aliases and optional legacy compatibility fallbacks.
   - Player shoot resolution is labeled-first: `Down_Shoot.png/UP_shoot.png/Left_shoot.png/Right_shoot.png` with canonical fallback aliases next.
 
 Acceptance Checks:
@@ -182,8 +189,10 @@ Acceptance Checks:
   - Death events trigger a ring dissolve and shard-like particles.
   - Update/draw pass runs with line/rect drawing in the world transform and does not mutate gameplay collections.
 - Sprite routing behavior:
-  - `drawPlayer()` first attempts bucket/legacy resolved directional player art, then falls back to procedural.
-  - `buildPlayerSpriteCandidates()` now resolves labeled movement/shoot frames first, then canonical aliases, then legacy root fallback.
+  - `drawPlayer()` first attempts bucket resolved directional player art and reports pending states while entries resolve.
+  - Procedural fallback now happens only when sprite loading is complete but no sprite frame is drawable, preventing first-frame launch flash.
+  - `buildPlayerSpriteCandidates()` resolves labeled movement/shoot frames first, then canonical aliases, then optional compatibility fallbacks.
+  - `resolvePlayerSpriteDrawBox(...)` is the single source of truth for gameplay sprite size/placement, so gameplay-state scale changes remain uniform across idle, shoot, dual, and omni paths.
   - `drawEnemies()` draws resolved enemy sprites when ready for `enemy.type`, otherwise uses legacy procedural fallbacks.
   - Missing folders or malformed image files never crash render loops; missing assets produce procedural fallback.
   - Idle player facing no longer falls back to stale aim (`lastAimX/lastAimY`) when both movement and shooting inputs are inactive; facing persists for stable idle visuals and avoids intermittent direction jitter while standing still.
@@ -208,6 +217,9 @@ Acceptance Checks:
 - `AIPU.render.renderGameToText()` now exposes `debug.visualState` with floor pack/theme and water wrapper compound/alpha metrics for floor 1–8 intensity validation.
 - Sprite cache busting for character art is now `v=20260304-4`; script tags should remain aligned in `index.html` to guarantee art updates are loaded by clients.
 - Script cache-bust alignment and player-cache keys are now expected at `v=20260304-4` for this stability patch.
+- Gameplay sprite sizing acceptance:
+  - `move`, `shoot`, `dual`, and `omni` player sprites render at 80% of prior visual size without changing gameplay hitbox/radius.
+  - `death` sprite sizing remains unchanged.
 - Player movement/shoot rendering remains driven by active `Arrow*` input during `player.attackDisableTimer > 0`, preventing stale visual mode locks after lockout.
 - Run summary screen (GAME_OVER/VICTORY) is now concise and proof-first:
   - Uses compact stat chips, split-card summary blocks, and reduced line count.

@@ -250,13 +250,7 @@
       frames: PLAYER_PRIMARY_MOVEMENT_FRAMES,
       dualFrames: Object.freeze(["DUAL.png", "dual.png"]),
       shootFrames: PLAYER_PRIMARY_SHOOT_FRAMES,
-      deathFrames: PLAYER_DEATH_FRAMES,
-      legacy: Object.freeze({
-        front: "./ChatGPT Image Feb 16, 2026, 05_58_49 PM.png",
-        left: "./ChatGPT Image Feb 16, 2026, 05_47_55 PM (1).png",
-        right: "./ChatGPT Image Feb 16, 2026, 05_58_25 PM.png",
-        back: "./ChatGPT Image Feb 16, 2026, 05_46_16 PM.png"
-      })
+      deathFrames: PLAYER_DEATH_FRAMES
     }),
     enemy: Object.freeze({
       bucketDir: "./assets/characters/enemies",
@@ -273,6 +267,13 @@
   const PLAYER_SPRITE_EDGE_NOISE_ALPHA_DENSITY = 0.03;
   const PLAYER_SPRITE_EDGE_NOISE_MAX_TRIM_PIXELS = 10;
   const PLAYER_SPRITE_HEIGHT_SCALE = 5;
+  const PLAYER_SPRITE_MODE_RENDER_SCALE = Object.freeze({
+    move: 0.8,
+    shoot: 0.8,
+    dual: 0.8,
+    omni: 0.8,
+    death: 1
+  });
   const PLAYER_SPRITE_WIDTH_SCALE = {
     min: 1.7,
     max: 4.2,
@@ -381,6 +382,13 @@
     playerSpriteModeState.activeDirection = "front";
     playerSpriteModeState.holdFrames = 0;
     playerSpriteCachePrimed = false;
+    const cacheKeys = Object.keys(characterSpriteCache);
+    for (let i = 0; i < cacheKeys.length; i += 1) {
+      const cacheKey = cacheKeys[i];
+      if (cacheKey.indexOf("player:") === 0) {
+        delete characterSpriteCache[cacheKey];
+      }
+    }
     const resetModeKeys = Object.keys(playerSpriteLastReadyByMode);
     for (let i = 0; i < resetModeKeys.length; i += 1) {
       const mode = resetModeKeys[i];
@@ -574,9 +582,7 @@
       }
     }
 
-    return candidates.concat([
-      CHARACTER_ART.player.legacy[resolvedDirection]
-    ]);
+    return candidates;
   }
 
   function buildEnemySpriteCandidates(enemyType) {
@@ -1035,6 +1041,33 @@
     return fallbackModeLabels;
   }
 
+  function getPlayerSpriteRenderScale(spriteMode) {
+    const modeKey = typeof spriteMode === "string" ? spriteMode.trim().toLowerCase() : "";
+    return PLAYER_SPRITE_MODE_RENDER_SCALE[modeKey] || 1;
+  }
+
+  function resolvePlayerSpriteDrawBox(trimAspect, stanceScale, spriteMode) {
+    const safeAspect = Number.isFinite(trimAspect) && trimAspect > 0 ? trimAspect : 1;
+    const safeStanceScale = Number.isFinite(stanceScale) && stanceScale > 0 ? stanceScale : 1.02;
+    const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
+    const renderScale = getPlayerSpriteRenderScale(spriteMode);
+    const baseSpriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * safeStanceScale;
+    const unclampedSpriteWidth = playerRadius * safeAspect * PLAYER_SPRITE_HEIGHT_SCALE * safeStanceScale * renderScale;
+    const spriteHeight = baseSpriteHeight * renderScale;
+    const spriteWidth = clamp(
+      unclampedSpriteWidth,
+      playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min * renderScale,
+      playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max * renderScale
+    );
+    const spriteBottom = player.y + baseSpriteHeight * (1 - PLAYER_SPRITE_WIDTH_SCALE.topOffset);
+    return {
+      x: player.x - spriteWidth * 0.5,
+      y: spriteBottom - spriteHeight,
+      width: spriteWidth,
+      height: spriteHeight
+    };
+  }
+
   function hasRenderablePlayerSpriteForMode(direction, spriteMode) {
     const resolvedDirection = normalizeDirection(direction);
     const useShootFrameSet = spriteMode === "shoot";
@@ -1154,26 +1187,28 @@
     const useDualFrame = spriteMode === "dual" || spriteMode === "omni";
     const useDeathFrame = spriteMode === "death";
     const modeLabel = getPlayerSpriteModeLabel(spriteMode);
+    let hasPendingLoad = false;
+    const markPendingIfLoading = (state) => {
+      if (!state) {
+        return;
+      }
+      const status = state.status || "missing";
+      if (status === "loading" || status === "idle") {
+        hasPendingLoad = true;
+      }
+    };
 
     for (let i = 0; i < order.length; i += 1) {
       const candidateDirection = normalizeDirection(order[i]);
       const state = getPlayerSpriteState(candidateDirection, useShootFrameSet, useDualFrame, useDeathFrame);
+      markPendingIfLoading(state);
       if (!isDrawablePlayerSpriteState(state)) {
         continue;
       }
       cachePlayerSpriteFrame(modeLabel, candidateDirection, state);
       const image = state.image;
       const stanceScale = PLAYER_SPRITE_STANCE_SCALE[candidateDirection] || 1.02;
-      const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
-      const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale;
-      const spriteWidth = clamp(
-        playerRadius * (state.trimAspect || 1) * PLAYER_SPRITE_HEIGHT_SCALE * stanceScale,
-        playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min,
-        playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max
-      );
-
-      const x = player.x - spriteWidth * 0.5;
-      const y = player.y - spriteHeight * PLAYER_SPRITE_WIDTH_SCALE.topOffset;
+      const spriteBox = resolvePlayerSpriteDrawBox(state.trimAspect, stanceScale, spriteMode);
       const prevSmoothing = ctx.imageSmoothingEnabled;
       const sx = state.trimRect.x;
       const sy = state.trimRect.y;
@@ -1181,9 +1216,12 @@
       const sh = state.trimRect.h;
 
       ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(image, sx, sy, sw, sh, x, y, spriteWidth, spriteHeight);
+      ctx.drawImage(image, sx, sy, sw, sh, spriteBox.x, spriteBox.y, spriteBox.width, spriteBox.height);
       ctx.imageSmoothingEnabled = prevSmoothing;
-      return true;
+      return {
+        drawn: true,
+        pending: false
+      };
     }
 
     const fallbackCandidates = order;
@@ -1194,33 +1232,32 @@
       for (let j = 0; j < fallbackCandidates.length; j += 1) {
         const fallbackDirectionForMode = normalizeDirection(fallbackCandidates[j]);
         const fallbackState = getCachedPlayerSpriteFrame(fallbackModeLabel, fallbackDirectionForMode);
+        markPendingIfLoading(fallbackState);
         if (isDrawablePlayerSpriteState(fallbackState)) {
           const fallbackImage = fallbackState.image;
           const fallbackTrimRect = fallbackState.trimRect;
           const fallbackStanceScale = PLAYER_SPRITE_STANCE_SCALE[fallbackDirectionForMode] || 1.02;
-          const playerRadius = Number.isFinite(player.radius) && player.radius > 0 ? player.radius : 14;
-          const spriteHeight = playerRadius * PLAYER_SPRITE_HEIGHT_SCALE * fallbackStanceScale;
-          const spriteWidth = clamp(
-            playerRadius * (fallbackState.trimAspect || 1) * PLAYER_SPRITE_HEIGHT_SCALE * fallbackStanceScale,
-            playerRadius * PLAYER_SPRITE_WIDTH_SCALE.min,
-            playerRadius * PLAYER_SPRITE_WIDTH_SCALE.max
-          );
-          const x = player.x - spriteWidth * 0.5;
-          const y = player.y - spriteHeight * PLAYER_SPRITE_WIDTH_SCALE.topOffset;
+          const spriteBox = resolvePlayerSpriteDrawBox(fallbackState.trimAspect, fallbackStanceScale, spriteMode);
           const prevSmoothing = ctx.imageSmoothingEnabled;
           const sx = fallbackTrimRect.x;
           const sy = fallbackTrimRect.y;
           const sw = fallbackTrimRect.w;
           const sh = fallbackTrimRect.h;
           ctx.imageSmoothingEnabled = true;
-          ctx.drawImage(fallbackImage, sx, sy, sw, sh, x, y, spriteWidth, spriteHeight);
+          ctx.drawImage(fallbackImage, sx, sy, sw, sh, spriteBox.x, spriteBox.y, spriteBox.width, spriteBox.height);
           ctx.imageSmoothingEnabled = prevSmoothing;
-          return true;
+          return {
+            drawn: true,
+            pending: false
+          };
         }
       }
     }
 
-    return false;
+    return {
+      drawn: false,
+      pending: hasPendingLoad
+    };
   }
 
   function drawPlayerCogGlyph(cx, cy, radius, accent, visualTheme = null) {
@@ -6580,8 +6617,9 @@
     }
 
     const direction = frameState.direction;
-    const drewSprite = drawPlayerSprite(direction, accent, isDeathAnim ? "death" : frameState.mode, visualTheme);
-    if (!drewSprite && !isDeathAnim) {
+    const spriteState = drawPlayerSprite(direction, accent, isDeathAnim ? "death" : frameState.mode, visualTheme);
+    const drewSprite = !!(spriteState && spriteState.drawn);
+    if (!drewSprite && !isDeathAnim && !(spriteState && spriteState.pending)) {
       drawPlayerProceduralSprite(direction, accent, visualTheme);
     }
     if (!isDeathAnim && isPlayerShootInputActive() && (!drewSprite || SHOW_AIM_LINE_WITH_SPRITE)) {
