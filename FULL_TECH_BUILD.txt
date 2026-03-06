@@ -1,9 +1,9 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-04T19:34:13Z
+- UpdatedAt: 2026-03-06T20:10:10Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 127af80
+- Branch, HEAD commit hash: main, 7fbeeab
 - Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
@@ -60,6 +60,8 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
 
 ## 6) Current implementation status
 - Implemented:
+  - Reduced gameplay-state player sprite art by 20% in the shared render path: `move`, `shoot`, `dual`, and `omni` now use a mode-aware render scale while `death` remains unchanged; baseline placement is preserved so the smaller sprite does not visually float.
+  - Startup model flash suppression in `drawPlayer`: procedural fallback now waits until player sprite candidates finish resolving or fail, preventing the old procedural model from showing during launch/idle while frames load.
   - Added death-screen player visual suppression by routing `DEATH_ANIM` to a dedicated sprite mode (`death`/`Death.png`), preventing procedural fallback/projection overlap and keeping the model hidden during the transition.
   - Forced another live cache refresh by bumping `render.js` token in `index.html` (`20260304-2`) after redeploy propagation lag.
   - Single-row top HUD v9: fixed lockout text truncation by making attack-disable status width content-fit first, preserving it in overflow degradation, and moving the lockout micro-meter to a bottom rail so full status text remains readable.
@@ -90,6 +92,9 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-06T20:10:10Z | Deployed gameplay sprite scale pass by pushing commit `7fbeeab` to both `origin/main` and `origin/gh-pages`; remote heads verified aligned on the same commit | `FULL_TECH_BUILD.txt`
+- 2026-03-06T20:07:03Z | Reduced gameplay player sprite size by 20% via shared mode-aware draw-box sizing in `src/render.js` (`move|shoot|dual|omni` only, `death` unchanged), bumped `render.js` bootstrap token to `v=20260306-1`, and validated with `node --check`, `npm run qa:deps-contract`, and local `develop-web-game` screenshot/state captures | `src/render.js`, `index.html`, `progress.md`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
+- 2026-03-04T20:06:40Z | Fixed initial-launch/idle visual flash by making `drawPlayer` treat player sprite loading as pending and suppressing procedural fallback until assets settle (`drawPlayerSprite` now returns load/pending status); updated `index.html` cache token to `render.js?v=20260304-5` and documented in render component notes | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
 - 2026-03-04T19:34:13Z | Deployed death sprite sizing pass by pushing commit `127af80` to `main` and mirroring to `gh-pages` (cache token `v=20260304-4`, death-frame edge-noise trim path) | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T19:31:50Z | Fixed death sprite scale consistency by trimming sparse alpha-border noise in death-frame bounds (`computeTrimmedSpriteRect`) and bumping character art cache-bust/render tokens to `v=20260304-4`; this should stop the Death.png from appearing undersized | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T17:20:40Z | Fixed death art propagation by bumping character sprite cache-bust token for `Death.png` and the bootstrap entrypoint `main.js` to `v=20260304-3`, enabling immediate client refetch of the updated frame art | `src/render.js`, `index.html`, `FULL_TECH_BUILD.txt`
