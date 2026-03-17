@@ -224,7 +224,7 @@
       titleIntroTime: 0,
       bootLogoActive: false,
       bootLogoTimer: 0,
-      bootLogoDuration: 1.45,
+      bootLogoDuration: 4.45,
       bootLogoSkipped: false,
       bootLogoLoadState: "idle",
       upgradeOptions: [],

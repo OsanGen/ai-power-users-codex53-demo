@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-17T21:29:38Z
+- UpdatedAt: 2026-03-17T21:34:30Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 60271a4
-- Dirty state: yes (`src/core.js`, `src/render.js`, `src/systems.js`, `index.html`, `wonderland-qa.spec.js`, `README.md`, `progress.md`, `OSAN_INTRO.png`, `assets/branding/`, `node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary artifacts)
+- Branch, HEAD commit hash: main, 5c8e773
+- Dirty state: yes (`src/core.js`, `FULL_TECH_BUILD.txt`)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -86,12 +86,13 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - Audio subsystem floor-scoped playback with mute migration and SFX retry handling.
   - Expanded architecture documentation in `final_build/` component specs and gaps map.
 - In progress:
-  - Verify user-visible deployment propagation for the cached `render.js`/`Death.png` change on a fresh browser session.
+  - Verify user-visible duration change (`bootLogoDuration`) propagates for first-load boot-logo intro in deployment and caches.
 - Not started:
   - Additional automated visual-noise/per-frame regression assertions for lesson diagrams and run-summary density on multi-viewport CI.
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
+- 2026-03-17T21:34:30Z | Extended boot-logo intro duration from 1.45s to 4.45s without changing flow/control behavior | `src/core.js`
 - 2026-03-17T20:45:49Z | Completed one-shot boot-logo TITLE integration across runtime state, render intro path, input timing gate, deterministic Playwright coverage, and cache-bust refresh for touched runtime scripts | `src/core.js`, `src/systems.js`, `src/render.js`, `index.html`, `wonderland-qa.spec.js`, `README.md`, `progress.md`
 - 2026-03-17T20:43:08Z | Re-pointed boot-logo intro asset load path to root `OSAN_INTRO.png` and created committed root copy from the existing branding logo source for deterministic repo-native usage | `src/render.js`, `OSAN_INTRO.png`
 - 2026-03-17T20:42:02Z | Added boot-logo intro render plumbing: added dedicated boot-logo asset loader/status helpers (`ensureBootLogoAsset`, `getBootLogoAssetStatus`) and `drawBootLogoIntro()` in `src/render.js`, and exposed boot-logo asset status through render debug + `AIPU.render`; added TITLE branch guard for logo intro | `src/render.js`, `assets/branding/osan-games-logo.png`
