@@ -214,6 +214,18 @@
     lastTierSwitchMs: 0
   };
   const CHARACTER_ART_CACHE_BUST = "v=20260304-4";
+  const BOOT_LOGO_ASSET_PATH = "./OSAN_INTRO.png";
+  const BOOT_LOGO_CACHE_BUST = "v=20260317-1";
+  const bootLogoAssetState = {
+    status: "idle",
+    path: BOOT_LOGO_ASSET_PATH,
+    pathWithVersion: "",
+    image: null,
+    naturalWidth: 0,
+    naturalHeight: 0,
+    failed: false,
+    error: ""
+  };
   const glfxWorldFxState = {
     api: null,
     fxCanvas: null,
@@ -832,6 +844,82 @@
         entry.errorPaths.push(path);
         advanceToNextCandidateOrMissing();
       });
+  }
+
+  function setBootLogoAssetFailure(errorMessage) {
+    bootLogoAssetState.status = "failed";
+    bootLogoAssetState.failed = true;
+    bootLogoAssetState.error = typeof errorMessage === "string" && errorMessage ? errorMessage : "load_failed";
+    bootLogoAssetState.image = null;
+    bootLogoAssetState.naturalWidth = 0;
+    bootLogoAssetState.naturalHeight = 0;
+    bootLogoAssetState.pathWithVersion = `${bootLogoAssetState.path}?${BOOT_LOGO_CACHE_BUST}`;
+  }
+
+  function ensureBootLogoAsset() {
+    if (!bootLogoAssetState || !bootLogoAssetState.path) {
+      setBootLogoAssetFailure("missing_path");
+      return bootLogoAssetState;
+    }
+    if (bootLogoAssetState.status === "ready" || bootLogoAssetState.status === "loading" || bootLogoAssetState.status === "failed") {
+      return bootLogoAssetState;
+    }
+
+    bootLogoAssetState.status = "loading";
+    bootLogoAssetState.failed = false;
+    bootLogoAssetState.error = "";
+    bootLogoAssetState.pathWithVersion = `${bootLogoAssetState.path}?${BOOT_LOGO_CACHE_BUST}`;
+
+    const image = new Image();
+    image.decoding = "async";
+    image.onload = () => {
+      if (bootLogoAssetState.status !== "loading") {
+        return;
+      }
+
+      const naturalWidth = Number.isFinite(image.naturalWidth) ? image.naturalWidth : 0;
+      const naturalHeight = Number.isFinite(image.naturalHeight) ? image.naturalHeight : 0;
+      if (!naturalWidth || !naturalHeight) {
+        setBootLogoAssetFailure("invalid_image");
+        return;
+      }
+      bootLogoAssetState.status = "ready";
+      bootLogoAssetState.failed = false;
+      bootLogoAssetState.image = image;
+      bootLogoAssetState.naturalWidth = naturalWidth;
+      bootLogoAssetState.naturalHeight = naturalHeight;
+      bootLogoAssetState.error = "";
+    };
+
+    image.onerror = () => {
+      if (bootLogoAssetState.status !== "loading") {
+        return;
+      }
+      setBootLogoAssetFailure("load_error");
+    };
+
+    try {
+      image.src = bootLogoAssetState.pathWithVersion;
+    } catch (error) {
+      void error;
+      setBootLogoAssetFailure("load_exception");
+    }
+
+    bootLogoAssetState.image = image;
+    return bootLogoAssetState;
+  }
+
+  function getBootLogoAssetStatus() {
+    return {
+      status: bootLogoAssetState.status || "idle",
+      path: bootLogoAssetState.path || "",
+      pathWithVersion: bootLogoAssetState.pathWithVersion || "",
+      width: Number.isFinite(bootLogoAssetState.naturalWidth) ? bootLogoAssetState.naturalWidth : 0,
+      height: Number.isFinite(bootLogoAssetState.naturalHeight) ? bootLogoAssetState.naturalHeight : 0,
+      failed: !!bootLogoAssetState.failed,
+      error: bootLogoAssetState.error || "",
+      imageReady: !!bootLogoAssetState.image && bootLogoAssetState.status === "ready"
+    };
   }
 
   function computeTrimmedSpriteRect(image, cacheKey = "") {
@@ -3091,6 +3179,10 @@
       ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
       if (game.state === GameState.TITLE) {
+        if (game.bootLogoActive) {
+          drawBootLogoIntro();
+          return;
+        }
         drawTitleCinematic();
         return;
       }
@@ -4297,6 +4389,71 @@
       promptAlpha,
       animatePrompt: true
     });
+  }
+
+  function drawBootLogoIntro() {
+    if (!game || game.state !== GameState.TITLE || !game.bootLogoActive) {
+      return;
+    }
+
+    const accent = accentColor("yellow");
+    drawBackdrop(accent);
+    ensureBootLogoAsset();
+    const logoStatus = getBootLogoAssetStatus();
+    if (!logoStatus.imageReady || logoStatus.failed || logoStatus.width <= 0 || logoStatus.height <= 0) {
+      return;
+    }
+
+    const reducedMotion = !!(AIPU.input && AIPU.input.prefersReducedMotion);
+    const maxDuration = Number.isFinite(game.bootLogoDuration) && game.bootLogoDuration > 0 ? game.bootLogoDuration : 0;
+    const rawProgress = maxDuration > 0 ? clamp(game.bootLogoTimer / maxDuration, 0, 1) : 1;
+    const fadeIn = reducedMotion ? rawProgress : easeOutCubic(rawProgress);
+    const maxTargetWidth = WIDTH * 0.74;
+    const maxTargetHeight = HEIGHT * 0.48;
+    const widthScale = maxTargetWidth / logoStatus.width;
+    const heightScale = maxTargetHeight / logoStatus.height;
+    const fitScale = Math.min(1, widthScale, heightScale);
+    const baseWidth = Math.max(1, logoStatus.width * fitScale);
+    const baseHeight = Math.max(1, logoStatus.height * fitScale);
+    const pop = clamp(rawProgress / 0.34, 0, 1);
+    const settle = clamp((rawProgress - 0.34) / 0.66, 0, 1);
+    const scale = reducedMotion
+      ? 1
+      : rawProgress <= 0.34
+        ? 0.96 + 0.06 * easeOutCubic(pop)
+        : 1.02 - 0.02 * easeOutCubic(settle);
+
+    const logoWidth = baseWidth * scale;
+    const logoHeight = baseHeight * scale;
+    const logoX = (WIDTH - logoWidth) * 0.5;
+    const logoY = (HEIGHT - logoHeight) * 0.5;
+    const prevImageSmoothingEnabled = ctx.imageSmoothingEnabled;
+    const prevImageSmoothingQuality = ctx.imageSmoothingQuality;
+    const image = bootLogoAssetState.image;
+
+    ctx.save();
+    ctx.globalAlpha = fadeIn;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(image, logoX, logoY, logoWidth, logoHeight);
+    ctx.imageSmoothingEnabled = prevImageSmoothingEnabled;
+    ctx.imageSmoothingQuality = prevImageSmoothingQuality;
+
+    if (!reducedMotion) {
+      const shimmer = clamp((rawProgress - 0.18) / 0.72, 0, 1);
+      const shimmerVisible = shimmer > 0 && shimmer < 1 ? Math.sin(Math.PI * shimmer) : 0;
+      if (shimmerVisible > 0) {
+        const sweepX = logoX - logoWidth * 0.3 + logoWidth * 1.6 * shimmer;
+        const sweepW = logoWidth * 0.25;
+        const gradient = ctx.createLinearGradient(sweepX, logoY, sweepX + sweepW, logoY);
+        gradient.addColorStop(0, "rgba(255, 255, 255, 0)");
+        gradient.addColorStop(0.5, `rgba(255, 255, 255, ${0.14 * shimmerVisible})`);
+        gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+        ctx.globalAlpha = fadeIn * 0.7;
+        ctx.fillStyle = gradient;
+        ctx.fillRect(sweepX, logoY, sweepW, logoHeight);
+      }
+    }
+    ctx.restore();
   }
 
   function drawTitleFinalFrame(options = {}) {
@@ -8745,6 +8902,7 @@
     const collections = getRenderCollectionsForText();
     const safeState = game && typeof game === "object" ? game : {};
     const safePlayer = player && typeof player === "object" ? player : {};
+    const runtimeState = AIPU.state && AIPU.state.runtime ? AIPU.state.runtime : {};
     const safeEnemies = Array.isArray(collections.enemies) ? collections.enemies : [];
     const safeBullets = Array.isArray(collections.bullets) ? collections.bullets : [];
     const safeEnemyBullets = Array.isArray(collections.enemyBullets) ? collections.enemyBullets : [];
@@ -8869,6 +9027,16 @@
           waterStateMissingInPlayingFloorRange: waterStateMissing,
           reducedMotion: isReducedMotion()
         },
+        title: {
+          state: safeState.state || "",
+          titleIntroTime: roundTo(safeState.titleIntroTime, 3),
+          bootLogoActive: !!safeState.bootLogoActive,
+          bootLogoTimer: roundTo(safeState.bootLogoTimer, 3),
+          bootLogoDuration: roundTo(safeState.bootLogoDuration, 3),
+          bootLogoLoadState: typeof safeState.bootLogoLoadState === "string" ? safeState.bootLogoLoadState : "",
+          bootLogoSeenThisSession: !!runtimeState.bootLogoSeenThisSession,
+          bootLogoAssetStatus: getBootLogoAssetStatus()
+        },
         playerSprite: {
           facingDirection: playerFacingDirection,
           requestedMode: playerSpriteModeState.requestedMode,
@@ -8915,6 +9083,7 @@
     roundRectPath,
     isTitleSequenceComplete,
     getSpriteLoadState,
+    getBootLogoAssetStatus,
     renderGameToText,
     getRenderPerfState: getRenderPerfStateSnapshot,
     resetPlayerSpriteState

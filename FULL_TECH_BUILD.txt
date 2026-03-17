@@ -1,10 +1,10 @@
 # FULL_TECH_BUILD
 
 ## 1) Snapshot header
-- UpdatedAt: 2026-03-06T20:10:10Z
+- UpdatedAt: 2026-03-17T21:29:38Z
 - RepoName: WONDERLAND
-- Branch, HEAD commit hash: main, 7fbeeab
-- Dirty state: yes (`node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary capture/smoke artifacts)
+- Branch, HEAD commit hash: main, 60271a4
+- Dirty state: yes (`src/core.js`, `src/render.js`, `src/systems.js`, `index.html`, `wonderland-qa.spec.js`, `README.md`, `progress.md`, `OSAN_INTRO.png`, `assets/branding/`, `node_modules/`, `output/`, `test-results/`, and `tmp-*` temporary artifacts)
 - Primary languages + package managers detected: JavaScript, HTML, CSS, JSON | npm
 
 ## 2) What this repo is
@@ -92,7 +92,10 @@ WONDERLAND is a browser-first vanilla JS canvas game that teaches neural-network
   - If DEV MODE is active, completed status and risks are in `final_build/CURRENT_GAPS.txt`.
 
 ## 7) Recent change log (rolling)
-- 2026-03-06T20:10:10Z | Deployed gameplay sprite scale pass by pushing commit `7fbeeab` to both `origin/main` and `origin/gh-pages`; remote heads verified aligned on the same commit | `FULL_TECH_BUILD.txt`
+- 2026-03-17T20:45:49Z | Completed one-shot boot-logo TITLE integration across runtime state, render intro path, input timing gate, deterministic Playwright coverage, and cache-bust refresh for touched runtime scripts | `src/core.js`, `src/systems.js`, `src/render.js`, `index.html`, `wonderland-qa.spec.js`, `README.md`, `progress.md`
+- 2026-03-17T20:43:08Z | Re-pointed boot-logo intro asset load path to root `OSAN_INTRO.png` and created committed root copy from the existing branding logo source for deterministic repo-native usage | `src/render.js`, `OSAN_INTRO.png`
+- 2026-03-17T20:42:02Z | Added boot-logo intro render plumbing: added dedicated boot-logo asset loader/status helpers (`ensureBootLogoAsset`, `getBootLogoAssetStatus`) and `drawBootLogoIntro()` in `src/render.js`, and exposed boot-logo asset status through render debug + `AIPU.render`; added TITLE branch guard for logo intro | `src/render.js`, `assets/branding/osan-games-logo.png`
+- 2026-03-06T20:10:50Z | Deployed gameplay sprite scale pass and final snapshot sync to both `origin/main` and `origin/gh-pages`; remote heads verified aligned on commit `60271a4` | `FULL_TECH_BUILD.txt`
 - 2026-03-06T20:07:03Z | Reduced gameplay player sprite size by 20% via shared mode-aware draw-box sizing in `src/render.js` (`move|shoot|dual|omni` only, `death` unchanged), bumped `render.js` bootstrap token to `v=20260306-1`, and validated with `node --check`, `npm run qa:deps-contract`, and local `develop-web-game` screenshot/state captures | `src/render.js`, `index.html`, `progress.md`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`
 - 2026-03-04T20:06:40Z | Fixed initial-launch/idle visual flash by making `drawPlayer` treat player sprite loading as pending and suppressing procedural fallback until assets settle (`drawPlayerSprite` now returns load/pending status); updated `index.html` cache token to `render.js?v=20260304-5` and documented in render component notes | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`
 - 2026-03-04T19:34:13Z | Deployed death sprite sizing pass by pushing commit `127af80` to `main` and mirroring to `gh-pages` (cache token `v=20260304-4`, death-frame edge-noise trim path) | `src/render.js`, `index.html`, `final_build/CURRENT_GAPS.txt`, `final_build/COMPONENT__Render.txt`, `FULL_TECH_BUILD.txt`

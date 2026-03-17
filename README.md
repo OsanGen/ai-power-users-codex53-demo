@@ -138,6 +138,7 @@ From `src/core.js`:
 ### Title (`TITLE`)
 
 - `Enter` / `Space`: start run
+- On first fresh page load, TITLE runs a one-time OSAN startup logo intro before title cinematic and marks itself as seen for the session.
 - `T`: open Source Text modal
 - `R`: clear checkpoint and force start from Floor 1
 

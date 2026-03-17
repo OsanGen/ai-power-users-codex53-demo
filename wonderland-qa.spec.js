@@ -1,7 +1,33 @@
 const { test, expect } = require('@playwright/test');
 
+const targetUrl = process.env.QA_TARGET_URL || "http://127.0.0.1:4173";
+
+const getBootDebug = async (page) =>
+  page.evaluate(() => {
+    const renderText = typeof window.render_game_to_text === "function" ? window.render_game_to_text() : "{}";
+    let renderDebug;
+    try {
+      renderDebug = JSON.parse(renderText);
+    } catch (_error) {
+      renderDebug = null;
+    }
+
+    const game = window.AIPU?.state?.game || {};
+    const runtime = window.AIPU?.state?.runtime || {};
+    return {
+      renderTitle: renderDebug && renderDebug.debug && renderDebug.debug.title ? renderDebug.debug.title : null,
+      gameState: game.state || "",
+      titleIntroTime: Number.isFinite(game.titleIntroTime) ? game.titleIntroTime : 0,
+      bootLogoActive: !!game.bootLogoActive,
+      bootLogoTimer: Number.isFinite(game.bootLogoTimer) ? game.bootLogoTimer : 0,
+      bootLogoDuration: Number.isFinite(game.bootLogoDuration) ? game.bootLogoDuration : 0,
+      bootLogoSeenThisSession: !!runtime.bootLogoSeenThisSession,
+      renderGameError: renderDebug && renderDebug.error ? renderDebug.error : null
+    };
+  });
+
 test('AIPU UI bootstrap smoke check', async ({ page }) => {
-  const target = process.env.QA_TARGET_URL || "http://127.0.0.1:4173";
+  const target = targetUrl;
 
   await page.goto(target, { waitUntil: "domcontentloaded" });
   await expect(page.locator("canvas")).toBeVisible();
@@ -24,8 +50,54 @@ test('AIPU UI bootstrap smoke check', async ({ page }) => {
   expect(smoke.requiredDomIdsCount, "required DOM id contract should be populated").toBeGreaterThan(0);
 });
 
+test('boot logo intro runs once per session from TITLE', async ({ page }) => {
+  await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
+  await expect(page.locator("canvas")).toBeVisible();
+
+  const initial = await getBootDebug(page);
+  expect(initial.renderGameError, "render_game_to_text should serialize title diagnostics").toBeNull();
+  expect(initial.gameState, "boot contract: fresh state is TITLE").toBe("TITLE");
+  expect(initial.bootLogoActive, "boot-logo intro should start active on first load").toBe(true);
+  expect(initial.bootLogoSeenThisSession, "fresh session should not have seen boot logo yet").toBe(false);
+  expect(initial.bootLogoTimer, "timer should start near zero").toBeLessThan(0.2);
+
+  await page.evaluate(() => window.advanceTime(700));
+  const mid = await getBootDebug(page);
+  expect(mid.bootLogoActive, "boot-logo intro should still be active before duration").toBe(true);
+  expect(mid.bootLogoTimer, "boot-logo timer should advance while active").toBeGreaterThan(0);
+  expect(mid.titleIntroTime, "title cinematic should remain paused while logo runs").toBe(0);
+
+  await page.evaluate(() => window.advanceTime(900));
+  const finished = await getBootDebug(page);
+  expect(finished.bootLogoActive, "logo should auto-complete after duration").toBe(false);
+  expect(finished.bootLogoSeenThisSession, "session flag should set when logo completes").toBe(true);
+  expect(finished.gameState, "still in TITLE after logo completes").toBe("TITLE");
+  expect(finished.titleIntroTime, "title cinematic should start from near-zero after logo completion").toBeLessThan(0.25);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.locator("canvas")).toBeVisible();
+  const freshStart = await getBootDebug(page);
+  expect(freshStart.gameState, "reload starts fresh runtime boot flow").toBe("TITLE");
+  expect(freshStart.bootLogoActive, "logo intro should be active on fresh page load").toBe(true);
+  expect(freshStart.bootLogoSeenThisSession, "fresh load should start with session unseen flag false").toBe(false);
+
+  await page.keyboard.press(" ");
+  const afterSkip = await getBootDebug(page);
+  expect(afterSkip.gameState, "single-space from active logo should leave TITLE flow immediately").not.toBe("TITLE");
+
+  await page.evaluate(() => {
+    if (window.AIPU?.systems?.toTitle) {
+      window.AIPU.systems.toTitle();
+    }
+  });
+  const afterReturn = await getBootDebug(page);
+  expect(afterReturn.gameState, "toTitle() should return to TITLE").toBe("TITLE");
+  expect(afterReturn.bootLogoActive, "subsequent toTitle() in session should not reactivate logo").toBe(false);
+  expect(afterReturn.bootLogoSeenThisSession, "boot flag should remain persisted in session").toBe(true);
+});
+
 test('diagnose input/sprite/audio states', async ({ page }) => {
-  const target = process.env.QA_TARGET_URL || "http://127.0.0.1:4173";
+  const target = targetUrl;
   const readAudioState = async () => page.evaluate(() => {
     const state = window.AIPU?.audio?.getState?.() || null;
     if (!state) {

@@ -158,6 +158,18 @@ Original prompt: I want the code way better—fewer errors, higher performance, 
   - after `enterGameOver()`: `hold=0`, `burst=normal`
   - forced `DEATH_LESSON` step with injected stale hold/key: post-step `hold=0`, `key=\"\"`, `burst=normal`
 
+## 2026-03-17 patch log (boot-logo intro one-time session gate)
+- `/Users/abelsanchez/CODEX/WONDERLAND/index.html`
+  - Bumped runtime cache-bust query values for changed boot-logo runtime files: `core.js`, `systems.js`, `render.js`.
+- `/Users/abelsanchez/CODEX/WONDERLAND/wonderland-qa.spec.js`
+  - Added deterministic TITLE boot-logo checks using `window.advanceTime(...)`, `window.render_game_to_text()`, and `AIPU.state`:
+    - fresh boot starts in `TITLE`
+    - logo intro is active on first load and clears itself after duration
+    - one `Space` from active logo starts run immediately
+    - later `toTitle()` in same session does not re-enable logo
+- `/Users/abelsanchez/CODEX/WONDERLAND/README.md`
+  - Documented one-time OSAN startup logo intro behavior nested in TITLE.
+
 ## 2026-02-20 verification log (full cross-state chain)
 - Ran a single deterministic chain probe on floor 10:
   - PLAYING start
