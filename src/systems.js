@@ -1257,10 +1257,21 @@
 
     if (game.state === GameState.TITLE) {
       if (isSpaceKey(event) || isEnterKey(event)) {
-        if (!(AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete())) {
-          game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
+        if (game.bootLogoActive) {
+          const bootLogoDuration = Number.isFinite(game.bootLogoDuration) && game.bootLogoDuration > 0 ? game.bootLogoDuration : 0;
+          game.bootLogoActive = false;
+          game.bootLogoSkipped = true;
+          game.bootLogoTimer = bootLogoDuration;
+          if (AIPU.state && AIPU.state.runtime) {
+            AIPU.state.runtime.bootLogoSeenThisSession = true;
+          }
+          startRun();
+        } else {
+          if (!(AIPU.render && typeof AIPU.render.isTitleSequenceComplete === "function" && AIPU.render.isTitleSequenceComplete())) {
+            game.titleIntroTime = AIPU.content.TITLE_SEQUENCE.finish;
+          }
+          startRun();
         }
-        startRun();
       } else if (lower === "t") {
         openTextModal();
       } else if (lower === "r") {
@@ -1714,6 +1725,23 @@
     game.clearTimer = 0;
     game.kills = 0;
     game.titleIntroTime = 0;
+    const runtimeState = AIPU.state && AIPU.state.runtime ? AIPU.state.runtime : null;
+    const bootLogoAssetStatus =
+      AIPU.render &&
+      typeof AIPU.render.getBootLogoAssetStatus === "function" &&
+      AIPU.render.getBootLogoAssetStatus();
+    game.bootLogoLoadState = bootLogoAssetStatus && typeof bootLogoAssetStatus.status === "string" ? bootLogoAssetStatus.status : "idle";
+    // Boot logo remains inside TITLE and only appears once per page session.
+    if (runtimeState && runtimeState.bootLogoSeenThisSession) {
+      // Runtime state intentionally persists across title resets; do not clear here.
+      game.bootLogoActive = false;
+      game.bootLogoTimer = 0;
+      game.bootLogoSkipped = false;
+    } else {
+      game.bootLogoActive = true;
+      game.bootLogoTimer = 0;
+      game.bootLogoSkipped = false;
+    }
     game.upgradeOptions = [];
     game.upgradeSelectedIndex = 0;
     game.upgradeConfirmCooldown = 0;
@@ -2098,6 +2126,39 @@
     updateMuzzleFlashes(dt);
 
     if (game.state === GameState.TITLE) {
+      if (game.bootLogoActive) {
+        const bootLogoStatus =
+          AIPU.render &&
+          typeof AIPU.render.getBootLogoAssetStatus === "function" &&
+          AIPU.render.getBootLogoAssetStatus();
+        const isBootLogoLoadFailed = bootLogoStatus && bootLogoStatus.status === "failed";
+
+        if (bootLogoStatus && typeof bootLogoStatus.status === "string") {
+          game.bootLogoLoadState = bootLogoStatus.status;
+        }
+
+        if (isBootLogoLoadFailed) {
+          game.bootLogoActive = false;
+          game.bootLogoSkipped = false;
+          game.bootLogoTimer = Number.isFinite(game.bootLogoDuration) ? Math.max(0, game.bootLogoDuration) : 0;
+          if (AIPU.state && AIPU.state.runtime) {
+            AIPU.state.runtime.bootLogoSeenThisSession = true;
+          }
+          return;
+        }
+
+        game.bootLogoTimer += dt;
+        const bootLogoDuration = Number.isFinite(game.bootLogoDuration) && game.bootLogoDuration > 0 ? game.bootLogoDuration : 0;
+        if (game.bootLogoTimer >= bootLogoDuration) {
+          game.bootLogoTimer = bootLogoDuration;
+          game.bootLogoActive = false;
+          if (AIPU.state && AIPU.state.runtime) {
+            AIPU.state.runtime.bootLogoSeenThisSession = true;
+          }
+        }
+        return;
+      }
+
       game.titleIntroTime += dt;
       return;
     }

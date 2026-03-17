@@ -222,6 +222,11 @@
       kills: 0,
       beatCount: 0,
       titleIntroTime: 0,
+      bootLogoActive: false,
+      bootLogoTimer: 0,
+      bootLogoDuration: 1.45,
+      bootLogoSkipped: false,
+      bootLogoLoadState: "idle",
       upgradeOptions: [],
       upgradeSelectedIndex: 0,
       upgradeConfirmCooldown: 0,
@@ -284,6 +289,9 @@
       lastAimY: -1,
       shieldCharges: 0,
       shieldBreakFlash: 0
+    },
+    runtime: {
+      bootLogoSeenThisSession: false
     },
     enemyIdCounter: 0,
     activeWaves: [],
@@ -563,6 +571,7 @@
   function getQaStateSnapshot(limit = 6) {
     const gameState = state && state.game ? state.game : {};
     const playerState = state && state.player ? state.player : {};
+    const runtimeState = state && state.runtime ? state.runtime : {};
     const floor = AIPU.systems && typeof AIPU.systems.currentFloor === "function" ? AIPU.systems.currentFloor() : null;
     return {
       coordinateSystem: "origin-top-left,+x-right,+y-down",
@@ -574,6 +583,15 @@
         floorElapsed: toSafeNumber(gameState.floorElapsed, 0),
         kills: toSafeNumber(gameState.kills, 0),
         globalTime: toSafeNumber(gameState.globalTime, 0)
+      },
+      title: {
+        state: gameState.state || "",
+        titleIntroTime: toSafeNumber(gameState.titleIntroTime, 0),
+        bootLogoActive: !!gameState.bootLogoActive,
+        bootLogoTimer: toSafeNumber(gameState.bootLogoTimer, 0),
+        bootLogoDuration: toSafeNumber(gameState.bootLogoDuration, 0),
+        bootLogoLoadState: typeof gameState.bootLogoLoadState === "string" ? gameState.bootLogoLoadState : "",
+        bootLogoSeenThisSession: !!runtimeState.bootLogoSeenThisSession
       },
       player: {
         x: toSafeNumber(playerState.x, 0),
